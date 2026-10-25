@@ -1,0 +1,10 @@
+#!/bin/sh
+# Refresh auto-generated README sections; abort the push if they were stale so
+# the update is committed alongside the change.
+root=$(git rev-parse --show-toplevel) && cd "$root" || exit 1
+node scripts/update-readme.mjs || exit 1
+if ! git diff --quiet -- README.md; then
+  echo "pre-push: README.md was out of date and has been regenerated."
+  echo "Commit it (git add README.md && git commit) and push again."
+  exit 1
+fi

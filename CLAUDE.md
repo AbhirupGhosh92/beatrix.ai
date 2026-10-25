@@ -16,6 +16,8 @@ npm run clean     # remove dist and build caches
 npm run start     # build, then serve it
 ```
 
+A versioned `.githooks/pre-push` hook (enable with `git config core.hooksPath .githooks`) runs `scripts/update-readme.mjs`, which regenerates the README's marked Scripts and Project structure sections and aborts the push if they changed. `main` is branch-protected on GitHub: push a branch and open a PR.
+
 There is no test runner configured. Both `package-lock.json` and `pnpm-lock.yaml` are present; no package manager is mandated by the repo.
 
 ## State of the project
