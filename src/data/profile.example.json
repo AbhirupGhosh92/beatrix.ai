@@ -1,0 +1,426 @@
+{
+  "site": {
+    "brand": "Your Name"
+  },
+  "person": {
+    "name": "Your Name",
+    "initials": "YN",
+    "title": "Example text",
+    "tagline": "Example text",
+    "location": "Example text",
+    "availability": "Example text",
+    "summary": "Example text",
+    "avatar": "/avatar.jpg",
+    "resumeFile": "/resume.docx"
+  },
+  "contact": {
+    "email": "you@example.com",
+    "linkedin": "https://www.linkedin.com/in/your-handle",
+    "github": "https://github.com/your-handle"
+  },
+  "labels": {
+    "downloadResume": "Download resume",
+    "resume": "Resume",
+    "email": "Email",
+    "copyEmail": "Copy email",
+    "emailCopied": "Email copied to clipboard",
+    "linkedin": "LinkedIn",
+    "github": "GitHub"
+  },
+  "hero": {
+    "rotatingPrefix": "Example text",
+    "rotating": [
+      "Example text",
+      "Example text",
+      "Example text",
+      "Example text"
+    ]
+  },
+  "stats": [
+    {
+      "value": 10,
+      "suffix": "Example text",
+      "label": "Example text",
+      "desc": "Example text"
+    },
+    {
+      "value": 300,
+      "suffix": "Example text",
+      "label": "Example text",
+      "desc": "Example text"
+    },
+    {
+      "value": 100,
+      "suffix": "Example text",
+      "label": "Example text",
+      "desc": "Example text"
+    },
+    {
+      "value": 10,
+      "prefix": "Example text",
+      "suffix": "Example text",
+      "label": "Example text",
+      "desc": "Example text"
+    }
+  ],
+  "about": {
+    "kicker": "Example text",
+    "title": "Example text",
+    "meName": "You",
+    "meInitials": "YO",
+    "recruiterName": "Recruiter",
+    "recruiterInitials": "RC",
+    "chat": [
+      {
+        "from": "Example text",
+        "text": "Example text"
+      },
+      {
+        "from": "Example text",
+        "text": "Example text"
+      },
+      {
+        "from": "Example text",
+        "text": "Example text"
+      },
+      {
+        "from": "Example text",
+        "text": "Example text"
+      },
+      {
+        "from": "Example text",
+        "text": "Example text"
+      },
+      {
+        "from": "Example text",
+        "text": "Example text"
+      }
+    ]
+  },
+  "experience": {
+    "kicker": "Example text",
+    "title": "Example text",
+    "roles": [
+      {
+        "company": "Example text",
+        "client": "Example text",
+        "title": "Example text",
+        "period": "Example text",
+        "location": "Example text",
+        "icon": "Example text",
+        "programs": [
+          {
+            "name": "Example text",
+            "bullets": [
+              "Example text",
+              "Example text",
+              "Example text",
+              "Example text"
+            ]
+          },
+          {
+            "name": "Example text",
+            "bullets": [
+              "Example text",
+              "Example text",
+              "Example text",
+              "Example text"
+            ]
+          }
+        ]
+      },
+      {
+        "company": "Example text",
+        "title": "Example text",
+        "period": "Example text",
+        "location": "Example text",
+        "icon": "Example text",
+        "programs": [
+          {
+            "name": "Example text",
+            "bullets": [
+              "Example text",
+              "Example text",
+              "Example text",
+              "Example text",
+              "Example text",
+              "Example text"
+            ]
+          }
+        ]
+      },
+      {
+        "company": "Example text",
+        "title": "Example text",
+        "period": "Example text",
+        "location": "Example text",
+        "icon": "Example text",
+        "programs": [
+          {
+            "name": "Example text",
+            "bullets": [
+              "Example text"
+            ]
+          }
+        ]
+      }
+    ],
+    "achievements": {
+      "title": "Example text",
+      "hint": "Example text",
+      "items": [
+        {
+          "title": "Example text",
+          "context": "Example text",
+          "before": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "after": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "solutions": [
+            "Example text",
+            "Example text",
+            "Example text",
+            "Example text"
+          ],
+          "pains": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ]
+        },
+        {
+          "title": "Example text",
+          "context": "Example text",
+          "before": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "after": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "solutions": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ],
+          "pains": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ]
+        },
+        {
+          "title": "Example text",
+          "context": "Example text",
+          "before": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "after": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "solutions": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ],
+          "pains": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ]
+        },
+        {
+          "title": "Example text",
+          "context": "Example text",
+          "before": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "after": {
+            "label": "Example text",
+            "value": "Example text"
+          },
+          "solutions": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ],
+          "pains": [
+            "Example text",
+            "Example text",
+            "Example text"
+          ]
+        }
+      ],
+      "revealHint": "Example text",
+      "painTitle": "Example text",
+      "solutionTitle": "Example text"
+    }
+  },
+  "skills": {
+    "kicker": "Example text",
+    "title": "Example text",
+    "groups": [
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      },
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      },
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      },
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      },
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      },
+      {
+        "group": "Example text",
+        "items": [
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text",
+          "Example text"
+        ]
+      }
+    ]
+  },
+  "education": {
+    "kicker": "Example text",
+    "title": "Example text",
+    "degrees": [
+      {
+        "degree": "Example text",
+        "school": "Example text",
+        "period": "Example text"
+      },
+      {
+        "degree": "Example text",
+        "school": "Example text",
+        "period": "Example text"
+      },
+      {
+        "degree": "Example text",
+        "school": "Example text",
+        "period": "Example text"
+      }
+    ],
+    "certificationsTitle": "Example text",
+    "certifications": [
+      "Example text",
+      "Example text",
+      "Example text"
+    ],
+    "publicationsTitle": "Example text",
+    "publications": [
+      "Example text",
+      "Example text"
+    ]
+  },
+  "beyondCode": {
+    "kicker": "Example text",
+    "title": "Example text",
+    "gaming": {
+      "title": "Example text",
+      "blurb": "Example text",
+      "badge": "Example text"
+    },
+    "travel": {
+      "title": "Example text",
+      "visited": [
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text",
+        "Example text"
+      ],
+      "nextLabel": "Example text",
+      "next": "Example text"
+    },
+    "coding": {
+      "title": "Example text",
+      "blurb": "Example text",
+      "loading": "Example text"
+    }
+  },
+  "footer": {
+    "copyrightHolder": "Example text"
+  },
+  "nav": {
+    "closeSidebarLabel": "close sidebar",
+    "moreLabel": "More",
+    "toggleThemeLabel": "Toggle dark theme",
+    "drawerItems": [
+      "Sidebar Item 1",
+      "Sidebar Item 2"
+    ],
+    "dropdownItems": [
+      {
+        "label": "Profile",
+        "icon": "user"
+      },
+      {
+        "label": "Settings",
+        "icon": "settings"
+      },
+      {
+        "label": "Log out",
+        "icon": "log-out"
+      }
+    ],
+    "backToTopLabel": "Back to top"
+  }
+}

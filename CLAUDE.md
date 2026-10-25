@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+npm run dev       # Vite dev server with HMR
+npm run build     # tsc -b (type-check) then vite build
+npm run lint      # eslint .
+npm run preview   # serve the production build
+npm run typecheck # tsc -b only
+npm run lint:fix  # eslint . --fix
+npm run check     # typecheck + lint
+npm run clean     # remove dist and build caches
+npm run start     # build, then serve it
+```
+
+There is no test runner configured. Both `package-lock.json` and `pnpm-lock.yaml` are present; no package manager is mandated by the repo.
+
+## State of the project
+
+Early scaffold from the Vite React + TypeScript template (React 19, Vite 8, TypeScript 6, ESLint 10 flat config). It is not yet an application:
+
+- `src/main.tsx` mounts `<App />` inside `StrictMode` into `#root`.
+- `src/App.tsx` composes the single-page personal bio/resume site (see Content below). `isLoggedIn` is a placeholder constant (currently `false`), so the drawer menu, hamburger and navbar dropdown are hidden.
+- Theming uses daisyUI's theme controller, with no React state: `ThemeToggle.tsx` renders a single `swap` button around a checkbox with class `theme-controller` and `value="beatrix-dark"`; while checked daisyUI applies that theme in pure CSS via `:has()`, unchecked falls back to the default light theme. `beatrix-dark` deliberately has no `prefersdark` flag (otherwise unchecking would fall back to dark on dark-mode OSes). The choice is saved in `localStorage` key `theme` (`beatrix-light`/`beatrix-dark`) and defaults to the OS preference on first visit; the initial checkbox state is computed in the component, and an inline script in `index.html` sets `data-theme` on `<html>` before first paint (no flash) which the component removes on mount. Anything keyed on the light theme (the light-theme font override, `cute-wiggle`) uses `:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked))`.
+- `src/index.css` holds the Tailwind/daisyUI setup, themes, fonts and global element styles (see Styling). `src/App.css` is leftover template styling.
+- `src/assets/` and `public/icons.svg` are template leftovers.
+
+There are no routes, API calls, or AI/LLM integration yet, despite the `beatrix.ai` name. Check the code before assuming any architecture exists.
+
+## Styling
+
+Tailwind CSS v4 (via the `@tailwindcss/vite` plugin in `vite.config.ts`) and daisyUI v5. There is no `tailwind.config.js`; configuration lives in CSS. `src/index.css` starts with `@import "tailwindcss";` and `@plugin "daisyui" { themes: false; }`, then defines two custom themes with `@plugin "daisyui/theme"`: `beatrix-light` (default) and `beatrix-dark`. Icons come from `lucide-react`; `.lucide` in `index.css` sets their stroke width. Built-in daisyUI themes are disabled, and component classes (`btn`, `card`, ...) are available everywhere. Load daisyUI with `@plugin`, never `@import` (that breaks the build). The two themes use daisyUI's stock palettes: `beatrix-light` is "pastel" and `beatrix-dark` is a true dark cyberpunk theme (colors from Cyberpunk 2077 branding/UI: neon yellow #FCEE0C text, magenta #FF1493 primary, cyan #03D8F3 secondary, neon purple #B026FF accent on black-navy #00060e surfaces, `color-scheme: dark`, square corners). Both themes' corner radii come from the `--radius-*` tokens. The theme names are kept because `ThemeToggle.tsx` references them. Hover effects use a soft glow. Fonts are loaded from Google Fonts in `index.html`: dark theme uses Rajdhani (body, `font-sans`) and Orbitron (headings and buttons, `font-display`, uppercase); the light theme overrides those two variables with Quicksand and Fredoka in normal case, via a `:root:has(input.theme-controller[value="beatrix-light"]:checked)` rule in `index.css`. All `<button>`s are globally styled `btn` (that rule is unlayered and would override daisyUI's layered `btn-primary` text color, so `button.btn-primary/-secondary/-accent` are re-applied after it) (plus `.button-primary/-secondary/-accent` variants) with a neon hover glow, a shine sweep (`shine-sweep` keyframes on `::after`) and a standalone `.hover-neon` class (the same lift, glow and shine as a primary button, for any element such as sidebar links; recolor with `[--hover-color:var(--color-accent)]`; in the light theme the hover text is auto-darkened via `--hover-text` since pastel colors are too pale to read), a quieter `.hover-subtle` (faint tint, primary text, 2px nudge; used in the drawer menu and footer links), and an opt-in glitch (`glitch` keyframes): `.button-glitch` is a separate button style combined with a color class, e.g. `button-secondary button-glitch`, and `.glitch-hover` applies it to any element such as the navbar title; in the light theme both classes play a cute jelly wiggle, `cute-wiggle`, instead) in `src/index.css`; all disabled under `prefers-reduced-motion`. Dependencies were added with pnpm, so `pnpm-lock.yaml` is current and `package-lock.json` is stale.
+
+## Content (bio / resume landing page)
+
+The page is for general recruiters: the site owner, an Engineering Manager (Android & AI/ML), tone "professional with a wink, leaning cyberpunk". **All copy, labels, metrics and links live in `src/data/profile.json`** (private, git-ignored; `profile.example.json` is the committed placeholder fallback), loaded and typed by `src/data/profile.ts` (the `Profile` interface; update both together when adding fields). Components and `main.tsx` (page title) contain no hardcoded text, so content can be regenerated or edited by changing only the JSON (metrics come from the resume, never invent numbers). Sections, in order, are `Hero` (text-rotate, aura + hover-3d `Avatar`, CTA buttons, copy-email toast), `Stats` (daisyUI stats with a JS count-up; daisyUI's countdown was dropped because it clips digits in fonts with uneven digit widths), `About` (chat bubbles), `Experience` (a grid of draggable daisyUI `diff` before/after cards from `experience.achievements`, then a timeline with collapse accordions; each card must be a true before/after pair from the resume; `AchievementCard` lists the item's `pains` while the red (before) side covers most of the card and its `solutions` while the green (after) side does, by watching the `.diff-resizer` size with a ResizeObserver since daisyUI's diff has no events; the pain points are inferred from each card's "before" state in the resume, so review them), `Skills` (tabs), `Education`, `BeyondCode` (hover-3d cards, skeleton/loading), then `Footer` and `BackToTop` (a fixed bottom-center button that springs in only within 120px of the page bottom, wibbles periodically (`wibble` keyframes, paused on hover) and smooth-scrolls to the top). Its styles are the `.back-to-top` rules in `index.css`, driven by a `data-visible` attribute, because unlayered `.button-*` rules override Tailwind position/transition utilities; the footer has extra bottom padding so the button does not cover text. `.button-*` + `fixed`/`absolute` is also re-applied in `index.css`. `Reveal` + `hooks/useInView.ts` handle scroll-in animation (the IntersectionObserver only fires on real scrolling in some headless browsers). No proficiency ratings are shown on purpose. The phone number is intentionally not published.
+
+Files in `public/`: `Abhirup_Ghosh_Resume.docx` (private, git-ignored; the example profile points at `/resume.docx`) is a copy of the resume with the phone number removed, used by the download buttons (swap in a PDF and update `person.resumeFile` in `profile.json`); `avatar.jpg` (not yet added) is the photo, and `Avatar.tsx` falls back to initials until it exists. Text contrast was audited in both themes (all visible text >= 4.5:1, 3:1 for large text; the light theme's secondary/accent/error/success `-content` colors and `neutral` are deliberately darker than daisyUI's stock pastel for this reason, so re-audit if you change them). Use `text-brand`, `text-brand-2`, `text-brand-3` (not `text-primary`/`secondary`/`accent`) for text and icons, since the pastel light theme's colors are too pale to read as text. lucide-react has no GitHub/LinkedIn brand icons, so `CodeXml`/`Users` stand in. daisyUI's `tabs` need the radio `input.tab` and `.tab-content` as direct children of `.tabs` (no wrapper elements). The selected skills tab is highlighted by a darker pill (dark purple with light text in the light theme, pink in the dark theme) that slides to the clicked tab: `Skills.tsx` measures the checked radio and sets `--pill-x/y/w/h` on `.tabs`, and `index.css` transitions them (enabled via `data-ready` after first placement, re-measured on resize and font load). The panel itself is not animated.
+
+## Responsive layout
+
+Mobile-first, checked from 320px to 1920px in both themes. `App.tsx` owns `isLoggedIn` (placeholder) and passes it to `Navbar`. The drawer is never permanent: at every width it is hidden until the navbar's menu button opens it as a slide-over (`w-72`/`sm:w-80`, `max-w-[85vw]`), and both only exist when logged in. Page content fills the available width up to `max-w-screen-2xl`, centered, with padding that grows at `sm`/`lg`. The navbar is a fixed top bar: `App.tsx` wraps it in a full-width `<header className="sticky top-0 z-30 ...">` (semi-transparent with backdrop blur and a bottom border) placed directly inside `drawer-content`, with the capped content container inside the header; keep it outside the page content container so sticky lasts the whole page. The navbar's left half is `flex-1 min-w-0` with a truncating title that shrinks on phones, and the right half is `flex-none`. Because unlayered `.button-*` rules beat daisyUI's layered modifiers, `index.css` re-applies `btn-square` and keeps `swap` buttons as a grid for `.button-*`; use `btn-square` with `.button-*` for icon buttons, and `self-start`/`self-center` rather than width utilities for button width.
+
+## Tooling constraints worth knowing
+
+- `tsconfig.app.json` (covers `src/`) enables `noUnusedLocals`/`noUnusedParameters`, so unused imports fail `npm run build`.
+- `verbatimModuleSyntax` is on: use `import type` for type-only imports.
+- `erasableSyntaxOnly` is on: no `enum`, `namespace`, or constructor parameter properties.
+- `allowImportingTsExtensions` is on, and existing code imports with explicit extensions (`./App.tsx`).
+- ESLint applies `react-hooks` and `react-refresh` (Vite preset) rules to `**/*.{ts,tsx}`. The refresh rule flags files that export both components and non-components, which matters for a context file that exports a provider and a hook.
+- The ESLint config is not type-aware (`recommended`, not `recommendedTypeChecked`).
