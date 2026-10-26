@@ -8,8 +8,6 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
-dist-ssr
 *.local
 
 # Editor directories and files
@@ -27,3 +25,9 @@ dist-ssr
 src/data/profile.json
 public/*.docx
 public/avatar.*
+
+# Next.js
+.next
+out
+next-env.d.ts
+*.tsbuildinfo

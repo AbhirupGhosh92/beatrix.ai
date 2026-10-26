@@ -72,27 +72,27 @@
     "recruiterInitials": "RC",
     "chat": [
       {
-        "from": "Example text",
+        "from": "recruiter",
         "text": "Example text"
       },
       {
-        "from": "Example text",
+        "from": "me",
         "text": "Example text"
       },
       {
-        "from": "Example text",
+        "from": "recruiter",
         "text": "Example text"
       },
       {
-        "from": "Example text",
+        "from": "me",
         "text": "Example text"
       },
       {
-        "from": "Example text",
+        "from": "recruiter",
         "text": "Example text"
       },
       {
-        "from": "Example text",
+        "from": "me",
         "text": "Example text"
       }
     ]
@@ -107,7 +107,7 @@
         "title": "Example text",
         "period": "Example text",
         "location": "Example text",
-        "icon": "Example text",
+        "icon": "ai",
         "programs": [
           {
             "name": "Example text",
@@ -134,7 +134,7 @@
         "title": "Example text",
         "period": "Example text",
         "location": "Example text",
-        "icon": "Example text",
+        "icon": "android",
         "programs": [
           {
             "name": "Example text",
@@ -154,7 +154,7 @@
         "title": "Example text",
         "period": "Example text",
         "location": "Example text",
-        "icon": "Example text",
+        "icon": "games",
         "programs": [
           {
             "name": "Example text",

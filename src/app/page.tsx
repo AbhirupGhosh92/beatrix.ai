@@ -1,16 +1,16 @@
-import Navbar from './components/Navbar.tsx'
-import DrawerMenu from './components/DrawerMenu.tsx'
-import Hero from './components/Hero.tsx'
-import Stats from './components/Stats.tsx'
-import About from './components/About.tsx'
-import Experience from './components/Experience.tsx'
-import Skills from './components/Skills.tsx'
-import Education from './components/Education.tsx'
-import BeyondCode from './components/BeyondCode.tsx'
-import Footer from './components/Footer.tsx'
-import BackToTop from './components/BackToTop.tsx'
+import Navbar from '../components/Navbar.tsx'
+import DrawerMenu from '../components/DrawerMenu.tsx'
+import Hero from '../components/Hero.tsx'
+import Stats from '../components/Stats.tsx'
+import About from '../components/About.tsx'
+import Experience from '../components/Experience.tsx'
+import Skills from '../components/Skills.tsx'
+import Education from '../components/Education.tsx'
+import BeyondCode from '../components/BeyondCode.tsx'
+import Footer from '../components/Footer.tsx'
+import BackToTop from '../components/BackToTop.tsx'
 
-function App() {
+export default function Home() {
   const isLoggedIn = false // Replace with actual login logic
   return (
     <div className="drawer">
@@ -40,5 +40,3 @@ function App() {
     </div>
   )
 }
-
-export default App

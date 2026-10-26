@@ -3,12 +3,10 @@
 // contain no hardcoded text. Facts and metrics come from the resume; do not add
 // numbers that are not in it.
 
-// profile.json is private and git-ignored; fall back to the placeholder example.
-const files = import.meta.glob<unknown>(
-  ['./profile.json', './profile.example.json'],
-  { eager: true, import: 'default' },
-)
-const raw = files['./profile.json'] ?? files['./profile.example.json']
+// profile.json is private and git-ignored; next.config.ts aliases
+// `profile-data` to it, or to the committed placeholder example when it is
+// missing. tsconfig `paths` points the alias at the example for typing.
+import raw from 'profile-data'
 
 export interface Stat {
   value: number

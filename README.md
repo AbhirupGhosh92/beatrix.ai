@@ -4,7 +4,7 @@ A single-page personal bio / resume site aimed at recruiters, built with a cyber
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)
 ![daisyUI](https://img.shields.io/badge/daisyUI-5-ff9903)
 
@@ -34,7 +34,7 @@ A single-page personal bio / resume site aimed at recruiters, built with a cyber
 
 ## Tech stack
 
-React 19 · TypeScript 6 · Vite 8 · Tailwind CSS v4 (CSS-first config) · daisyUI v5 · lucide-react icons · ESLint 10 flat config.
+React 19 · TypeScript 6 · Next.js 16 · Tailwind CSS v4 (CSS-first config) · daisyUI v5 · lucide-react icons · ESLint 10 flat config.
 
 ## Getting started
 
@@ -47,7 +47,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints (usually http://localhost:5173).
+Open http://localhost:3000.
 
 ## Customising the content
 
@@ -64,15 +64,14 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 <!-- scripts:start -->
 | Command | Runs |
 | --- | --- |
-| `npm run dev` | `vite` |
-| `npm run build` | `tsc -b && vite build` |
+| `npm run dev` | `next dev` |
+| `npm run build` | `next build` |
 | `npm run lint` | `eslint .` |
-| `npm run preview` | `vite preview` |
-| `npm run typecheck` | `tsc -b` |
+| `npm run start` | `next start` |
+| `npm run typecheck` | `next typegen && tsc --noEmit` |
 | `npm run lint:fix` | `eslint . --fix` |
 | `npm run check` | `npm run typecheck && npm run lint` |
-| `npm run clean` | `rm -rf dist node_modules/.vite *.tsbuildinfo node_modules/.tmp` |
-| `npm run start` | `npm run build && vite preview` |
+| `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
 <!-- scripts:end -->
 
 ## Project structure
@@ -80,10 +79,11 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 <!-- structure:start -->
 ```text
 src/
-├── App.tsx
 ├── index.css
-├── main.tsx
 ├── ThemeToggle.tsx
+├── app/
+│   ├── layout.tsx
+│   └── page.tsx
 ├── components/
 │   ├── About.tsx
 │   ├── AchievementCard.tsx
@@ -104,7 +104,6 @@ src/
 │   └── Stats.tsx
 ├── data/
 │   ├── profile.example.json
-│   ├── profile.json
 │   └── profile.ts
 └── hooks/
     └── useInView.ts
@@ -113,7 +112,7 @@ src/
 
 ## Theming
 
-Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts in `index.html`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
+Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
 
 ## Git hooks
 
