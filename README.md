@@ -136,3 +136,7 @@ gh pr create
 ```
 
 Run `npm run check` and `npm run build` before opening a PR.
+
+### Automated review
+
+`.github/workflows/claude-review.yml` runs [Claude Code Action](https://github.com/anthropics/claude-code-action) on every non-draft PR from this repo and posts inline review comments plus a summary. It needs a repository secret named `ANTHROPIC_API_KEY` (Settings → Secrets and variables → Actions). Fork PRs are skipped because GitHub withholds secrets from them.
