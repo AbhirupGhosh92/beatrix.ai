@@ -1,3 +1,6 @@
+'use client'
+
+
 import { useEffect, useState } from 'react'
 import { profile } from '../data/profile.ts'
 import { useInView } from '../hooks/useInView.ts'

@@ -1,4 +1,7 @@
-import { useEffect } from 'react'
+'use client'
+
+
+import { useEffect, useRef } from 'react'
 import { Cat, Cpu } from 'lucide-react'
 import { profile } from './data/profile.ts'
 
@@ -7,7 +10,7 @@ import { profile } from './data/profile.ts'
 // unchecked falls back to the default (light) theme. The dark theme has no
 // `prefersdark` flag, so the initial state is decided here: the saved choice in
 // localStorage, else the OS preference. The same logic runs in an inline script
-// in index.html (setting data-theme) so the first paint has no flash; it is
+// in app/layout.tsx (setting data-theme) so the first paint has no flash; it is
 // removed once this component mounts and the controller takes over.
 const STORAGE_KEY = 'theme'
 const DARK = 'beatrix-dark'
@@ -23,10 +26,13 @@ function getInitialTheme(): string {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? DARK : LIGHT
 }
 
-const initialTheme = getInitialTheme()
-
 export function ThemeToggle() {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Server markup is unchecked (no window); sync the checkbox with the saved or
+  // OS theme on mount, then drop the pre-paint data-theme so the controller wins.
   useEffect(() => {
+    if (inputRef.current) inputRef.current.checked = getInitialTheme() === DARK
     document.documentElement.removeAttribute('data-theme')
   }, [])
 
@@ -37,7 +43,7 @@ export function ThemeToggle() {
         value={DARK}
         className="theme-controller"
         aria-label={profile.nav.toggleThemeLabel}
-        defaultChecked={initialTheme === DARK}
+        ref={inputRef}
         onChange={(e) => {
           try {
             localStorage.setItem(STORAGE_KEY, e.target.checked ? DARK : LIGHT)

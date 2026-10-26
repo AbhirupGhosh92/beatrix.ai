@@ -1,10 +1,20 @@
-import { useState } from 'react'
+'use client'
+
+
+import { useEffect, useRef, useState } from 'react'
 import { profile } from '../data/profile.ts'
 
 /** Photo in a 3D-tilting card with an animated glowing aura; falls back to initials. */
 export default function Avatar() {
   const [failed, setFailed] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
   const { person } = profile
+
+  // The server-rendered <img> may fail before hydration, so onError would be missed.
+  useEffect(() => {
+    const img = imgRef.current
+    if (img?.complete && img.naturalWidth === 0) setFailed(true)
+  }, [])
 
   return (
     <div className="aura text-primary [--aura-radius:var(--radius-box)]">
@@ -15,7 +25,9 @@ export default function Avatar() {
               {person.initials}
             </div>
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
+              ref={imgRef}
               src={person.avatar}
               alt={`${person.name}, ${person.title}`}
               className="size-full object-cover"

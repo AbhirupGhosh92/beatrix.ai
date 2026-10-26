@@ -1,3 +1,6 @@
+'use client'
+
+
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
 import { profile, type Achievement } from '../data/profile.ts'

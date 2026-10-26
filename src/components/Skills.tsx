@@ -1,3 +1,6 @@
+'use client'
+
+
 import { Fragment, useCallback, useLayoutEffect, useRef } from 'react'
 import { Wrench } from 'lucide-react'
 import { profile } from '../data/profile.ts'
