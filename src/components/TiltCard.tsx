@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import Reveal from './Reveal.tsx'
 
 /**
@@ -27,10 +27,10 @@ export default function TiltCard({
           role: 'button',
           tabIndex: 0,
           onClick: onActivate,
-          onKeyDown: (e: React.KeyboardEvent) => {
+          onKeyDown: (e: KeyboardEvent) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
-              onActivate()
+              onActivate?.()
             }
           },
         })}

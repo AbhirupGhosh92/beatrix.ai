@@ -275,6 +275,10 @@ button:hover:not(:disabled)::after,
     box-shadow 300ms ease;
 }
 
+.hover-3d:focus-visible {
+  outline: none;
+}
+
 .hover-3d:hover > .tilt-card,
 .hover-3d:focus-visible > .tilt-card {
   border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);

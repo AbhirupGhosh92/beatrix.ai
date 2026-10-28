@@ -45,6 +45,8 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
   const upcoming = profile.upcomingProjects ?? {
     kicker: 'FUTURE INNOVATIONS',
     title: 'Upcoming Projects',
+    loginRequired: 'Login required',
+    unlocked: 'Unlocked',
     items: [
       {
         id: 'agentic-ai',
@@ -115,45 +117,24 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
 
       <div className="grid gap-6 md:grid-cols-3">
         {upcoming.items.map((item, idx) => (
-          <Reveal key={item.id} delay={idx * 100} className="flex">
-            <div
-              onClick={() => handleCardClick(item.title)}
-              className="hover-3d w-full cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleCardClick(item.title)
-                }
-              }}
-            >
-              <div className="card h-full border border-base-300 bg-base-200 transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
-                <div className="card-body flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="badge badge-primary">{item.status}</span>
-                      {!isLoggedIn ? (
-                        <span className="flex items-center gap-1 text-xs text-brand-2">
-                          <Lock size={14} /> Login required
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-xs text-success">
-                          <CheckCircle2 size={14} /> Unlocked
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="card-title text-xl mb-2">{item.title}</h3>
-                    <p className="text-sm opacity-80">{item.description}</p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="badge badge-outline text-xs">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+          <TiltCard
+            key={item.id}
+            delay={idx * 100}
+            bodyClassName="flex flex-col justify-between"
+            onActivate={() => handleCardClick(item.title)}
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="badge badge-primary">{item.status}</span>
+                {!isLoggedIn ? (
+                  <span className="flex items-center gap-1 text-xs text-brand-2">
+                    <Lock size={14} /> {upcoming.loginRequired ?? 'Login required'}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-success">
+                    <CheckCircle2 size={14} /> {upcoming.unlocked ?? 'Unlocked'}
+                  </span>
+                )}
               </div>
               <h3 className="card-title text-xl mb-2">{item.title}</h3>
               <p className="text-sm opacity-80">{item.description}</p>

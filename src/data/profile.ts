@@ -129,6 +129,8 @@ export interface Profile {
   upcomingProjects?: {
     kicker: string
     title: string
+    loginRequired?: string
+    unlocked?: string
     items: {
       id: string
       title: string

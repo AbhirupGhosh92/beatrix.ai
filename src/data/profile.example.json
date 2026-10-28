@@ -399,6 +399,8 @@
   "upcomingProjects": {
     "kicker": "FUTURE INNOVATIONS",
     "title": "Upcoming Projects",
+    "loginRequired": "Login required",
+    "unlocked": "Unlocked",
     "items": [
       {
         "id": "agentic-ai",
