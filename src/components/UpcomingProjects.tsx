@@ -81,16 +81,23 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true)
     setLoginError(null)
+
+    if (auth.app.options.apiKey === 'demo-api-key' || !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      setTimeout(() => {
+        setIsLoggingIn(false)
+        setShowModal(false)
+        onLogin()
+      }, 500)
+      return
+    }
+
     try {
       await signInWithPopup(auth, googleProvider)
       setShowModal(false)
       onLogin()
     } catch (err: unknown) {
-      console.warn('Firebase Auth popup failed or unconfigured, proceeding with simulated demo login:', err)
-      setTimeout(() => {
-        setShowModal(false)
-        onLogin()
-      }, 500)
+      const errorMsg = err instanceof Error ? err.message : 'Google authentication failed. Please try again.'
+      setLoginError(errorMsg)
     } finally {
       setIsLoggingIn(false)
     }

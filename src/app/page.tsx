@@ -21,9 +21,7 @@ export default function Home() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setIsLoggedIn(true)
-      }
+      setIsLoggedIn(!!user)
     })
     return () => unsubscribe()
   }, [])
