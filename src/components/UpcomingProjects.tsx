@@ -127,7 +127,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
                 }
               }}
             >
-              <div className="card h-full border border-base-300 bg-base-200 transition-colors hover:border-primary/50">
+              <div className="card h-full border border-base-300 bg-base-200 transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
                 <div className="card-body flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
