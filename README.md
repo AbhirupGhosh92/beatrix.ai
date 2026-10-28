@@ -106,7 +106,6 @@ src/
 │   └── Stats.tsx
 ├── data/
 │   ├── profile.example.json
-│   ├── profile.json
 │   └── profile.ts
 └── hooks/
     └── useInView.ts
