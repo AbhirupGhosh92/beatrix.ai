@@ -396,6 +396,33 @@
       "loading": "Example text"
     }
   },
+  "upcomingProjects": {
+    "kicker": "FUTURE INNOVATIONS",
+    "title": "Upcoming Projects",
+    "items": [
+      {
+        "id": "agentic-ai",
+        "title": "Agentic AI Multi-Agent Platform",
+        "description": "An autonomous AI agent orchestrator designed to solve complex multi-step developer workflows.",
+        "tags": ["AI/ML", "Next.js", "Python"],
+        "status": "In Development"
+      },
+      {
+        "id": "android-nextgen",
+        "title": "NextGen Android AI Companion",
+        "description": "On-device LLM integration with real-time audio and vision processing for high-performance mobile devices.",
+        "tags": ["Android", "Kotlin", "On-Device AI"],
+        "status": "Planning"
+      },
+      {
+        "id": "spatial-dashboard",
+        "title": "Cyberpunk Analytics Dashboard",
+        "description": "Interactive real-time telemetry visualization with high-fps webgl shader graphics.",
+        "tags": ["React", "Three.js", "TailwindCSS"],
+        "status": "Prototyping"
+      }
+    ]
+  },
   "footer": {
     "copyrightHolder": "Example text"
   },
