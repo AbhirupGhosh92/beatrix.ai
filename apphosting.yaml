@@ -1,0 +1,15 @@
+# Firebase App Hosting config. Safe to commit: it names secrets, never holds values.
+#
+# Create the secrets once (each prompts for the value and offers to grant the backend access):
+#   firebase apphosting:secrets:set PROFILE_JSON      # paste the contents of src/data/profile.json
+#   firebase apphosting:secrets:set EXAMPLE_API_KEY
+runConfig:
+  minInstances: 0
+  maxInstances: 1
+
+env:
+  # Written to src/data/profile.json by scripts/write-profile.mjs before `next build`.
+  - variable: PROFILE_JSON
+    secret: PROFILE_JSON
+    availability:
+      - BUILD
