@@ -17,6 +17,8 @@ npm run start     # next start (run build first)
 
 A versioned `.githooks/pre-push` hook (enable with `git config core.hooksPath .githooks`) runs `scripts/update-readme.mjs`, which regenerates the README's marked Scripts and Project structure sections and aborts the push if they changed. `main` is branch-protected on GitHub: push a branch and open a PR.
 
+Branch names must be `<feature|bug|spike|hotfix>/<issue-id>-<summary>` (lowercase, hyphenated, e.g. `feature/12-add-login`) or `release/<major.minor[.patch]>`. Create the GitHub issue first to get the ID. The same pattern is checked by `.github/workflows/branch-name.yml` on PRs, and the `.claude/hooks/check-branch-name.py` hook (wired up in `.claude/settings.json`) blocks Claude from creating or pushing branches that do not match.
+
 There is no test runner configured. Both `package-lock.json` and `pnpm-lock.yaml` are present; no package manager is mandated by the repo.
 
 ## State of the project
