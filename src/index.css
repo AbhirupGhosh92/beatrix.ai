@@ -262,6 +262,27 @@ button:hover:not(:disabled)::after,
   animation: shine-sweep 600ms ease-out;
 }
 
+/* .tilt-card: the shared look and hover for every hover-3d card (see TiltCard.tsx).
+   Border brightens and a soft glow fades in while the pointer is over the card;
+   the tilt itself comes from daisyUI's hover-3d. */
+.tilt-card {
+  border: 1px solid var(--color-base-300);
+  background-color: var(--color-base-200);
+  transition:
+    transform 500ms ease-out,
+    scale 500ms ease-out,
+    border-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.hover-3d:hover > .tilt-card,
+.hover-3d:focus-visible > .tilt-card {
+  border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+  box-shadow:
+    0 0 4px color-mix(in oklab, var(--color-primary) 50%, transparent),
+    0 4px 20px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
 /* .hover-subtle: a quieter hover for menus and lists. Faint tint, primary text
    and a 2px nudge; no glow, lift or shine. Recolor via --hover-color like
    .hover-neon. */
@@ -576,6 +597,7 @@ button:hover:not(:disabled)::after,
   .hover-neon,
   .hover-neon::after,
   .hover-subtle,
+  .tilt-card,
   .dropdown .dropdown-content,
   .dropdown .dropdown-content li,
   .button-glitch,

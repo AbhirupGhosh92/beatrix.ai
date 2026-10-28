@@ -1,24 +1,7 @@
-import type { ReactNode } from 'react'
 import { CodeXml, Gamepad2, Plane, Rocket } from 'lucide-react'
 import { profile } from '../data/profile.ts'
-import Reveal from './Reveal.tsx'
+import TiltCard from './TiltCard.tsx'
 import SectionHeading from './SectionHeading.tsx'
-
-/** A card wrapped in daisyUI hover-3d (needs 8 empty tracking cells after the card). */
-function Tilt({ children, delay }: { children: ReactNode; delay: number }) {
-  return (
-    <Reveal delay={delay} className="flex">
-      <div className="hover-3d w-full">
-        <div className="card h-full border border-base-300 bg-base-200">
-          <div className="card-body">{children}</div>
-        </div>
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} />
-        ))}
-      </div>
-    </Reveal>
-  )
-}
 
 export default function BeyondCode() {
   const { beyondCode } = profile
@@ -28,7 +11,7 @@ export default function BeyondCode() {
     <section>
       <SectionHeading id="beyond" icon={<Rocket />} title={beyondCode.title} kicker={beyondCode.kicker} />
       <div className="grid gap-6 md:grid-cols-3">
-        <Tilt delay={0}>
+        <TiltCard delay={0}>
           <h3 className="card-title">
             <Gamepad2 className="text-brand" aria-hidden="true" />
             {gaming.title}
@@ -37,9 +20,9 @@ export default function BeyondCode() {
           <div className="card-actions">
             <span className="badge badge-primary">{gaming.badge}</span>
           </div>
-        </Tilt>
+        </TiltCard>
 
-        <Tilt delay={100}>
+        <TiltCard delay={100}>
           <h3 className="card-title">
             <Plane className="text-brand-2" aria-hidden="true" />
             {travel.title}
@@ -60,9 +43,9 @@ export default function BeyondCode() {
               </span>
             </span>
           </div>
-        </Tilt>
+        </TiltCard>
 
-        <Tilt delay={200}>
+        <TiltCard delay={200}>
           <h3 className="card-title">
             <CodeXml className="text-brand-3" aria-hidden="true" />
             {coding.title}
@@ -76,7 +59,7 @@ export default function BeyondCode() {
             <span className="loading loading-dots text-brand-3" />
             <span className="text-sm opacity-70">{coding.loading}</span>
           </div>
-        </Tilt>
+        </TiltCard>
       </div>
     </section>
   )
