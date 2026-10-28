@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { FolderKanban, Lock, CheckCircle2, X } from 'lucide-react'
 import { signInWithPopup } from 'firebase/auth'
-import { auth, googleProvider } from '../lib/firebase.ts'
+import { getFirebaseAuth, getGoogleProvider } from '../lib/firebase.ts'
 import { profile } from '../data/profile.ts'
 import SectionHeading from './SectionHeading.tsx'
 import Reveal from './Reveal.tsx'
@@ -82,7 +82,8 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     setIsLoggingIn(true)
     setLoginError(null)
 
-    if (auth.app.options.apiKey === 'demo-api-key' || !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    const auth = getFirebaseAuth()
+    if (!auth || auth.app.options.apiKey === 'demo-api-key') {
       setTimeout(() => {
         setIsLoggingIn(false)
         setShowModal(false)
@@ -92,7 +93,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     }
 
     try {
-      await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, getGoogleProvider())
       setShowModal(false)
       onLogin()
     } catch (err: unknown) {

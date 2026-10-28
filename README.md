@@ -85,7 +85,13 @@ src/
 ├── ThemeToggle.tsx
 ├── app/
 │   ├── layout.tsx
-│   └── page.tsx
+│   ├── page.tsx
+│   ├── admin/
+│   │   └── page.tsx
+│   └── api/
+│       └── admin/
+│           └── cms/
+│               └── route.ts
 ├── components/
 │   ├── About.tsx
 │   ├── AchievementCard.tsx
@@ -104,9 +110,11 @@ src/
 │   ├── Reveal.tsx
 │   ├── SectionHeading.tsx
 │   ├── Skills.tsx
-│   └── Stats.tsx
+│   ├── Stats.tsx
+│   └── UpcomingProjects.tsx
 ├── data/
 │   ├── profile.example.json
+│   ├── profile.json
 │   └── profile.ts
 ├── hooks/
 │   └── useInView.ts

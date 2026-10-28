@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from 'firebase/analytics'
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 import { getRemoteConfig, fetchAndActivate, type RemoteConfig } from 'firebase/remote-config'
 
 const firebaseConfig = {
@@ -13,6 +14,8 @@ const firebaseConfig = {
 }
 
 let app: FirebaseApp | undefined
+let auth: Auth | undefined
+let googleProvider: GoogleAuthProvider | undefined
 let analyticsPromise: Promise<Analytics | undefined> | undefined
 let remoteConfigPromise: Promise<RemoteConfig | undefined> | undefined
 
@@ -30,6 +33,26 @@ export function getFirebaseApp(): FirebaseApp | undefined {
   }
 
   return app
+}
+
+export function getFirebaseAuth(): Auth | undefined {
+  if (!auth) {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
+    auth = getAuth(firebaseApp)
+  }
+
+  return auth
+}
+
+export function getGoogleProvider(): GoogleAuthProvider {
+  if (!googleProvider) {
+    googleProvider = new GoogleAuthProvider()
+  }
+
+  return googleProvider
 }
 
 export async function initAnalytics(): Promise<Analytics | undefined> {
