@@ -13,8 +13,8 @@ const firebaseConfig = {
 }
 
 let app: FirebaseApp | undefined
-let analytics: Analytics | undefined
-let remoteConfig: RemoteConfig | undefined
+let analyticsPromise: Promise<Analytics | undefined> | undefined
+let remoteConfigPromise: Promise<RemoteConfig | undefined> | undefined
 
 export function getFirebaseApp(): FirebaseApp | undefined {
   if (typeof window === 'undefined') {
@@ -33,42 +33,53 @@ export function getFirebaseApp(): FirebaseApp | undefined {
 }
 
 export async function initAnalytics(): Promise<Analytics | undefined> {
-  const firebaseApp = getFirebaseApp()
-  if (!firebaseApp) {
+  if (analyticsPromise) {
+    return analyticsPromise
+  }
+
+  analyticsPromise = (async () => {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
+
+    try {
+      const supported = await isAnalyticsSupported()
+      if (supported) {
+        return getAnalytics(firebaseApp)
+      }
+    } catch (error) {
+      console.warn('Firebase Analytics initialization failed:', error)
+    }
+
     return undefined
-  }
+  })()
 
-  if (analytics) {
-    return analytics
-  }
-
-  const supported = await isAnalyticsSupported()
-  if (supported) {
-    analytics = getAnalytics(firebaseApp)
-    return analytics
-  }
-
-  return undefined
+  return analyticsPromise
 }
 
 export async function initRemoteConfig(): Promise<RemoteConfig | undefined> {
-  const firebaseApp = getFirebaseApp()
-  if (!firebaseApp) {
-    return undefined
+  if (remoteConfigPromise) {
+    return remoteConfigPromise
   }
 
-  if (remoteConfig) {
-    return remoteConfig
-  }
+  remoteConfigPromise = (async () => {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
 
-  try {
-    remoteConfig = getRemoteConfig(firebaseApp)
-    remoteConfig.settings.minimumFetchIntervalMillis =
-      process.env.NODE_ENV === 'development' ? 10000 : 3600000
-    await fetchAndActivate(remoteConfig)
-    return remoteConfig
-  } catch (error) {
-    console.warn('Firebase Remote Config failed to fetch or activate:', error)
-    return remoteConfig
-  }
+    try {
+      const rc = getRemoteConfig(firebaseApp)
+      rc.settings.minimumFetchIntervalMillis =
+        process.env.NODE_ENV === 'development' ? 10000 : 3600000
+      await fetchAndActivate(rc)
+      return rc
+    } catch (error) {
+      console.warn('Firebase Remote Config failed to fetch or activate:', error)
+      return undefined
+    }
+  })()
+
+  return remoteConfigPromise
 }
