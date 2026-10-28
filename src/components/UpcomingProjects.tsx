@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FolderKanban, Lock, CheckCircle2, X } from 'lucide-react'
+import { FolderKanban, Lock, CheckCircle2 } from 'lucide-react'
 import { signInWithPopup } from 'firebase/auth'
 import { getFirebaseAuth, getGoogleProvider } from '../lib/firebase.ts'
 import { profile } from '../data/profile.ts'
@@ -37,8 +37,6 @@ interface UpcomingProjectsProps {
 }
 
 export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjectsProps) {
-  const [showModal, setShowModal] = useState(false)
-  const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | null>(null)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
 
@@ -70,14 +68,6 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     ],
   }
 
-  const handleCardClick = (projectTitle: string) => {
-    setSelectedProjectTitle(projectTitle)
-    setLoginError(null)
-    if (!isLoggedIn) {
-      setShowModal(true)
-    }
-  }
-
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true)
     setLoginError(null)
@@ -86,7 +76,6 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     if (!auth || auth.app.options.apiKey === 'demo-api-key') {
       setTimeout(() => {
         setIsLoggingIn(false)
-        setShowModal(false)
         onLogin()
       }, 500)
       return
@@ -94,7 +83,6 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
 
     try {
       await signInWithPopup(auth, getGoogleProvider())
-      setShowModal(false)
       onLogin()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Google authentication failed. Please try again.'
@@ -113,116 +101,98 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
         kicker={upcoming.kicker}
       />
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {upcoming.items.map((item, idx) => (
-          <Reveal key={item.id} delay={idx * 100} className="flex">
-            <div
-              onClick={() => handleCardClick(item.title)}
-              className="hover-3d w-full cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleCardClick(item.title)
-                }
-              }}
+      {!isLoggedIn ? (
+        <div className="relative rounded-2xl border border-base-300 bg-base-200/50 p-6 sm:p-8 overflow-hidden">
+          {/* Shimmer / Skeleton placeholders representing upcoming project cards */}
+          <div className="grid gap-6 md:grid-cols-3 select-none pointer-events-none filter blur-[2px] opacity-60">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="card border border-base-300 bg-base-200 p-6 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="skeleton h-5 w-24 rounded" />
+                    <div className="skeleton h-4 w-20 rounded" />
+                  </div>
+                  <div className="skeleton h-6 w-3/4 rounded mb-3" />
+                  <div className="skeleton h-4 w-full rounded mb-2" />
+                  <div className="skeleton h-4 w-5/6 rounded" />
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <div className="skeleton h-5 w-14 rounded-full" />
+                  <div className="skeleton h-5 w-16 rounded-full" />
+                  <div className="skeleton h-5 w-12 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Centered overlay containing the Google Sign In CTA */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-base-100/75 backdrop-blur-sm p-4 text-center z-10">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-base-200 border border-base-300 shadow-sm">
+              <Lock className="text-brand" size={22} />
+            </div>
+            <h3 className="font-display text-xl sm:text-2xl uppercase tracking-wide mb-2">
+              Unlock Upcoming Projects
+            </h3>
+            <p className="max-w-md text-sm text-base-content/80 mb-6">
+              Sign in with Google to reveal full details for upcoming projects and unlock the sidebar menu.
+            </p>
+
+            {loginError && (
+              <div className="mb-4 text-xs text-error font-medium">{loginError}</div>
+            )}
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
+              className="btn btn-neutral border border-base-300 gap-3 hover:bg-base-200 px-6"
             >
-              <div className="card h-full border border-base-300 bg-base-200 transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
-                <div className="card-body flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="badge badge-primary">{item.status}</span>
-                      {!isLoggedIn ? (
-                        <span className="flex items-center gap-1 text-xs text-brand-2">
-                          <Lock size={14} /> Login required
-                        </span>
-                      ) : (
+              {isLoggingIn ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Authenticating via Firebase...
+                </>
+              ) : (
+                <>
+                  <GoogleIcon />
+                  Sign in with Google
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-3">
+          {upcoming.items.map((item, idx) => (
+            <Reveal key={item.id} delay={idx * 100} className="flex">
+              <div className="hover-3d w-full">
+                <div className="card h-full border border-base-300 bg-base-200 transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
+                  <div className="card-body flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="badge badge-primary">{item.status}</span>
                         <span className="flex items-center gap-1 text-xs text-success">
                           <CheckCircle2 size={14} /> Unlocked
                         </span>
-                      )}
+                      </div>
+                      <h3 className="card-title text-xl mb-2">{item.title}</h3>
+                      <p className="text-sm opacity-80">{item.description}</p>
                     </div>
-                    <h3 className="card-title text-xl mb-2">{item.title}</h3>
-                    <p className="text-sm opacity-80">{item.description}</p>
-                  </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="badge badge-outline text-xs">
-                        {tag}
-                      </span>
-                    ))}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {item.tags.map((tag) => (
+                        <span key={tag} className="badge badge-outline text-xs">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div key={i} />
+                ))}
               </div>
-              {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} />
-              ))}
-            </div>
-          </Reveal>
-        ))}
-      </div>
-
-      {showModal && (
-        <div className="modal modal-open z-50">
-          <div className="modal-box relative z-10 border border-base-300 bg-base-100 max-w-md p-6 shadow-2xl">
-            <button
-              onClick={() => setShowModal(false)}
-              className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-base-200">
-                <Lock className="text-brand" size={24} />
-              </div>
-
-              <h3 className="font-display text-2xl uppercase tracking-wide">
-                Firebase Google Login
-              </h3>
-              <p className="mt-2 text-sm text-base-content/80">
-                Please sign in with your Google account via Firebase Auth to access details for{' '}
-                <span className="font-semibold text-brand-2">
-                  {selectedProjectTitle}
-                </span>{' '}
-                and activate the sidebar menu.
-              </p>
-
-              {loginError && (
-                <div className="mt-3 text-xs text-error">{loginError}</div>
-              )}
-
-              <div className="mt-6 flex flex-col gap-3">
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={isLoggingIn}
-                  className="btn btn-neutral w-full border border-base-300 gap-3 hover:bg-base-200"
-                >
-                  {isLoggingIn ? (
-                    <>
-                      <span className="loading loading-spinner loading-sm" />
-                      Authenticating via Firebase...
-                    </>
-                  ) : (
-                    <>
-                      <GoogleIcon />
-                      Sign in with Google (Firebase)
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <p className="mt-4 text-xs text-base-content/50">
-                Authenticates via Firebase Google Auth Provider.
-              </p>
-            </div>
-          </div>
-          <div
-            className="modal-backdrop bg-neutral-900/80 backdrop-blur-sm"
-            onClick={() => setShowModal(false)}
-          />
+            </Reveal>
+          ))}
         </div>
       )}
     </section>
