@@ -1,3 +1,8 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../lib/firebase.ts'
 import Navbar from '../components/Navbar.tsx'
 import DrawerMenu from '../components/DrawerMenu.tsx'
 import Hero from '../components/Hero.tsx'
@@ -7,11 +12,26 @@ import Experience from '../components/Experience.tsx'
 import Skills from '../components/Skills.tsx'
 import Education from '../components/Education.tsx'
 import BeyondCode from '../components/BeyondCode.tsx'
+import UpcomingProjects from '../components/UpcomingProjects.tsx'
 import Footer from '../components/Footer.tsx'
 import BackToTop from '../components/BackToTop.tsx'
 
 export default function Home() {
-  const isLoggedIn = false // Replace with actual login logic
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsLoggedIn(true)
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
+  const handleLogin = () => {
+    setIsLoggedIn(true)
+  }
+
   return (
     <div className="drawer">
       <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
@@ -31,6 +51,7 @@ export default function Home() {
             <Skills />
             <Education />
             <BeyondCode />
+            <UpcomingProjects isLoggedIn={isLoggedIn} onLogin={handleLogin} />
           </main>
         </div>
         <Footer />

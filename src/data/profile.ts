@@ -126,6 +126,17 @@ export interface Profile {
     travel: { title: string; visited: string[]; nextLabel: string; next: string }
     coding: { title: string; blurb: string; loading: string }
   }
+  upcomingProjects?: {
+    kicker: string
+    title: string
+    items: {
+      id: string
+      title: string
+      description: string
+      tags: string[]
+      status: string
+    }[]
+  }
   footer: { copyrightHolder: string }
 }
 
