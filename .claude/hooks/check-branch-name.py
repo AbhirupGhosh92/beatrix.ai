@@ -4,7 +4,7 @@
 Allowed branch names (same pattern as .github/workflows/branch-name.yml and
 .github/workflows/create-branch.yml):
 
-    feature|bug|spike|hotfix / [<issue-id>-]<lowercase-hyphenated-summary>
+    feature|bug|spike|hotfix / <issue-id>-<lowercase-hyphenated-summary>
     release / <major>.<minor>[.<patch>]
 
 Blocks (exit code 2, message on stderr) any Bash command that would create or
@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 PATTERN = re.compile(
-    r"^((feature|bug|spike|hotfix)/([0-9]+-)?[a-z0-9]+(-[a-z0-9]+)*"
+    r"^((feature|bug|spike|hotfix)/[0-9]+-[a-z0-9]+(-[a-z0-9]+)*"
     r"|release/[0-9]+\.[0-9]+(\.[0-9]+)?)$"
 )
 LONG_LIVED = {"main", "develop"}
@@ -188,7 +188,7 @@ def main():
     if bad:
         print(
             "Blocked: invalid branch name " + ", ".join(f"'{b}'" for b in bad) + ".\n"
-            "Branches must be <feature|bug|spike|hotfix>/[<issue-id>-]<summary> "
+            "Branches must be <feature|bug|spike|hotfix>/<issue-id>-<summary> "
             "(lowercase, hyphenated, e.g. feature/1234-add-login) or "
             "release/<major.minor[.patch]> (e.g. release/2.1.0).\n"
             "Create the GitHub issue first if there is no issue ID, then use its number.",

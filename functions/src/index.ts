@@ -1,7 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
-import * as initializeApp from "firebase-admin/app";
+import { initializeApp } from "firebase-admin/app";
 
-initializeApp.initializeApp();
+initializeApp();
 
 export const status = onRequest((request, response) => {
   response.status(200).json({
