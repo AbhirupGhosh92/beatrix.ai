@@ -1,0 +1,60 @@
+name: Create branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: Branch type
+        type: choice
+        options: [feature, bug, spike, hotfix, release]
+        required: true
+      name:
+        description: "release: version (2.1.0) | others: <issue-id>-<summary> (1234-add-login)"
+        required: true
+      base:
+        description: Base branch
+        default: main
+        required: true
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.BRANCH_APP_ID }}
+          private-key: ${{ secrets.BRANCH_APP_KEY }}
+
+      - name: Validate and create branch
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          TYPE: ${{ inputs.type }}
+          NAME: ${{ inputs.name }}
+          BASE: ${{ inputs.base }}
+        run: |
+          branch="$TYPE/$NAME"
+          pattern='^((feature|bug|spike|hotfix)/[0-9]+-[a-z0-9]+(-[a-z0-9]+)*|release/[0-9]+\.[0-9]+(\.[0-9]+)?)$'
+
+          if [[ ! "$branch" =~ $pattern ]]; then
+            echo "::error::'$branch' is invalid. Use <feature|bug|spike|hotfix>/<issue-id>-<summary> or release/<major.minor[.patch]>"
+            exit 1
+          fi
+
+          # Issue-based types must reference a real issue
+          if [[ "$TYPE" != "release" ]]; then
+            issue="${NAME%%-*}"
+            gh issue view "$issue" --repo "$GITHUB_REPOSITORY" >/dev/null \
+              || { echo "::error::Issue #$issue not found"; exit 1; }
+          fi
+
+          # Refuse if it already exists
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
+            echo "::error::$branch already exists"; exit 1
+          fi
+
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BASE" --jq .object.sha)
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/heads/$branch" -f sha="$sha"
+
+          echo "Created \`$branch\` from \`$BASE\`" >> "$GITHUB_STEP_SUMMARY"
