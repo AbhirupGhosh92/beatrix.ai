@@ -11,7 +11,7 @@ import Footer from '../components/Footer.tsx'
 import BackToTop from '../components/BackToTop.tsx'
 
 export default function Home() {
-  const isLoggedIn = false // Replace with actual login logic
+  const isLoggedIn = true
   return (
     <div className="drawer">
       <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
