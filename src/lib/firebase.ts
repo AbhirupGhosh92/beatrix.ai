@@ -1,15 +1,85 @@
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
+import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from 'firebase/analytics'
+import { getRemoteConfig, fetchAndActivate, type RemoteConfig } from 'firebase/remote-config'
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo-app.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-app',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-app.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:1234567890:web:1234567890',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
-export const auth = getAuth(app)
-export const googleProvider = new GoogleAuthProvider()
+let app: FirebaseApp | undefined
+let analyticsPromise: Promise<Analytics | undefined> | undefined
+let remoteConfigPromise: Promise<RemoteConfig | undefined> | undefined
+
+export function getFirebaseApp(): FirebaseApp | undefined {
+  if (typeof window === 'undefined') {
+    return undefined
+  }
+
+  if (!firebaseConfig.apiKey) {
+    return undefined
+  }
+
+  if (!app) {
+    app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+  }
+
+  return app
+}
+
+export async function initAnalytics(): Promise<Analytics | undefined> {
+  if (analyticsPromise) {
+    return analyticsPromise
+  }
+
+  analyticsPromise = (async () => {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
+
+    try {
+      const supported = await isAnalyticsSupported()
+      if (supported) {
+        return getAnalytics(firebaseApp)
+      }
+    } catch (error) {
+      console.warn('Firebase Analytics initialization failed:', error)
+    }
+
+    return undefined
+  })()
+
+  return analyticsPromise
+}
+
+export async function initRemoteConfig(): Promise<RemoteConfig | undefined> {
+  if (remoteConfigPromise) {
+    return remoteConfigPromise
+  }
+
+  remoteConfigPromise = (async () => {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
+
+    try {
+      const rc = getRemoteConfig(firebaseApp)
+      rc.settings.minimumFetchIntervalMillis =
+        process.env.NODE_ENV === 'development' ? 10000 : 3600000
+      await fetchAndActivate(rc)
+      return rc
+    } catch (error) {
+      console.warn('Firebase Remote Config failed to fetch or activate:', error)
+      return undefined
+    }
+  })()
+
+  return remoteConfigPromise
+}
