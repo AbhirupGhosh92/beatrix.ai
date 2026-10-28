@@ -85,10 +85,7 @@ src/
 ├── ThemeToggle.tsx
 ├── app/
 │   ├── layout.tsx
-│   ├── page.tsx
-│   └── api/
-│       └── example/
-│           └── route.ts
+│   └── page.tsx
 ├── components/
 │   ├── About.tsx
 │   ├── AchievementCard.tsx
