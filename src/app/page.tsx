@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../lib/firebase.ts'
+import { getFirebaseAuth } from '../lib/firebase.ts'
 import Navbar from '../components/Navbar.tsx'
 import DrawerMenu from '../components/DrawerMenu.tsx'
 import Hero from '../components/Hero.tsx'
@@ -20,6 +20,11 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    const auth = getFirebaseAuth()
+    if (!auth) {
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsLoggedIn(!!user)
     })
