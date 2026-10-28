@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import FirebaseInit from '../components/FirebaseInit.tsx'
 import { profile } from '../data/profile.ts'
 import '../index.css'
 
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <FirebaseInit />
+        {children}
+      </body>
     </html>
   )
 }

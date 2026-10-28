@@ -96,6 +96,7 @@ src/
 │   ├── DrawerMenu.tsx
 │   ├── Education.tsx
 │   ├── Experience.tsx
+│   ├── FirebaseInit.tsx
 │   ├── Footer.tsx
 │   ├── Hero.tsx
 │   ├── Navbar.tsx
@@ -106,10 +107,11 @@ src/
 │   └── Stats.tsx
 ├── data/
 │   ├── profile.example.json
-│   ├── profile.json
 │   └── profile.ts
-└── hooks/
-    └── useInView.ts
+├── hooks/
+│   └── useInView.ts
+└── lib/
+    └── firebase.ts
 ```
 <!-- structure:end -->
 
@@ -128,6 +130,7 @@ firebase apphosting:secrets:set EXAMPLE_API_KEY  # server-only key used by src/a
 
 - `PROFILE_JSON_URL` is available at build time. `npm run build` runs `scripts/write-profile.mjs` first (`prebuild`), which downloads that URL, validates the JSON and writes `src/data/profile.json`; without it the build falls back to `profile.example.json`. Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path; the build reads it as its service account, so grant that account `roles/storage.objectViewer` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:BUILD_SA_EMAIL --role=roles/storage.objectViewer`). An `https://` URL (public or signed) also works. For a local run, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`.
 - `EXAMPLE_API_KEY` is runtime-only and must be read in server code (route handlers) without a `NEXT_PUBLIC_` prefix.
+- Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
 - Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.
 
