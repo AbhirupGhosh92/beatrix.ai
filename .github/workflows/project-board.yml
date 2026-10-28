@@ -1,0 +1,93 @@
+name: Project board automation
+
+# Moves pull request cards on the Asterion-AI Roadmap board:
+#   PR opened / reopened / ready for review -> Review
+#   PR merged                               -> Deploy
+#
+# Requires a repo secret PROJECT_TOKEN: a personal access token with the
+# "project" scope (classic) or Projects read/write (fine-grained).
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_OWNER: AbhirupGhosh92
+  PROJECT_NUMBER: 10
+
+jobs:
+  move-card:
+    # Same-repo PRs only: fork PRs do not receive secrets.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move PR card
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Secret PROJECT_TOKEN is not set"
+            exit 1
+          fi
+
+          if [ "$ACTION" = "closed" ]; then
+            if [ "$MERGED" != "true" ]; then
+              echo "PR closed without merging; leaving the card alone."
+              exit 0
+            fi
+            status="Deploy"
+          else
+            if [ "$DRAFT" = "true" ]; then
+              echo "Draft PR; leaving the card alone."
+              exit 0
+            fi
+            status="Review"
+          fi
+
+          # Let the project's built-in rules (add to project, set Todo/Done)
+          # run first so this change is the last one applied.
+          sleep 20
+
+          project=$(gh api graphql \
+            -f query='query($owner:String!,$number:Int!){
+              user(login:$owner){ projectV2(number:$number){
+                id
+                field(name:"Status"){ ... on ProjectV2SingleSelectField { id options { id name } } }
+              } } }' \
+            -f owner="$PROJECT_OWNER" -F number="$PROJECT_NUMBER")
+
+          project_id=$(jq -r '.data.user.projectV2.id' <<<"$project")
+          field_id=$(jq -r '.data.user.projectV2.field.id' <<<"$project")
+          option_id=$(jq -r --arg s "$status" \
+            '.data.user.projectV2.field.options[] | select(.name == $s) | .id' <<<"$project")
+
+          if [ -z "$option_id" ] || [ "$option_id" = "null" ]; then
+            echo "::error::Status option '$status' not found on the project"
+            exit 1
+          fi
+
+          # Adding is idempotent: returns the existing item if already on the board.
+          item_id=$(gh api graphql \
+            -f query='mutation($p:ID!,$c:ID!){
+              addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item { id } } }' \
+            -f p="$project_id" -f c="$PR_NODE_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          gh api graphql \
+            -f query='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){
+              updateProjectV2ItemFieldValue(input:{
+                projectId:$p, itemId:$i, fieldId:$f,
+                value:{ singleSelectOptionId:$o }
+              }){ projectV2Item { id } } }' \
+            -f p="$project_id" -f i="$item_id" -f f="$field_id" -f o="$option_id" >/dev/null
+
+          echo "Moved PR card to '$status'." >> "$GITHUB_STEP_SUMMARY"
