@@ -122,11 +122,11 @@ Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-l
 The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-2 instances). Private values are Firebase secrets, declared by name only in `apphosting.yaml`:
 
 ```bash
-firebase apphosting:secrets:set PROFILE_JSON     # contents of src/data/profile.json
+firebase apphosting:secrets:set PROFILE_JSON_URL # gs://BUCKET/profile.json
 firebase apphosting:secrets:set EXAMPLE_API_KEY  # server-only key used by src/app/api/example/route.ts
 ```
 
-- `PROFILE_JSON` is available at build time. `npm run build` runs `scripts/write-profile.mjs` first (`prebuild`), which validates it and writes `src/data/profile.json`; without it the build falls back to `profile.example.json`.
+- `PROFILE_JSON_URL` is available at build time. `npm run build` runs `scripts/write-profile.mjs` first (`prebuild`), which downloads that URL, validates the JSON and writes `src/data/profile.json`; without it the build falls back to `profile.example.json`. Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path; the build reads it as its service account, so grant that account `roles/storage.objectViewer` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:BUILD_SA_EMAIL --role=roles/storage.objectViewer`). An `https://` URL (public or signed) also works. For a local run, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`.
 - `EXAMPLE_API_KEY` is runtime-only and must be read in server code (route handlers) without a `NEXT_PUBLIC_` prefix.
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
 - Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.
