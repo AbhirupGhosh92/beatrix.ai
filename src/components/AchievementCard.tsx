@@ -10,6 +10,10 @@ type Mode = 'pain' | 'solution' | null
 /** How far the handle must be from the middle (fraction of the width) before a side counts as dominant. */
 const DOMINANT_MARGIN = 0.05
 
+/** Which side dominates, given the red (before) side's share of the card width. */
+const modeFor = (redShare: number): Mode =>
+  redShare > 0.5 + DOMINANT_MARGIN ? 'pain' : redShare < 0.5 - DOMINANT_MARGIN ? 'solution' : null
+
 /**
  * A draggable daisyUI diff (before/after) card. While the red (before) side covers most of the
  * card it lists the pain points; while the green (after) side does, it lists the solutions.
@@ -29,10 +33,48 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
     const observer = new ResizeObserver(([entry]) => {
       // The handle's width is the width of the red (before) side.
       const redShare = entry.contentRect.width / figure.clientWidth
-      setMode(redShare > 0.5 + DOMINANT_MARGIN ? 'pain' : redShare < 0.5 - DOMINANT_MARGIN ? 'solution' : null)
+      setMode(modeFor(redShare))
     })
     observer.observe(handle)
     return () => observer.disconnect()
+  }, [])
+
+  // The native resize handle does not work on touch (daisyUI falls back to a tap-to-toggle), so
+  // drive the handle width from pointer events for touch and pen; mouse keeps the native resize.
+  useEffect(() => {
+    const figure = figureRef.current
+    const handle = figure?.querySelector<HTMLElement>('.diff-resizer')
+    if (!figure || !handle) return
+    let dragging = false
+    const moveTo = (clientX: number) => {
+      const rect = figure.getBoundingClientRect()
+      const px = Math.min(Math.max(clientX - rect.left, rect.width * 0.05), rect.width * 0.95)
+      handle.style.transition = 'none'
+      handle.style.width = handle.style.minWidth = handle.style.maxWidth = `${px}px`
+      setMode(modeFor(px / rect.width))
+    }
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return
+      dragging = true
+      figure.setPointerCapture(e.pointerId)
+      moveTo(e.clientX)
+    }
+    const onMove = (e: PointerEvent) => {
+      if (dragging) moveTo(e.clientX)
+    }
+    const onUp = () => {
+      dragging = false
+    }
+    figure.addEventListener('pointerdown', onDown)
+    figure.addEventListener('pointermove', onMove)
+    figure.addEventListener('pointerup', onUp)
+    figure.addEventListener('pointercancel', onUp)
+    return () => {
+      figure.removeEventListener('pointerdown', onDown)
+      figure.removeEventListener('pointermove', onMove)
+      figure.removeEventListener('pointerup', onUp)
+      figure.removeEventListener('pointercancel', onUp)
+    }
   }, [])
 
   const items = mode === 'pain' ? pains : mode === 'solution' ? solutions : []
@@ -41,7 +83,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
     <div>
       <p className="font-semibold">{title}</p>
       <p className="mb-2 text-sm opacity-80">{context}</p>
-      <figure ref={figureRef} className="diff aspect-16/7 w-full border border-base-300" tabIndex={0}>
+      <figure ref={figureRef} className="diff aspect-16/7 w-full touch-pan-y border border-base-300" tabIndex={0}>
         <div className="diff-item-1" role="img" aria-label={`${title}, ${before.label.toLowerCase()}: ${before.value}`}>
           <div className="grid h-full content-center justify-items-start bg-error px-6 text-left text-error-content sm:px-10">
             <p className="text-sm uppercase">{before.label}</p>
