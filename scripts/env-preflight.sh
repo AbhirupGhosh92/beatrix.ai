@@ -25,7 +25,7 @@ if [[ -z "${ENV_NAME}" || ! -f "${TFVARS_FILE}" ]]; then
   exit 1
 fi
 
-PROJECT_ID="${3:-$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' "${TFVARS_FILE}")}"
+PROJECT_ID="${3:-$(sed -n 's/^project_id[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${TFVARS_FILE}")}"
 CONSOLE="https://console.firebase.google.com/project/${PROJECT_ID}"
 ACTIONS=()
 
@@ -56,20 +56,25 @@ if [[ "${PHASE}" == "pre" ]]; then
 
 elif [[ "${PHASE}" == "post" ]]; then
   TOKEN="$(gcloud auth print-access-token 2>/dev/null)"
-  admin_api() {
-    curl -sf -H "Authorization: Bearer ${TOKEN}" -H "x-goog-user-project: ${PROJECT_ID}" \
-      "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/$1"
-  }
+  if [[ -z "${TOKEN}" ]]; then
+    # Without a token every check below would fail and ask for steps that may be done already.
+    need "Sign in to gcloud again (session expired or missing): gcloud auth login"
+  else
+    admin_api() {
+      curl -sf -H "Authorization: Bearer ${TOKEN}" -H "x-goog-user-project: ${PROJECT_ID}" \
+        "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/$1"
+    }
 
-  gcloud storage buckets describe "gs://${PROJECT_ID}.firebasestorage.app" &>/dev/null \
-    || need "Set up Firebase Storage (click 'Get started', production mode, default location): ${CONSOLE}/storage"
+    gcloud storage buckets describe "gs://${PROJECT_ID}.firebasestorage.app" &>/dev/null \
+      || need "Set up Firebase Storage (click 'Get started', production mode, default location): ${CONSOLE}/storage"
 
-  admin_api "defaultSupportedIdpConfigs/google.com" | grep -q '"enabled": *true' \
-    || need "Enable the Google sign-in provider in Firebase Authentication (click 'Get started' first if asked): ${CONSOLE}/authentication/providers"
+    admin_api "defaultSupportedIdpConfigs/google.com" | grep -q '"enabled": *true' \
+      || need "Enable the Google sign-in provider in Firebase Authentication (click 'Get started' first if asked): ${CONSOLE}/authentication/providers"
 
-  DOMAIN="$(terraform -chdir="${ROOT_DIR}/terraform" output -raw apphosting_domain 2>/dev/null)"
-  if [[ -n "${DOMAIN}" ]] && ! admin_api "config" | grep -q "\"${DOMAIN}\""; then
-    need "Add '${DOMAIN}' to Authentication > Settings > Authorized domains: ${CONSOLE}/authentication/settings"
+    DOMAIN="$(terraform -chdir="${ROOT_DIR}/terraform" output -raw apphosting_domain 2>/dev/null)"
+    if [[ -n "${DOMAIN}" ]] && ! admin_api "config" | grep -q "\"${DOMAIN}\""; then
+      need "Add '${DOMAIN}' to Authentication > Settings > Authorized domains: ${CONSOLE}/authentication/settings"
+    fi
   fi
 
 else

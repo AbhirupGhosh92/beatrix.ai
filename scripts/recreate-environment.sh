@@ -20,7 +20,7 @@ if [[ ! -f "${TFVARS_FILE}" ]]; then
   echo "Error: terraform/environments/${ENV_NAME}.tfvars does not exist. Create it first (copy dev.tfvars)."
   exit 1
 fi
-PROJECT_ID="${2:-$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' "${TFVARS_FILE}")}"
+PROJECT_ID="${2:-$(sed -n 's/^project_id[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${TFVARS_FILE}")}"
 STATE_BUCKET="${PROJECT_ID}-tfstate"
 
 echo "======================================================================"
