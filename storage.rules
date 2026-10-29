@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// All access goes through the Cloud Functions (Admin SDK, which bypasses these rules),
+// so clients get no direct read or write access to Storage.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

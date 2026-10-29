@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import FirebaseInit from '../components/layout/FirebaseInit.tsx'
 import { ProfileProvider } from '../components/layout/ProfileProvider.tsx'
-import { getProfile } from '../lib/profile-store.ts'
+import { getProfile } from '../middleware/profileService.ts'
 import '../index.css'
 
 // The profile is read from Cloud Storage per request, so nothing here can be prerendered.

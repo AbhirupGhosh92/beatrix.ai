@@ -73,6 +73,9 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | `npm run lint:fix` | `eslint . --fix` |
 | `npm run check` | `npm run typecheck && npm run lint` |
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
+| `npm run functions:build` | `pnpm --prefix functions run build` |
+| `npm run deploy:functions` | `firebase deploy --only functions,firestore:rules,storage` |
+| `npm run functions:serve` | `pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth` |
 <!-- scripts:end -->
 
 ## Project structure
@@ -121,10 +124,12 @@ src/
 │   └── profile.ts
 ├── hooks/
 │   └── useInView.ts
-└── lib/
-    ├── admin-auth.ts
-    ├── firebase.ts
-    └── profile-store.ts
+├── lib/
+│   └── firebase.ts
+└── middleware/
+    ├── adminService.ts
+    ├── cloudFunctions.ts
+    └── profileService.ts
 ```
 <!-- structure:end -->
 
@@ -134,15 +139,19 @@ Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-l
 
 ## Deployment (Firebase App Hosting)
 
-The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-2 instances). Private values are Firebase secrets, declared by name only in `apphosting.yaml`:
+The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, deployed separately:
 
 ```bash
-firebase apphosting:secrets:set PROFILE_JSON_URL # gs://BUCKET/profile.json
-firebase apphosting:secrets:set EXAMPLE_API_KEY  # server-only key used by src/app/api/example/route.ts
+npm run deploy:functions   # firebase deploy --only functions,firestore:rules,storage
 ```
 
-- `PROFILE_JSON_URL` is read at runtime (no rebuild needed). Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path. The app reads it as the App Hosting service account and the admin panel writes edits back to the same object (live within ~30 seconds), so grant that account `roles/storage.objectUser` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:firebase-app-hosting-compute@PROJECT.iam.gserviceaccount.com --role=roles/storage.objectUser`). Without the secret (local dev) it uses `src/data/profile.json`, falling back to `profile.example.json`. For a local run against GCS, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`. Only users whose `allowed_emails/{email}` Firestore document has `admin: true` can save from the admin panel.
-- `EXAMPLE_API_KEY` is runtime-only and must be read in server code (route handlers) without a `NEXT_PUBLIC_` prefix.
+`.github/workflows/deploy-functions.yml` does the same on every push to `main` that touches `functions/` or the rules (add the repository secret `FIREBASE_SERVICE_ACCOUNT` with a service-account JSON key and the variable `FIREBASE_PROJECT_ID`).
+
+- Architecture: the browser only talks to the Next.js server (`src/app/api/*`, backed by the services in `src/middleware/`). Only that server calls the Cloud Functions, so function URLs, tokens, paths and payloads never reach a client.
+- Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile` and `status`. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.
+- `profile.json` is stored in Firebase Storage (`cms/profile.json` in the default bucket). Seed it once with `gcloud storage cp src/data/profile.json gs://PROJECT_ID.firebasestorage.app/cms/profile.json`; after that, edit it in the admin panel (`/admin`). Edits go live within about 30 seconds, no rebuild. Previous versions are kept in `cms-backups/`.
+- Only users whose `allowed_emails/{email}` Firestore document has `admin: true` can use the admin APIs; the functions verify the forwarded Firebase ID token themselves. `storage.rules` and `firestore.rules` deny direct client access to everything else.
+- The server needs the Firebase project id (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or App Hosting's `GOOGLE_CLOUD_PROJECT`). For local development set `FUNCTIONS_CALLER_SERVICE_ACCOUNT=firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com` in `.env.local` (your gcloud user needs the Service Account Token Creator role on it); without reachable functions the site falls back to `src/data/profile.json`, then `profile.example.json`.
 - Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
 - Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.
