@@ -21,10 +21,13 @@ echo "==> Building Cloud Functions typescript codebase..."
 pnpm --prefix functions install --frozen-lockfile
 pnpm --prefix functions run build
 
-# Step 2: Deploy via Firebase CLI (--force also sets the functions artifact cleanup policy)
+# Step 2: Deploy via Firebase CLI
 FIREBASE=(firebase)
 command -v firebase &>/dev/null || FIREBASE=(npx --yes firebase-tools)
 "${FIREBASE[@]}" deploy --project "${PROJECT_ID}" \
   --only functions,firestore:rules,storage,apphosting --non-interactive --force
+
+# Step 3: Delete old function container images after a day (else they accumulate and bill)
+"${FIREBASE[@]}" functions:artifacts:setpolicy --project "${PROJECT_ID}" --force
 
 echo "==> Deployment complete."
