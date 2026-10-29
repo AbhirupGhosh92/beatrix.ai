@@ -124,7 +124,7 @@ export default function AdminPage() {
       const cached = cacheRef.current.get(selectedFile)
       if (cached) {
         setContent(cached.content)
-        setInitialContent(cached.content)
+        setInitialContent(cached.exists ? cached.content : '')
         setLastSaved(cached.updatedAt ? new Date(cached.updatedAt).toLocaleTimeString() : null)
         setLoading(false)
         return
