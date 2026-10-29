@@ -31,3 +31,7 @@ public/avatar.*
 out
 next-env.d.ts
 *.tsbuildinfo
+
+# local env files
+.env
+.env*.local
