@@ -19,7 +19,7 @@ if command -v terraform &>/dev/null; then
 fi
 
 # Fallback/additional syntax validation using validator
-python3 "${ROOT_DIR}/scripts/../terraform/../scripts/../scripts/../scripts/../self_created_tools/validate_infra_code.py" "${ROOT_DIR}/terraform" 2>/dev/null || \
+python3 "${ROOT_DIR}/self_created_tools/validate_infra_code.py" "${ROOT_DIR}/terraform" 2>/dev/null || \
 python3 -c '
 import os, sys, glob, re
 
