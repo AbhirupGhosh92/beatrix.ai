@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "plugins": [{ "name": "next" }],
-    "paths": { "profile-data": ["./src/data/profile.example.json"] },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

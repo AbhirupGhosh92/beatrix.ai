@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
-import { profile } from '../data/profile.ts'
+import { useProfile } from './ProfileProvider.tsx'
 
 /** Distance from the bottom (px) within which the button counts as "at the bottom". */
 const BOTTOM_THRESHOLD = 120
@@ -13,6 +13,7 @@ const BOTTOM_THRESHOLD = 120
  * attract attention, and scrolls back to the top. Styles live in index.css (.back-to-top).
  */
 export default function BackToTop() {
+  const profile = useProfile()
   const [atBottom, setAtBottom] = useState(false)
 
   useEffect(() => {

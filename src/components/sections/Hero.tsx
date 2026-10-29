@@ -1,9 +1,12 @@
+'use client'
+
 import { CodeXml, Download, MapPin, Users } from 'lucide-react'
-import { profile } from '../data/profile.ts'
-import Avatar from './Avatar.tsx'
-import CopyEmailButton from './CopyEmailButton.tsx'
+import { useProfile } from '../layout/ProfileProvider.tsx'
+import Avatar from '../ui/Avatar.tsx'
+import CopyEmailButton from '../ui/CopyEmailButton.tsx'
 
 export default function Hero() {
+  const profile = useProfile()
   const { person, contact, labels, hero } = profile
 
   return (

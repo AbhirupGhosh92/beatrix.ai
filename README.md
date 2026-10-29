@@ -66,7 +66,6 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | Command | Runs |
 | --- | --- |
 | `npm run dev` | `next dev` |
-| `npm run prebuild` | `node scripts/write-profile.mjs` |
 | `npm run build` | `next build` |
 | `npm run lint` | `eslint .` |
 | `npm run start` | `next start` |
@@ -82,7 +81,6 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 ```text
 src/
 ├── index.css
-├── ThemeToggle.tsx
 ├── app/
 │   ├── layout.tsx
 │   ├── page.tsx
@@ -93,25 +91,30 @@ src/
 │           └── cms/
 │               └── route.ts
 ├── components/
-│   ├── About.tsx
-│   ├── AchievementCard.tsx
-│   ├── Avatar.tsx
-│   ├── BackToTop.tsx
-│   ├── BeyondCode.tsx
-│   ├── CopyEmailButton.tsx
-│   ├── DrawerMenu.tsx
-│   ├── Education.tsx
-│   ├── Experience.tsx
-│   ├── FirebaseInit.tsx
-│   ├── Footer.tsx
-│   ├── Hero.tsx
-│   ├── Navbar.tsx
-│   ├── NavbarDropdown.tsx
-│   ├── Reveal.tsx
-│   ├── SectionHeading.tsx
-│   ├── Skills.tsx
-│   ├── Stats.tsx
-│   └── UpcomingProjects.tsx
+│   ├── layout/
+│   │   ├── BackToTop.tsx
+│   │   ├── DrawerMenu.tsx
+│   │   ├── FirebaseInit.tsx
+│   │   ├── Footer.tsx
+│   │   ├── Navbar.tsx
+│   │   ├── NavbarDropdown.tsx
+│   │   ├── ProfileProvider.tsx
+│   │   └── ThemeToggle.tsx
+│   ├── sections/
+│   │   ├── About.tsx
+│   │   ├── BeyondCode.tsx
+│   │   ├── Education.tsx
+│   │   ├── Experience.tsx
+│   │   ├── Hero.tsx
+│   │   ├── Skills.tsx
+│   │   ├── Stats.tsx
+│   │   └── UpcomingProjects.tsx
+│   └── ui/
+│       ├── AchievementCard.tsx
+│       ├── Avatar.tsx
+│       ├── CopyEmailButton.tsx
+│       ├── Reveal.tsx
+│       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
 │   ├── profile.json
@@ -119,7 +122,9 @@ src/
 ├── hooks/
 │   └── useInView.ts
 └── lib/
-    └── firebase.ts
+    ├── admin-auth.ts
+    ├── firebase.ts
+    └── profile-store.ts
 ```
 <!-- structure:end -->
 
@@ -136,7 +141,7 @@ firebase apphosting:secrets:set PROFILE_JSON_URL # gs://BUCKET/profile.json
 firebase apphosting:secrets:set EXAMPLE_API_KEY  # server-only key used by src/app/api/example/route.ts
 ```
 
-- `PROFILE_JSON_URL` is available at build time. `npm run build` runs `scripts/write-profile.mjs` first (`prebuild`), which downloads that URL, validates the JSON and writes `src/data/profile.json`; without it the build falls back to `profile.example.json`. Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path; the build reads it as its service account, so grant that account `roles/storage.objectViewer` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:BUILD_SA_EMAIL --role=roles/storage.objectViewer`). An `https://` URL (public or signed) also works. For a local run, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`.
+- `PROFILE_JSON_URL` is read at runtime (no rebuild needed). Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path. The app reads it as the App Hosting service account and the admin panel writes edits back to the same object (live within ~30 seconds), so grant that account `roles/storage.objectUser` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:firebase-app-hosting-compute@PROJECT.iam.gserviceaccount.com --role=roles/storage.objectUser`). Without the secret (local dev) it uses `src/data/profile.json`, falling back to `profile.example.json`. For a local run against GCS, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`. Only users whose `allowed_emails/{email}` Firestore document has `admin: true` can save from the admin panel.
 - `EXAMPLE_API_KEY` is runtime-only and must be read in server code (route handlers) without a `NEXT_PUBLIC_` prefix.
 - Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.

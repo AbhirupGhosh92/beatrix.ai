@@ -1,9 +1,12 @@
+'use client'
+
 import { Menu} from 'lucide-react'
-import NavbarDropdown from './NavbarDropdown'
-import { ThemeToggle } from '../ThemeToggle';
-import { profile } from '../data/profile.ts'
+import NavbarDropdown from './NavbarDropdown.tsx'
+import { ThemeToggle } from './ThemeToggle.tsx'
+import { useProfile } from './ProfileProvider.tsx'
 
 export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const profile = useProfile()
     return (
         <nav className="navbar px-0">
             <div className="navbar-start min-w-0 flex-1 gap-2 sm:gap-4">

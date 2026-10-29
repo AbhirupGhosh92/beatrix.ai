@@ -1,9 +1,12 @@
+'use client'
+
 import { Award, BookOpen, GraduationCap } from 'lucide-react'
-import { profile } from '../data/profile.ts'
-import Reveal from './Reveal.tsx'
-import SectionHeading from './SectionHeading.tsx'
+import { useProfile } from '../layout/ProfileProvider.tsx'
+import Reveal from '../ui/Reveal.tsx'
+import SectionHeading from '../ui/SectionHeading.tsx'
 
 export default function Education() {
+  const profile = useProfile()
   const { education } = profile
 
   return (

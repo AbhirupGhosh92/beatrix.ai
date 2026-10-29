@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allowlist for the Google-login gate. Signed-in users can read it
+    // (the client checks its own email); nobody can write from the client.
+    match /allowed_emails/{email} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

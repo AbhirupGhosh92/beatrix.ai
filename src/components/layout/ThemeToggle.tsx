@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Cat, Cpu } from 'lucide-react'
-import { profile } from './data/profile.ts'
+import { useProfile } from './ProfileProvider.tsx'
 
 // daisyUI theme controller as a single toggle button: while the checkbox is
 // checked, the page uses its `value` theme (pure CSS, via :has() on <html>);
@@ -27,6 +27,7 @@ function getInitialTheme(): string {
 }
 
 export function ThemeToggle() {
+  const profile = useProfile()
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Server markup is unchecked (no window); sync the checkbox with the saved or

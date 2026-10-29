@@ -8,8 +8,8 @@ runConfig:
   maxInstances: 1
 
 env:
-  # Written to src/data/profile.json by scripts/write-profile.mjs before `next build`.
+  # gs://BUCKET/profile.json: read (and written by the admin panel) at runtime by src/lib/profile-store.ts.
   - variable: PROFILE_JSON_URL
     secret: PROFILE_JSON_URL
     availability:
-      - BUILD
+      - RUNTIME

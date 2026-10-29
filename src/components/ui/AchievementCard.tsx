@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
-import { profile, type Achievement } from '../data/profile.ts'
+import type { Achievement } from '../../data/profile.ts'
+import { useProfile } from '../layout/ProfileProvider.tsx'
 
 type Mode = 'pain' | 'solution' | null
 
@@ -17,6 +18,7 @@ const DOMINANT_MARGIN = 0.05
  * handle position is read with a ResizeObserver on it.
  */
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
+  const profile = useProfile()
   const { title, context, before, after, pains, solutions } = achievement
   const { painTitle, solutionTitle, revealHint } = profile.experience.achievements
   const figureRef = useRef<HTMLElement>(null)

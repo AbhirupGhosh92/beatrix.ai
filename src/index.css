@@ -225,6 +225,72 @@ button:hover:not(:disabled)::after,
   }
 }
 
+/* Google Sign-In button, per Google's branding guidelines (standard button:
+   40px tall, 12px padding/gap, 20px "G", Roboto Medium 14px, 1px outline,
+   hover state layer at 8%). Light and dark variants follow the site theme.
+   Unlayered `button` rules above would otherwise win, so every property the
+   global button style touches is reset here with higher specificity. */
+button.gsi-button {
+  --gsi-bg: #ffffff;
+  --gsi-fg: #1f1f1f;
+  --gsi-stroke: #747775;
+  --gsi-state: #303030;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--gsi-stroke);
+  border-radius: 20px;
+  background: var(--gsi-bg);
+  color: var(--gsi-fg);
+  font-family: "Roboto", arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+  text-transform: none;
+  box-shadow: none;
+  transform: none;
+}
+
+:root:has(input.theme-controller[value="beatrix-dark"]:checked) button.gsi-button,
+:root[data-theme="beatrix-dark"] button.gsi-button {
+  --gsi-bg: #131314;
+  --gsi-fg: #e3e3e3;
+  --gsi-stroke: #8e918f;
+  --gsi-state: #e3e3e3;
+}
+
+button.gsi-button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: 0 1px 2px 0 rgb(60 64 67 / 30%), 0 1px 3px 1px rgb(60 64 67 / 15%);
+  background: color-mix(in srgb, var(--gsi-state) 8%, var(--gsi-bg));
+}
+
+button.gsi-button:focus-visible {
+  outline: 2px solid var(--gsi-stroke);
+  outline-offset: 2px;
+}
+
+button.gsi-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* the generic button shine sweep is not part of Google's button */
+button.gsi-button::after {
+  display: none;
+}
+
+.gsi-button .gsi-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 /* .hover-neon: the primary-button hover animation (lift, neon glow, shine sweep)
    as a standalone style for any element, e.g. sidebar links or plain text.
    Color defaults to primary; override per element with Tailwind, e.g.

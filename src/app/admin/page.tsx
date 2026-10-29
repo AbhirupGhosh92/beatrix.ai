@@ -13,7 +13,18 @@ import {
   Plus,
   RefreshCw,
 } from 'lucide-react'
-import { ThemeToggle } from '../../ThemeToggle'
+import { ThemeToggle } from '../../components/layout/ThemeToggle.tsx'
+import { getIdToken } from '../../lib/firebase.ts'
+
+async function responseError(res: Response, fallback: string): Promise<Error> {
+  const data = await res.json().catch(() => ({}))
+  return new Error(data.error || `HTTP ${res.status}: ${fallback}`)
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getIdToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 interface FileItem {
   filename: string
@@ -45,8 +56,8 @@ export default function AdminPage() {
   // Fetch file list
   const fetchFileList = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/cms')
-      if (!res.ok) throw new Error('Failed to load file list')
+      const res = await fetch('/api/admin/cms', { headers: await authHeaders() })
+      if (!res.ok) throw await responseError(res, 'Failed to load file list')
       const data = await res.json()
       setFileList(data.files || [])
     } catch (err) {
@@ -58,8 +69,8 @@ export default function AdminPage() {
     let ignore = false
     async function initFileList() {
       try {
-        const res = await fetch('/api/admin/cms')
-        if (!res.ok) throw new Error('Failed to load file list')
+        const res = await fetch('/api/admin/cms', { headers: await authHeaders() })
+        if (!res.ok) throw await responseError(res, 'Failed to load file list')
         const data = await res.json()
         if (!ignore) {
           setFileList(data.files || [])
@@ -82,8 +93,8 @@ export default function AdminPage() {
     async function loadFile() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/admin/cms?file=${encodeURIComponent(selectedFile)}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load file`)
+        const res = await fetch(`/api/admin/cms?file=${encodeURIComponent(selectedFile)}`, { headers: await authHeaders() })
+        if (!res.ok) throw await responseError(res, 'Failed to load file')
         const data = await res.json()
 
         let rawContent = data.content || ''
@@ -140,7 +151,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/cms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ file: selectedFile, content }),
       })
 

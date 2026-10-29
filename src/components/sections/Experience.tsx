@@ -1,8 +1,11 @@
+'use client'
+
 import { Briefcase, Gamepad2, MapPin, Smartphone, Sparkles, type LucideIcon } from 'lucide-react'
-import { profile, type Role } from '../data/profile.ts'
-import AchievementCard from './AchievementCard.tsx'
-import Reveal from './Reveal.tsx'
-import SectionHeading from './SectionHeading.tsx'
+import type { Role } from '../../data/profile.ts'
+import { useProfile } from '../layout/ProfileProvider.tsx'
+import AchievementCard from '../ui/AchievementCard.tsx'
+import Reveal from '../ui/Reveal.tsx'
+import SectionHeading from '../ui/SectionHeading.tsx'
 
 const ICONS: Record<Role['icon'], LucideIcon> = {
   ai: Sparkles,
@@ -11,6 +14,7 @@ const ICONS: Record<Role['icon'], LucideIcon> = {
 }
 
 export default function Experience() {
+  const profile = useProfile()
   const { experience } = profile
   const { achievements, roles } = experience
 

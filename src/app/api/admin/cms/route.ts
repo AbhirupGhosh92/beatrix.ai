@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '../../../../lib/admin-auth.ts'
+import { isGcsConfigured, readStoredProfile, writeStoredProfile } from '../../../../lib/profile-store.ts'
 
 const DATA_DIR = path.join(process.cwd(), 'src', 'data')
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 // 5MB limit for CMS editing
@@ -21,10 +23,49 @@ function sanitizeFilename(filename: string): string | null {
   return filename
 }
 
+const UNAUTHORIZED = () =>
+  NextResponse.json({ error: 'Admin sign-in required' }, { status: 401 })
+
 export async function GET(request: NextRequest) {
+  if (!(await requireAdmin(request))) return UNAUTHORIZED()
   try {
     const { searchParams } = new URL(request.url)
     const targetFile = searchParams.get('file')
+
+    // With Cloud Storage configured, profile.json is the only editable file.
+    if (isGcsConfigured()) {
+      if (targetFile && targetFile !== 'profile.json') {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 })
+      }
+      const stored = await readStoredProfile(true)
+      const noStore = { 'Cache-Control': 'no-store, max-age=0' }
+      if (!targetFile) {
+        return NextResponse.json(
+          {
+            files: [
+              {
+                filename: 'profile.json',
+                displayName: 'profile.json (Active Profile)',
+                exists: true,
+                size: stored.size,
+                updatedAt: stored.updatedAt,
+              },
+            ],
+          },
+          { headers: noStore },
+        )
+      }
+      return NextResponse.json(
+        {
+          filename: 'profile.json',
+          content: stored.content,
+          exists: true,
+          size: stored.size,
+          updatedAt: stored.updatedAt,
+        },
+        { headers: noStore },
+      )
+    }
 
     // List all available files if no specific file requested
     if (!targetFile) {
@@ -116,6 +157,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await requireAdmin(request))) return UNAUTHORIZED()
   try {
     const body = await request.json()
     const { file, content } = body
@@ -139,6 +181,23 @@ export async function POST(request: NextRequest) {
     } catch (jsonErr) {
       const errMsg = jsonErr instanceof Error ? jsonErr.message : 'Invalid JSON syntax'
       return NextResponse.json({ error: `JSON Parse Error: ${errMsg}` }, { status: 400 })
+    }
+
+    if (isGcsConfigured() && safeFilename !== 'profile.json') {
+      return NextResponse.json({ error: 'Only profile.json is editable' }, { status: 400 })
+    }
+
+    if (safeFilename === 'profile.json') {
+      const saved = await writeStoredProfile(content)
+      return NextResponse.json({
+        success: true,
+        message: isGcsConfigured()
+          ? 'Saved profile.json to Cloud Storage (live within ~30 seconds)'
+          : 'Successfully saved profile.json',
+        filename: safeFilename,
+        size: saved.size,
+        updatedAt: saved.updatedAt,
+      })
     }
 
     if (!existsSync(DATA_DIR)) {

@@ -404,24 +404,46 @@
         "id": "agentic-ai",
         "title": "Agentic AI Multi-Agent Platform",
         "description": "An autonomous AI agent orchestrator designed to solve complex multi-step developer workflows.",
-        "tags": ["AI/ML", "Next.js", "Python"],
+        "tags": [
+          "AI/ML",
+          "Next.js",
+          "Python"
+        ],
         "status": "In Development"
       },
       {
         "id": "android-nextgen",
         "title": "NextGen Android AI Companion",
         "description": "On-device LLM integration with real-time audio and vision processing for high-performance mobile devices.",
-        "tags": ["Android", "Kotlin", "On-Device AI"],
+        "tags": [
+          "Android",
+          "Kotlin",
+          "On-Device AI"
+        ],
         "status": "Planning"
       },
       {
         "id": "spatial-dashboard",
         "title": "Cyberpunk Analytics Dashboard",
         "description": "Interactive real-time telemetry visualization with high-fps webgl shader graphics.",
-        "tags": ["React", "Three.js", "TailwindCSS"],
+        "tags": [
+          "React",
+          "Three.js",
+          "TailwindCSS"
+        ],
         "status": "Prototyping"
       }
-    ]
+    ],
+    "unlockedLabel": "Unlocked",
+    "lock": {
+      "title": "Unlock Upcoming Projects",
+      "description": "Sign in with Google to reveal full details for upcoming projects and unlock the sidebar menu.",
+      "signInLabel": "Sign in with Google",
+      "signingInLabel": "Signing in...",
+      "restrictedError": "Access restricted: {email} is not in the allowed emails datastore.",
+      "unknownEmail": "unknown",
+      "failedError": "Google authentication failed. Please try again."
+    }
   },
   "footer": {
     "copyrightHolder": "Example text"
@@ -448,6 +470,10 @@
         "icon": "log-out"
       }
     ],
-    "backToTopLabel": "Back to top"
+    "backToTopLabel": "Back to top",
+    "drawerTitle": "Navigation",
+    "adminTitle": "Admin",
+    "adminLabel": "Admin CMS",
+    "adminHref": "/admin"
   }
 }

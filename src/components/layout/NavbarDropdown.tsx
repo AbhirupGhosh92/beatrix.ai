@@ -1,15 +1,19 @@
+'use client'
+
 import { signOut } from 'firebase/auth'
 import { Ellipsis, LogOut, Settings, User, type LucideIcon } from 'lucide-react'
-import { getFirebaseAuth } from '../lib/firebase.ts'
-import { profile } from '../data/profile.ts'
+import { getFirebaseAuth } from '../../lib/firebase.ts'
+import type { Profile } from '../../data/profile.ts'
+import { useProfile } from './ProfileProvider.tsx'
 
-const ICONS: Record<(typeof profile.nav.dropdownItems)[number]['icon'], LucideIcon> = {
+const ICONS: Record<Profile['nav']['dropdownItems'][number]['icon'], LucideIcon> = {
   user: User,
   settings: Settings,
   'log-out': LogOut,
 }
 
 export default function NavbarDropdown() {
+  const profile = useProfile()
   const { nav } = profile
 
   return (

@@ -1,9 +1,12 @@
+'use client'
+
 import { CodeXml, Download, Mail, Users } from 'lucide-react'
-import { profile } from '../data/profile.ts'
+import { useProfile } from './ProfileProvider.tsx'
 
 const linkClass = 'hover-subtle inline-flex items-center gap-2 px-3 py-1'
 
 export default function Footer() {
+  const profile = useProfile()
   const { person, contact, labels, footer } = profile
 
   return (

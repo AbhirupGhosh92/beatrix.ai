@@ -53,6 +53,14 @@ export function getFirebaseAuth(): Auth | undefined {
   return auth
 }
 
+/** Fresh ID token of the signed-in user (waits for the persisted session to restore), if any. */
+export async function getIdToken(): Promise<string | undefined> {
+  const firebaseAuth = getFirebaseAuth()
+  if (!firebaseAuth) return undefined
+  await firebaseAuth.authStateReady()
+  return firebaseAuth.currentUser?.getIdToken()
+}
+
 export function getFirebaseFirestore(): Firestore | undefined {
   if (!firestore) {
     const firebaseApp = getFirebaseApp()
