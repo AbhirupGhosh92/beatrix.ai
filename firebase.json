@@ -11,5 +11,24 @@
       "pnpm --prefix \"$RESOURCE_DIR\" run build"
     ],
     "runtime": "nodejs22"
-  }
+  },
+  "apphosting": [
+    {
+      "backendId": "beatrix-web",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        ".next",
+        ".claude",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions",
+        "terraform",
+        ".env*",
+        "src/data/profile.json",
+        "public/*.docx"
+      ]
+    }
+  ]
 }

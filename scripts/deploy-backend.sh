@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # ==============================================================================
-# Deploy Cloud Functions & Firebase Security Rules
+# Deploy Cloud Functions, Firebase Security Rules and the App Hosting site from local source.
+# The same command .github/workflows/deploy-environment.yml runs in CI.
 # Usage: ./scripts/deploy-backend.sh <PROJECT_ID>
 # ==============================================================================
 
@@ -13,22 +14,17 @@ if [[ -z "${PROJECT_ID}" ]]; then
   exit 1
 fi
 
-echo "==> Deploying backend Cloud Functions & Firebase Security Rules to project: ${PROJECT_ID}"
+echo "==> Deploying functions, rules and App Hosting to project: ${PROJECT_ID}"
 
 # Step 1: Build functions package
 echo "==> Building Cloud Functions typescript codebase..."
+pnpm --prefix functions install --frozen-lockfile
 pnpm --prefix functions run build
 
-# Step 2: Deploy functions and security rules via Firebase CLI
-if command -v firebase &>/dev/null; then
-  echo "==> Deploying via firebase-tools..."
-  firebase deploy --project "${PROJECT_ID}" --only functions,firestore:rules,storage
-elif command -v npx &>/dev/null; then
-  echo "==> Deploying via npx firebase-tools..."
-  npx firebase-tools deploy --project "${PROJECT_ID}" --only functions,firestore:rules,storage
-else
-  echo "Error: Neither firebase CLI nor npx is installed."
-  exit 1
-fi
+# Step 2: Deploy via Firebase CLI (--force also sets the functions artifact cleanup policy)
+FIREBASE=(firebase)
+command -v firebase &>/dev/null || FIREBASE=(npx --yes firebase-tools)
+"${FIREBASE[@]}" deploy --project "${PROJECT_ID}" \
+  --only functions,firestore:rules,storage,apphosting --non-interactive --force
 
-echo "==> Backend deployment complete."
+echo "==> Deployment complete."

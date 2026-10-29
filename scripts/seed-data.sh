@@ -7,7 +7,7 @@ set -euo pipefail
 # ==============================================================================
 
 PROJECT_ID="${1:-${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}}"
-BUCKET_NAME="${2:-${PROJECT_ID}-cms-dev}"
+BUCKET_NAME="${2:-${PROJECT_ID}.firebasestorage.app}"
 ADMIN_EMAILS="${3:-}"
 
 if [[ -z "${PROJECT_ID}" ]]; then
@@ -36,7 +36,10 @@ else
 fi
 
 echo "==> Uploading ${PROFILE_SOURCE} to gs://${BUCKET_NAME}/cms/profile.json..."
-if command -v gcloud &>/dev/null; then
+if command -v gcloud &>/dev/null && gcloud storage objects describe "gs://${BUCKET_NAME}/cms/profile.json" &>/dev/null; then
+  # Never overwrite content edited through /admin when an environment is re-provisioned.
+  echo "    Already seeded, leaving it as is."
+elif command -v gcloud &>/dev/null; then
   gcloud storage cp "${PROFILE_SOURCE}" "gs://${BUCKET_NAME}/cms/profile.json" --project="${PROJECT_ID}"
 elif command -v gsutil &>/dev/null; then
   gsutil cp "${PROFILE_SOURCE}" "gs://${BUCKET_NAME}/cms/profile.json"

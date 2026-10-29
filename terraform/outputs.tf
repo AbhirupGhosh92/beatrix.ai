@@ -43,3 +43,33 @@ output "server_service_account_email" {
   value       = google_service_account.server_sa.email
   description = "Email of the service account used by Next.js server / App Hosting."
 }
+
+output "default_storage_bucket" {
+  value       = "${var.project_id}.firebasestorage.app"
+  description = "Default Firebase Storage bucket, read by the Cloud Functions (cms/ prefix)."
+}
+
+output "apphosting_url" {
+  value       = "https://${google_firebase_app_hosting_backend.web.uri}"
+  description = "URL of the App Hosting backend."
+}
+
+output "apphosting_domain" {
+  value       = google_firebase_app_hosting_backend.web.uri
+  description = "Domain of the App Hosting backend (must be an authorized domain in Firebase Auth)."
+}
+
+output "apphosting_service_account_email" {
+  value       = google_service_account.apphosting_compute.email
+  description = "Runtime service account of App Hosting, the only allowed Cloud Functions invoker."
+}
+
+output "workload_identity_provider" {
+  value       = google_iam_workload_identity_pool_provider.github.name
+  description = "Workload Identity provider for google-github-actions/auth."
+}
+
+output "deployer_service_account_email" {
+  value       = google_service_account.deployer.email
+  description = "Service account GitHub Actions deploys as."
+}

@@ -2,118 +2,93 @@
 set -euo pipefail
 
 # ==============================================================================
-# Recreate Firebase Infrastructure in Lower Environment
-# Usage: ./scripts/recreate-environment.sh [TFVARS_FILE_OR_ENV] [PROJECT_ID]
-# Example: ./scripts/recreate-environment.sh dev beatrix-ai-dev
+# Provision (or re-provision) an environment end to end. Safe to re-run.
+# Usage: ./scripts/recreate-environment.sh <env> [project_id]
+# Example: ./scripts/recreate-environment.sh dev
+#
+# Reads terraform/environments/<env>.tfvars. Stops with exit code 3 and an
+# "ACTION REQUIRED" list whenever a manual step is missing (see
+# scripts/env-preflight.sh); the user does those, then this is re-run.
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 ENV_NAME="${1:-dev}"
-GCP_PROJECT_ID="${2:-}"
-
-# Resolve tfvars file robustly
-TFVARS_FILE=""
-if [[ -f "${ROOT_DIR}/terraform/environments/${ENV_NAME}.tfvars" ]]; then
-  TFVARS_FILE="${ROOT_DIR}/terraform/environments/${ENV_NAME}.tfvars"
-elif [[ -f "${ENV_NAME}" ]]; then
-  TFVARS_FILE="${ENV_NAME}"
-elif [[ -f "${ROOT_DIR}/${ENV_NAME}" ]]; then
-  TFVARS_FILE="${ROOT_DIR}/${ENV_NAME}"
-elif [[ -f "${ROOT_DIR}/terraform/${ENV_NAME}" ]]; then
-  TFVARS_FILE="${ROOT_DIR}/terraform/${ENV_NAME}"
-elif [[ -f "${ROOT_DIR}/terraform/terraform.tfvars" ]]; then
-  TFVARS_FILE="${ROOT_DIR}/terraform/terraform.tfvars"
-elif [[ "${ENV_NAME}" == "dev" && -f "${ROOT_DIR}/terraform/terraform.tfvars.example" ]]; then
-  TFVARS_FILE="${ROOT_DIR}/terraform/terraform.tfvars.example"
-else
-  echo "Error: Could not locate a valid tfvars file for '${ENV_NAME}'."
-  echo "Expected path: terraform/environments/${ENV_NAME}.tfvars or custom tfvars file."
+TFVARS_FILE="${ROOT_DIR}/terraform/environments/${ENV_NAME}.tfvars"
+if [[ ! -f "${TFVARS_FILE}" ]]; then
+  echo "Error: terraform/environments/${ENV_NAME}.tfvars does not exist. Create it first (copy dev.tfvars)."
   exit 1
 fi
+PROJECT_ID="${2:-$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' "${TFVARS_FILE}")}"
+STATE_BUCKET="${PROJECT_ID}-tfstate"
 
 echo "======================================================================"
-echo " Beatrix.ai Infrastructure Recreation Script"
-echo " Environment / Target: ${ENV_NAME}"
-echo " Var File: ${TFVARS_FILE}"
+echo " Beatrix.ai environment provisioning"
+echo " Environment: ${ENV_NAME}   Project: ${PROJECT_ID}"
 echo "======================================================================"
 
 # ------------------------------------------------------------------------------
-# Pre-flight Checks
+# 1. Manual prerequisites: project, billing, logins
 # ------------------------------------------------------------------------------
-echo "==> Running pre-flight CLI checks..."
-MISSING_TOOLS=()
-for tool in terraform gcloud firebase node pnpm; do
-  if ! command -v "${tool}" &>/dev/null; then
-    MISSING_TOOLS+=("${tool}")
-  fi
-done
+bash "${SCRIPT_DIR}/env-preflight.sh" "${ENV_NAME}" pre "${PROJECT_ID}"
 
-if [[ ${#MISSING_TOOLS[@]} -gt 0 ]]; then
-  echo "Warning: The following tools are missing from PATH: ${MISSING_TOOLS[*]}"
-  echo "Ensure they are installed before provisioning real GCP resources."
+# ------------------------------------------------------------------------------
+# 2. Terraform state bucket (bootstrap: it has to exist before Terraform runs)
+# ------------------------------------------------------------------------------
+if ! gcloud storage buckets describe "gs://${STATE_BUCKET}" &>/dev/null; then
+  echo "==> Creating Terraform state bucket gs://${STATE_BUCKET}..."
+  gcloud storage buckets create "gs://${STATE_BUCKET}" --project="${PROJECT_ID}" \
+    --location=us-central1 --uniform-bucket-level-access --public-access-prevention
+  gcloud storage buckets update "gs://${STATE_BUCKET}" --versioning
 fi
 
 # ------------------------------------------------------------------------------
-# Provision Infrastructure via Terraform
+# 3. Infrastructure
 # ------------------------------------------------------------------------------
-echo "==> Provisioning GCP/Firebase infrastructure with Terraform..."
+echo "==> Applying Terraform..."
 cd "${ROOT_DIR}/terraform"
+terraform init -reconfigure -input=false -backend-config="bucket=${STATE_BUCKET}"
+terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" -var="project_id=${PROJECT_ID}"
 
-terraform init
-
-if [[ -n "${GCP_PROJECT_ID}" ]]; then
-  terraform apply -var="project_id=${GCP_PROJECT_ID}" -var-file="${TFVARS_FILE}" -auto-approve
-else
-  terraform apply -var-file="${TFVARS_FILE}" -auto-approve
-fi
-
-# Extract outputs
-PROJECT_ID=$(terraform output -raw project_id 2>/dev/null || echo "${GCP_PROJECT_ID}")
-API_KEY=$(terraform output -raw api_key 2>/dev/null || echo "")
-AUTH_DOMAIN=$(terraform output -raw auth_domain 2>/dev/null || echo "${PROJECT_ID}.firebaseapp.com")
-STORAGE_BUCKET=$(terraform output -raw storage_bucket 2>/dev/null || echo "${PROJECT_ID}-cms-${ENV_NAME}")
-MESSAGING_SENDER_ID=$(terraform output -raw messaging_sender_id 2>/dev/null || echo "")
-APP_ID=$(terraform output -raw app_id 2>/dev/null || echo "")
-SERVER_SA=$(terraform output -raw server_service_account_email 2>/dev/null || echo "beatrix-server-${ENV_NAME}@${PROJECT_ID}.iam.gserviceaccount.com")
-
+tf_out() { terraform output -raw "$1"; }
+DEFAULT_BUCKET="$(tf_out default_storage_bucket)"
 cd "${ROOT_DIR}"
 
 # ------------------------------------------------------------------------------
-# Generate .env.local Configuration
+# 4. Manual Firebase console steps that need the project set up by Terraform
 # ------------------------------------------------------------------------------
-ENV_LOCAL_PATH="${ROOT_DIR}/.env.local"
-echo "==> Writing local environment configuration to ${ENV_LOCAL_PATH}..."
+bash "${SCRIPT_DIR}/env-preflight.sh" "${ENV_NAME}" post "${PROJECT_ID}"
 
-cat <<EOF > "${ENV_LOCAL_PATH}"
+# ------------------------------------------------------------------------------
+# 5. Local dev config (dev only, so provisioning staging never rewrites it)
+# ------------------------------------------------------------------------------
+if [[ "${ENV_NAME}" == "dev" ]]; then
+  echo "==> Writing .env.local for the dev environment..."
+  (cd terraform && cat <<EOF > "${ROOT_DIR}/.env.local"
 # Generated by scripts/recreate-environment.sh on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=${PROJECT_ID}
-NEXT_PUBLIC_FIREBASE_API_KEY=${API_KEY}
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${AUTH_DOMAIN}
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${STORAGE_BUCKET}
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${MESSAGING_SENDER_ID}
-NEXT_PUBLIC_FIREBASE_APP_ID=${APP_ID}
-FUNCTIONS_CALLER_SERVICE_ACCOUNT=${SERVER_SA}
+NEXT_PUBLIC_FIREBASE_API_KEY=$(tf_out api_key)
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(tf_out auth_domain)
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${DEFAULT_BUCKET}
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(tf_out messaging_sender_id)
+NEXT_PUBLIC_FIREBASE_APP_ID=$(tf_out app_id)
+FUNCTIONS_CALLER_SERVICE_ACCOUNT=$(tf_out apphosting_service_account_email)
 EOF
-
-echo "==> Environment file created successfully."
-
-# ------------------------------------------------------------------------------
-# Data Seeding
-# ------------------------------------------------------------------------------
-echo "==> Executing data seeding script..."
-bash "${SCRIPT_DIR}/seed-data.sh" "${PROJECT_ID}" "${STORAGE_BUCKET}"
+  )
+fi
 
 # ------------------------------------------------------------------------------
-# Backend Functions & Rules Deployment
+# 6. Seed data, deploy, and hand the environment to CI
 # ------------------------------------------------------------------------------
-echo "==> Deploying backend Cloud Functions & security rules..."
+bash "${SCRIPT_DIR}/seed-data.sh" "${PROJECT_ID}" "${DEFAULT_BUCKET}"
 bash "${SCRIPT_DIR}/deploy-backend.sh" "${PROJECT_ID}"
+bash "${SCRIPT_DIR}/sync-github-env.sh" "${ENV_NAME}"
 
 echo "======================================================================"
-echo " Infrastructure Recreation Completed Successfully!"
-echo " Target Project: ${PROJECT_ID}"
-echo " Storage Bucket: ${STORAGE_BUCKET}"
-echo " Config Saved:   .env.local"
+echo " Environment '${ENV_NAME}' is ready."
+echo " Site:    $(cd terraform && tf_out apphosting_url)"
+echo " Project: ${PROJECT_ID}"
+echo " From now on, pushes to main deploy it via .github/workflows/deploy.yml"
+echo " (production: only by running that workflow manually)."
 echo "======================================================================"
