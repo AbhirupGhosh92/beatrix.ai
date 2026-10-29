@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { getFirebaseAuth } from '../lib/firebase.ts'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { getFirebaseAuth, isEmailAllowed } from '../lib/firebase.ts'
 import Navbar from '../components/Navbar.tsx'
 import DrawerMenu from '../components/DrawerMenu.tsx'
 import Hero from '../components/Hero.tsx'
@@ -25,8 +25,19 @@ export default function Home() {
       return
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsLoggedIn(!!user)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const allowed = await isEmailAllowed(user.email)
+        if (allowed) {
+          setIsLoggedIn(true)
+        } else {
+          console.warn(`User email ${user.email} is not in the allowed emails datastore. Signing out.`)
+          await signOut(auth)
+          setIsLoggedIn(false)
+        }
+      } else {
+        setIsLoggedIn(false)
+      }
     })
     return () => unsubscribe()
   }, [])
