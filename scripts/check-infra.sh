@@ -63,19 +63,17 @@ fi
 
 echo "==> [3/3] Checking git changes for infrastructure sync..."
 if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null; then
-  CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
-
   RULES_CHANGED=0
   TF_CHANGED=0
 
-  for file in ${CHANGED_FILES}; do
+  while read -r file; do
     if [[ "${file}" == "firestore.rules" || "${file}" == "storage.rules" || "${file}" == "firebase.json" || "${file}" == "apphosting.yaml" ]]; then
       RULES_CHANGED=1
     fi
     if [[ "${file}" == terraform/* ]]; then
       TF_CHANGED=1
     fi
-  done
+  done < <(git status --porcelain | cut -c 4-)
 
   if [[ ${RULES_CHANGED} -eq 1 && ${TF_CHANGED} -eq 0 ]]; then
     echo "Notice: Firebase rules or deployment config modified without Terraform changes."
