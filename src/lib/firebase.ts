@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from 'firebase/analytics'
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth'
-import { getFirestore, doc, getDoc, collection, getDocs, type Firestore } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, type Firestore } from 'firebase/firestore'
 import { getRemoteConfig, fetchAndActivate, type RemoteConfig } from 'firebase/remote-config'
 
 const firebaseConfig = {
@@ -53,6 +53,14 @@ export function getFirebaseAuth(): Auth | undefined {
   return auth
 }
 
+/** Fresh ID token of the signed-in user (waits for the persisted session to restore), if any. */
+export async function getIdToken(): Promise<string | undefined> {
+  const firebaseAuth = getFirebaseAuth()
+  if (!firebaseAuth) return undefined
+  await firebaseAuth.authStateReady()
+  return firebaseAuth.currentUser?.getIdToken()
+}
+
 export function getFirebaseFirestore(): Firestore | undefined {
   if (!firestore) {
     const firebaseApp = getFirebaseApp()
@@ -67,7 +75,7 @@ export function getFirebaseFirestore(): Firestore | undefined {
 
 /**
  * Checks whether an email address is allowed based on records stored in Firebase Firestore datastore.
- * Supports checking a document in `allowed_emails` collection or a doc ID matching normalized email.
+ * The document ID must be the lowercase email; `allowed: false` revokes access.
  */
 export async function isEmailAllowed(email: string | null | undefined): Promise<boolean> {
   if (!email) {
@@ -83,40 +91,12 @@ export async function isEmailAllowed(email: string | null | undefined): Promise<
   }
 
   try {
-    // 1. Direct document check: `allowed_emails/{normalizedEmail}`
-    const docRef = doc(db, 'allowed_emails', normalizedEmail)
-    const docSnap = await getDoc(docRef)
-    if (docSnap.exists()) {
-      const data = docSnap.data()
-      if (data.allowed !== false) {
-        return true
-      }
-    }
-
-    // 2. Collection scan / lookup fallback in `allowed_emails` collection where field `email` matches
-    const colRef = collection(db, 'allowed_emails')
-    const colSnap = await getDocs(colRef)
-
-    // If the collection is entirely empty in Firestore, allow all users (or demo mode)
-    if (colSnap.empty) {
-      return true
-    }
-
-    for (const d of colSnap.docs) {
-      const data = d.data()
-      const docEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
-      if (d.id.toLowerCase() === normalizedEmail || docEmail === normalizedEmail) {
-        if (data.allowed !== false) {
-          return true
-        }
-      }
-    }
-
-    return false
+    // `allowed_emails/{normalizedEmail}`: the rules only let a user read their own document.
+    const docSnap = await getDoc(doc(db, 'allowed_emails', normalizedEmail))
+    return docSnap.exists() && docSnap.data().allowed !== false
   } catch (error) {
     console.warn('Firestore query failed when checking allowed emails:', error)
-    // If Firestore rules or connection fails, default to allowing if demo or logging error
-    return true
+    return false
   }
 }
 

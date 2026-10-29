@@ -2,7 +2,7 @@
 
 
 import type { ReactNode } from 'react'
-import { useInView } from '../hooks/useInView.ts'
+import { useInView } from '../../hooks/useInView.ts'
 
 /** Fades and slides its children in when scrolled into view. */
 export default function Reveal({

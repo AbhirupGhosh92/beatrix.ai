@@ -13,7 +13,33 @@ import {
   Plus,
   RefreshCw,
 } from 'lucide-react'
-import { ThemeToggle } from '../../ThemeToggle'
+import { ThemeToggle } from '../../components/layout/ThemeToggle.tsx'
+import { getIdToken } from '../../lib/firebase.ts'
+
+// The browser only talks to this site's own /api/admin/cms route; the server calls the Cloud
+// Functions. The Firebase ID token proves who is signed in.
+async function cms<T>(init: { method?: string; query?: string; body?: object } = {}): Promise<T> {
+  const token = await getIdToken()
+  const res = await fetch(`/api/admin/cms${init.query ?? ''}`, {
+    method: init.method ?? 'GET',
+    headers: {
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: init.body ? JSON.stringify(init.body) : undefined,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data as T
+}
+
+interface FileContent extends FileItem {
+  content: string
+}
+
+interface SaveResult {
+  message?: string
+}
 
 interface FileItem {
   filename: string
@@ -45,9 +71,7 @@ export default function AdminPage() {
   // Fetch file list
   const fetchFileList = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/cms')
-      if (!res.ok) throw new Error('Failed to load file list')
-      const data = await res.json()
+      const data = await cms<{ files: FileItem[] }>()
       setFileList(data.files || [])
     } catch (err) {
       showNotification('error', err instanceof Error ? err.message : 'Error fetching files')
@@ -58,9 +82,7 @@ export default function AdminPage() {
     let ignore = false
     async function initFileList() {
       try {
-        const res = await fetch('/api/admin/cms')
-        if (!res.ok) throw new Error('Failed to load file list')
-        const data = await res.json()
+        const data = await cms<{ files: FileItem[] }>()
         if (!ignore) {
           setFileList(data.files || [])
         }
@@ -82,9 +104,7 @@ export default function AdminPage() {
     async function loadFile() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/admin/cms?file=${encodeURIComponent(selectedFile)}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load file`)
-        const data = await res.json()
+        const data = await cms<FileContent>({ query: `?file=${encodeURIComponent(selectedFile)}` })
 
         let rawContent = data.content || ''
         try {
@@ -138,16 +158,7 @@ export default function AdminPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/cms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: selectedFile, content }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save file')
-      }
+      const data = await cms<SaveResult>({ method: 'POST', body: { file: selectedFile, content } })
 
       setInitialContent(content)
       setLastSaved(new Date().toLocaleTimeString())

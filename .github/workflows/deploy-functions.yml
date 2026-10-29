@@ -1,0 +1,53 @@
+name: Deploy Firebase backend
+
+# Deploys the Cloud Functions (each API is its own function) plus the Firestore and Storage
+# rules they rely on. The Next.js site itself is rolled out by Firebase App Hosting.
+#
+# One-time setup: create a service account with the "Firebase Admin" role (or Cloud Functions
+# Admin + Service Account User + Firebase Rules Admin), download its JSON key and save it as the
+# repository secret FIREBASE_SERVICE_ACCOUNT. Set the repository variable FIREBASE_PROJECT_ID.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - functions/**
+      - firebase.json
+      - firestore.rules
+      - storage.rules
+      - .github/workflows/deploy-functions.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-firebase-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install function dependencies
+        run: pnpm --prefix functions install --frozen-lockfile
+
+      - name: Build functions
+        run: pnpm --prefix functions run build
+
+      - name: Write service account key
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy functions and rules
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules,storage --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive --force

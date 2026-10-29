@@ -2,10 +2,11 @@
 
 
 import { useEffect, useRef, useState } from 'react'
-import { profile } from '../data/profile.ts'
+import { useProfile } from '../layout/ProfileProvider.tsx'
 
 /** Photo in a 3D-tilting card with an animated glowing aura; falls back to initials. */
 export default function Avatar() {
+  const profile = useProfile()
   const [failed, setFailed] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
   const { person } = profile

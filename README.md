@@ -66,7 +66,6 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | Command | Runs |
 | --- | --- |
 | `npm run dev` | `next dev` |
-| `npm run prebuild` | `node scripts/write-profile.mjs` |
 | `npm run build` | `next build` |
 | `npm run lint` | `eslint .` |
 | `npm run start` | `next start` |
@@ -74,6 +73,9 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | `npm run lint:fix` | `eslint . --fix` |
 | `npm run check` | `npm run typecheck && npm run lint` |
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
+| `npm run functions:build` | `pnpm --prefix functions run build` |
+| `npm run deploy:functions` | `firebase deploy --only functions,firestore:rules,storage` |
+| `npm run functions:serve` | `pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth` |
 <!-- scripts:end -->
 
 ## Project structure
@@ -82,7 +84,6 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 ```text
 src/
 ├── index.css
-├── ThemeToggle.tsx
 ├── app/
 │   ├── layout.tsx
 │   ├── page.tsx
@@ -93,33 +94,42 @@ src/
 │           └── cms/
 │               └── route.ts
 ├── components/
-│   ├── About.tsx
-│   ├── AchievementCard.tsx
-│   ├── Avatar.tsx
-│   ├── BackToTop.tsx
-│   ├── BeyondCode.tsx
-│   ├── CopyEmailButton.tsx
-│   ├── DrawerMenu.tsx
-│   ├── Education.tsx
-│   ├── Experience.tsx
-│   ├── FirebaseInit.tsx
-│   ├── Footer.tsx
-│   ├── Hero.tsx
-│   ├── Navbar.tsx
-│   ├── NavbarDropdown.tsx
-│   ├── Reveal.tsx
-│   ├── SectionHeading.tsx
-│   ├── Skills.tsx
-│   ├── Stats.tsx
-│   └── UpcomingProjects.tsx
+│   ├── layout/
+│   │   ├── BackToTop.tsx
+│   │   ├── DrawerMenu.tsx
+│   │   ├── FirebaseInit.tsx
+│   │   ├── Footer.tsx
+│   │   ├── Navbar.tsx
+│   │   ├── NavbarDropdown.tsx
+│   │   ├── ProfileProvider.tsx
+│   │   └── ThemeToggle.tsx
+│   ├── sections/
+│   │   ├── About.tsx
+│   │   ├── BeyondCode.tsx
+│   │   ├── Education.tsx
+│   │   ├── Experience.tsx
+│   │   ├── Hero.tsx
+│   │   ├── Skills.tsx
+│   │   ├── Stats.tsx
+│   │   └── UpcomingProjects.tsx
+│   └── ui/
+│       ├── AchievementCard.tsx
+│       ├── Avatar.tsx
+│       ├── CopyEmailButton.tsx
+│       ├── Reveal.tsx
+│       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
 │   ├── profile.json
 │   └── profile.ts
 ├── hooks/
 │   └── useInView.ts
-└── lib/
-    └── firebase.ts
+├── lib/
+│   └── firebase.ts
+└── middleware/
+    ├── adminService.ts
+    ├── cloudFunctions.ts
+    └── profileService.ts
 ```
 <!-- structure:end -->
 
@@ -129,15 +139,19 @@ Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-l
 
 ## Deployment (Firebase App Hosting)
 
-The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-2 instances). Private values are Firebase secrets, declared by name only in `apphosting.yaml`:
+The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, deployed separately:
 
 ```bash
-firebase apphosting:secrets:set PROFILE_JSON_URL # gs://BUCKET/profile.json
-firebase apphosting:secrets:set EXAMPLE_API_KEY  # server-only key used by src/app/api/example/route.ts
+npm run deploy:functions   # firebase deploy --only functions,firestore:rules,storage
 ```
 
-- `PROFILE_JSON_URL` is available at build time. `npm run build` runs `scripts/write-profile.mjs` first (`prebuild`), which downloads that URL, validates the JSON and writes `src/data/profile.json`; without it the build falls back to `profile.example.json`. Upload `profile.json` to a private GCS bucket and set the secret to its `gs://BUCKET/profile.json` path; the build reads it as its service account, so grant that account `roles/storage.objectViewer` on the bucket (`gcloud storage buckets add-iam-policy-binding gs://BUCKET --member=serviceAccount:BUILD_SA_EMAIL --role=roles/storage.objectViewer`). An `https://` URL (public or signed) also works. For a local run, set `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)`.
-- `EXAMPLE_API_KEY` is runtime-only and must be read in server code (route handlers) without a `NEXT_PUBLIC_` prefix.
+`.github/workflows/deploy-functions.yml` does the same on every push to `main` that touches `functions/` or the rules (add the repository secret `FIREBASE_SERVICE_ACCOUNT` with a service-account JSON key and the variable `FIREBASE_PROJECT_ID`).
+
+- Architecture: the browser only talks to the Next.js server (`src/app/api/*`, backed by the services in `src/middleware/`). Only that server calls the Cloud Functions, so function URLs, tokens, paths and payloads never reach a client.
+- Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile` and `status`. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.
+- `profile.json` is stored in Firebase Storage (`cms/profile.json` in the default bucket). Seed it once with `gcloud storage cp src/data/profile.json gs://PROJECT_ID.firebasestorage.app/cms/profile.json`; after that, edit it in the admin panel (`/admin`). Edits go live within about 30 seconds, no rebuild. Previous versions are kept in `cms-backups/`.
+- Only users whose `allowed_emails/{email}` Firestore document has `admin: true` can use the admin APIs; the functions verify the forwarded Firebase ID token themselves. `storage.rules` and `firestore.rules` deny direct client access to everything else.
+- The server needs the Firebase project id (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or App Hosting's `GOOGLE_CLOUD_PROJECT`). For local development set `FUNCTIONS_CALLER_SERVICE_ACCOUNT=firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com` in `.env.local` (your gcloud user needs the Service Account Token Creator role on it); without reachable functions the site falls back to `src/data/profile.json`, then `profile.example.json`.
 - Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
 - Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.

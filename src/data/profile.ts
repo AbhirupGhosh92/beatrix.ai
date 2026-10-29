@@ -1,12 +1,7 @@
-// Typed loader for src/data/profile.json. ALL site content (copy, labels,
-// metrics, links) lives in the JSON file; components read it from here and
-// contain no hardcoded text. Facts and metrics come from the resume; do not add
+// Types for the profile JSON. ALL site content (copy, labels, metrics, links)
+// lives in the JSON (loaded at runtime by lib/profile-store.ts, read in components
+// via useProfile()); components contain no hardcoded text. Facts and metrics come from the resume; do not add
 // numbers that are not in it.
-
-// profile.json is private and git-ignored; next.config.ts aliases
-// `profile-data` to it, or to the committed placeholder example when it is
-// missing. tsconfig `paths` points the alias at the example for typing.
-import raw from 'profile-data'
 
 export interface Stat {
   value: number
@@ -59,7 +54,11 @@ export interface Profile {
     moreLabel: string
     toggleThemeLabel: string
     backToTopLabel: string
+    drawerTitle: string
     drawerItems: string[]
+    adminTitle: string
+    adminLabel: string
+    adminHref: string
     dropdownItems: { label: string; icon: 'user' | 'settings' | 'log-out' }[]
   }
   person: {
@@ -126,9 +125,21 @@ export interface Profile {
     travel: { title: string; visited: string[]; nextLabel: string; next: string }
     coding: { title: string; blurb: string; loading: string }
   }
-  upcomingProjects?: {
+  upcomingProjects: {
     kicker: string
     title: string
+    unlockedLabel: string
+    /** shown over the blurred cards until the visitor signs in */
+    lock: {
+      title: string
+      description: string
+      signInLabel: string
+      signingInLabel: string
+      /** `{email}` is replaced with the rejected address */
+      restrictedError: string
+      unknownEmail: string
+      failedError: string
+    }
     items: {
       id: string
       title: string
@@ -139,5 +150,3 @@ export interface Profile {
   }
   footer: { copyrightHolder: string }
 }
-
-export const profile = raw as Profile

@@ -1,8 +1,11 @@
+'use client'
+
 import Link from 'next/link'
 import { Sliders } from 'lucide-react'
-import { profile } from '../data/profile.ts'
+import { useProfile } from './ProfileProvider.tsx'
 
 export default function DrawerMenu() {
+  const profile = useProfile()
   const { nav } = profile
 
   return (
@@ -10,7 +13,7 @@ export default function DrawerMenu() {
       <label htmlFor="nav-drawer" aria-label={nav.closeSidebarLabel} className="drawer-overlay" />
       <ul className="menu bg-base-200 text-base-content min-h-full w-72 max-w-[85vw] p-4 sm:w-80">
         <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold border-b border-base-300 mb-2">
-          Navigation
+          {nav.drawerTitle}
         </div>
         {nav.drawerItems.map((item) => (
           <li key={item}>
@@ -21,15 +24,15 @@ export default function DrawerMenu() {
         {/* Admin CMS Section only visible in Burger Menu */}
         <div className="pt-4 border-t border-base-300 mt-4">
           <div className="px-3 pb-2 text-xs uppercase tracking-wider text-base-content/60 font-semibold">
-            Admin
+            {nav.adminTitle}
           </div>
           <li>
             <Link
-              href="/admin"
+              href={nav.adminHref}
               className="hover-neon text-brand-2 flex items-center gap-2 font-bold py-2.5"
             >
               <Sliders size={18} />
-              <span>Admin CMS</span>
+              <span>{nav.adminLabel}</span>
             </Link>
           </li>
         </div>

@@ -1,8 +1,10 @@
+'use client'
+
 import type { ReactNode } from 'react'
 import { CodeXml, Gamepad2, Plane, Rocket } from 'lucide-react'
-import { profile } from '../data/profile.ts'
-import Reveal from './Reveal.tsx'
-import SectionHeading from './SectionHeading.tsx'
+import { useProfile } from '../layout/ProfileProvider.tsx'
+import Reveal from '../ui/Reveal.tsx'
+import SectionHeading from '../ui/SectionHeading.tsx'
 
 /** A card wrapped in daisyUI hover-3d (needs 8 empty tracking cells after the card). */
 function Tilt({ children, delay }: { children: ReactNode; delay: number }) {
@@ -21,6 +23,7 @@ function Tilt({ children, delay }: { children: ReactNode; delay: number }) {
 }
 
 export default function BeyondCode() {
+  const profile = useProfile()
   const { beyondCode } = profile
   const { gaming, travel, coding } = beyondCode
 

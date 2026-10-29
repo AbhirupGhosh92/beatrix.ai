@@ -2,8 +2,8 @@
 
 
 import { useEffect, useState } from 'react'
-import { profile } from '../data/profile.ts'
-import { useInView } from '../hooks/useInView.ts'
+import { useProfile } from '../layout/ProfileProvider.tsx'
+import { useInView } from '../../hooks/useInView.ts'
 
 /**
  * Counts from 0 up to `to` once `active`. The final value is also rendered invisibly so the
@@ -43,6 +43,7 @@ function CountUp({ to, active }: { to: number; active: boolean }) {
 
 /** Impact numbers: daisyUI stats whose values count up when scrolled into view. */
 export default function Stats() {
+  const profile = useProfile()
   const [ref, inView] = useInView<HTMLDivElement>(0.3)
 
   return (

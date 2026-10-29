@@ -1,15 +1,10 @@
 # Firebase App Hosting config. Safe to commit: it names secrets, never holds values.
 #
-# Create the secrets once (each prompts for the value and offers to grant the backend access):
-#   firebase apphosting:secrets:set PROFILE_JSON_URL  # gs://BUCKET/profile.json (private bucket)
-#   firebase apphosting:secrets:set EXAMPLE_API_KEY
 runConfig:
   minInstances: 0
   maxInstances: 1
 
-env:
-  # Written to src/data/profile.json by scripts/write-profile.mjs before `next build`.
-  - variable: PROFILE_JSON_URL
-    secret: PROFILE_JSON_URL
-    availability:
-      - BUILD
+# The site calls the Cloud Functions in functions/ (deployed separately with
+# `firebase deploy --only functions`, or by .github/workflows/deploy-functions.yml). The only
+# server-side setting it needs is the Firebase project id, which App Hosting provides as
+# GOOGLE_CLOUD_PROJECT (or set NEXT_PUBLIC_FIREBASE_PROJECT_ID in the backend's environment).

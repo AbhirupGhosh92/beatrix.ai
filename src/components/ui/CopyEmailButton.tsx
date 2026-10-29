@@ -3,10 +3,11 @@
 
 import { useEffect, useState } from 'react'
 import { Mail } from 'lucide-react'
-import { profile } from '../data/profile.ts'
+import { useProfile } from '../layout/ProfileProvider.tsx'
 
 /** Copies the email from the profile to the clipboard and shows a daisyUI toast. */
 export default function CopyEmailButton({ className = '' }: { className?: string }) {
+  const profile = useProfile()
   const [copied, setCopied] = useState(false)
   const { contact, labels } = profile
 
