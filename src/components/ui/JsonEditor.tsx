@@ -31,6 +31,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
 
     updateTheme()
 
+    // Observe changes to 'data-theme' on documentElement as well as theme-controller radio inputs
     const observer = new MutationObserver(updateTheme)
     observer.observe(document.documentElement, {
       attributes: true,
@@ -38,7 +39,13 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
       subtree: true,
     })
 
-    return () => observer.disconnect()
+    const themeRadios = document.querySelectorAll('input.theme-controller')
+    themeRadios.forEach((radio) => radio.addEventListener('change', updateTheme))
+
+    return () => {
+      observer.disconnect()
+      themeRadios.forEach((radio) => radio.removeEventListener('change', updateTheme))
+    }
   }, [])
 
   // Monaco Editor onMount handler to define custom Cyberpunk / Light Monaco themes
