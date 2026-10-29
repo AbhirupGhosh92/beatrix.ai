@@ -4,7 +4,7 @@ import type { NextConfig } from 'next'
 // time; expose it under the NEXT_PUBLIC_FIREBASE_* names src/lib/firebase.ts reads, so every
 // environment builds with its own project without per-environment files. Values already set
 // (e.g. from .env.local) win.
-const webAppConfig = JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG ?? '{}') as Record<string, string | undefined>
+const webAppConfig = JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG || '{}') as Record<string, string | undefined>
 const firebaseEnv: Record<string, string> = {}
 for (const [name, value] of Object.entries({
   NEXT_PUBLIC_FIREBASE_API_KEY: webAppConfig.apiKey,
