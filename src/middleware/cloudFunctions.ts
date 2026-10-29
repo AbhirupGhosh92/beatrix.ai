@@ -60,8 +60,11 @@ export async function callCloudFunction<Response>(name: string, body: object = {
 
   const data = await res.json().catch(() => undefined)
   if (!res.ok) {
-    // Functions answer {error: {message}}; anything else (e.g. an IAM 403 page) stays generic.
-    throw new CloudFunctionError(res.status, data?.error?.message ?? `Cloud function ${name} failed (HTTP ${res.status}).`)
+    const message: string | undefined = data?.error?.message
+    // Functions answer {error: {message}}. Anything else (e.g. the IAM 401/403 page) is a
+    // server-side misconfiguration, not the caller's fault, so report it as a bad gateway.
+    if (message) throw new CloudFunctionError(res.status, message)
+    throw new CloudFunctionError(502, `Cloud function ${name} is unavailable (HTTP ${res.status}).`)
   }
   return data as Response
 }

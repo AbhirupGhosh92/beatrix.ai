@@ -10,7 +10,7 @@ function bearerToken(request: NextRequest): string | null {
 
 function failure(err: unknown) {
   if (err instanceof CloudFunctionError) {
-    return NextResponse.json({ error: err.message }, { status: err.status === 403 ? 502 : err.status, headers: NO_STORE })
+    return NextResponse.json({ error: err.message }, { status: err.status, headers: NO_STORE })
   }
   console.error('admin cms request failed:', err)
   return NextResponse.json({ error: 'Request failed.' }, { status: 500, headers: NO_STORE })
