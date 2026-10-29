@@ -212,15 +212,22 @@ resource "google_project_iam_member" "server_run_invoker" {
 }
 
 # ------------------------------------------------------------------------------
-# CMS Admins (Firestore allowed_emails/{email} with admin: true)
+# CMS Admins (Firestore allowed_emails/{email})
 # ------------------------------------------------------------------------------
+# `allowed` is read by the client sign-in check (src/lib/firebase.ts), `admin` by the admin
+# functions (functions/src/auth.ts). A document that already exists must be imported:
+#   terraform import -var-file=environments/<env>.tfvars 'google_firestore_document.allowed_admin["<email>"]' \
+#     'projects/<project>/databases/(default)/documents/allowed_emails/<email>'
 resource "google_firestore_document" "allowed_admin" {
   for_each    = toset([for email in var.allowed_admin_emails : lower(trimspace(email))])
   project     = var.project_id
   database    = google_firestore_database.default.name
   collection  = "allowed_emails"
   document_id = each.key
-  fields      = jsonencode({ admin = { booleanValue = true } })
+  fields = jsonencode({
+    admin   = { booleanValue = true }
+    allowed = { booleanValue = true }
+  })
 }
 
 # ------------------------------------------------------------------------------
