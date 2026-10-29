@@ -76,6 +76,7 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
 | `npm run functions:build` | `pnpm --prefix functions run build` |
 | `npm run deploy:functions` | `firebase deploy --only functions,firestore:rules,storage` |
+| `npm run infra:preflight` | `bash scripts/env-preflight.sh` |
 | `npm run functions:serve` | `pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth` |
 | `npm run infra:recreate` | `bash scripts/recreate-environment.sh` |
 | `npm run infra:seed` | `bash scripts/seed-data.sh` |
@@ -125,6 +126,7 @@ src/
 │       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
+│   ├── profile.json
 │   └── profile.ts
 ├── hooks/
 │   └── useInView.ts
