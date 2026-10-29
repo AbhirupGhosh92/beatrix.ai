@@ -13,16 +13,24 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_NAME="${1:-dev}"
 GCP_PROJECT_ID="${2:-}"
 
-# Resolve tfvars file
+# Resolve tfvars file robustly
 TFVARS_FILE=""
 if [[ -f "${ROOT_DIR}/terraform/environments/${ENV_NAME}.tfvars" ]]; then
   TFVARS_FILE="${ROOT_DIR}/terraform/environments/${ENV_NAME}.tfvars"
 elif [[ -f "${ENV_NAME}" ]]; then
   TFVARS_FILE="${ENV_NAME}"
+elif [[ -f "${ROOT_DIR}/${ENV_NAME}" ]]; then
+  TFVARS_FILE="${ROOT_DIR}/${ENV_NAME}"
+elif [[ -f "${ROOT_DIR}/terraform/${ENV_NAME}" ]]; then
+  TFVARS_FILE="${ROOT_DIR}/terraform/${ENV_NAME}"
 elif [[ -f "${ROOT_DIR}/terraform/terraform.tfvars" ]]; then
   TFVARS_FILE="${ROOT_DIR}/terraform/terraform.tfvars"
-else
+elif [[ "${ENV_NAME}" == "dev" && -f "${ROOT_DIR}/terraform/terraform.tfvars.example" ]]; then
   TFVARS_FILE="${ROOT_DIR}/terraform/terraform.tfvars.example"
+else
+  echo "Error: Could not locate a valid tfvars file for '${ENV_NAME}'."
+  echo "Expected path: terraform/environments/${ENV_NAME}.tfvars or custom tfvars file."
+  exit 1
 fi
 
 echo "======================================================================"

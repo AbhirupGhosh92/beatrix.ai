@@ -19,7 +19,7 @@ if command -v terraform &>/dev/null; then
 fi
 
 # Fallback/additional syntax validation using validator
-python3 "${ROOT_DIR}/self_created_tools/validate_infra_code.py" "${ROOT_DIR}/terraform" 2>/dev/null || \
+python3 "${ROOT_DIR}/scripts/../terraform/../scripts/../scripts/../scripts/../self_created_tools/validate_infra_code.py" "${ROOT_DIR}/terraform" 2>/dev/null || \
 python3 -c '
 import os, sys, glob, re
 
@@ -63,17 +63,19 @@ fi
 
 echo "==> [3/3] Checking git changes for infrastructure sync..."
 if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null; then
+  CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
+
   RULES_CHANGED=0
   TF_CHANGED=0
 
-  while read -r file; do
+  for file in ${CHANGED_FILES}; do
     if [[ "${file}" == "firestore.rules" || "${file}" == "storage.rules" || "${file}" == "firebase.json" || "${file}" == "apphosting.yaml" ]]; then
       RULES_CHANGED=1
     fi
     if [[ "${file}" == terraform/* ]]; then
       TF_CHANGED=1
     fi
-  done < <(git status --porcelain | cut -c 4-)
+  done
 
   if [[ ${RULES_CHANGED} -eq 1 && ${TF_CHANGED} -eq 0 ]]; then
     echo "Notice: Firebase rules or deployment config modified without Terraform changes."

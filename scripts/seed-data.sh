@@ -15,6 +15,12 @@ if [[ -z "${PROJECT_ID}" ]]; then
   exit 1
 fi
 
+# Sanitize project ID check
+if [[ ! "${PROJECT_ID}" =~ ^[a-z0-9-]+$ ]]; then
+  echo "Error: Invalid PROJECT_ID format '${PROJECT_ID}'."
+  exit 1
+fi
+
 echo "==> Seeding initial data for project: ${PROJECT_ID}"
 echo "    Target Bucket: gs://${BUCKET_NAME}"
 
@@ -43,22 +49,23 @@ fi
 if [[ -n "${ADMIN_EMAILS}" ]]; then
   IFS=',' read -ra EMAIL_ARRAY <<< "${ADMIN_EMAILS}"
   for raw_email in "${EMAIL_ARRAY[@]}"; do
-    email=$(echo "${raw_email}" | xargs | tr '[:upper:]' '[:lower:]')
+    email=$(echo "${raw_email}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [[ -n "${email}" ]]; then
       echo "==> Authorizing admin email in Firestore: allowed_emails/${email}..."
       if command -v gcloud &>/dev/null; then
-        gcloud firestore documents create "allowed_emails/${email}" \
+        if ! gcloud firestore documents create "allowed_emails/${email}" \
           --project="${PROJECT_ID}" \
           --database='(default)' \
           --collection-path="allowed_emails" \
           --document-id="${email}" \
-          --fields="admin=boolean:true" 2>/dev/null || \
-        gcloud firestore documents update "allowed_emails/${email}" \
-          --project="${PROJECT_ID}" \
-          --database='(default)' \
-          --collection-path="allowed_emails" \
-          --document-id="${email}" \
-          --fields="admin=boolean:true" || true
+          --fields="admin=boolean:true" 2>/dev/null; then
+            gcloud firestore documents update "allowed_emails/${email}" \
+              --project="${PROJECT_ID}" \
+              --database='(default)' \
+              --collection-path="allowed_emails" \
+              --document-id="${email}" \
+              --fields="admin=boolean:true" || echo "Warning: Failed to create or update Firestore document for ${email}."
+        fi
       else
         echo "Warning: gcloud CLI not installed. Skipping Firestore document creation for ${email}."
       fi
