@@ -120,6 +120,7 @@ src/
 │       ├── AchievementCard.tsx
 │       ├── Avatar.tsx
 │       ├── CopyEmailButton.tsx
+│       ├── JsonEditor.tsx
 │       ├── Reveal.tsx
 │       └── SectionHeading.tsx
 ├── data/

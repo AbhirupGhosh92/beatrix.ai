@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -12,8 +12,10 @@ import {
   Sparkles,
   Plus,
   RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { ThemeToggle } from '../../components/layout/ThemeToggle.tsx'
+import { JsonEditor } from '../../components/ui/JsonEditor.tsx'
 import { getIdToken } from '../../lib/firebase.ts'
 
 // The browser only talks to this site's own /api/admin/cms route; the server calls the Cloud
@@ -55,11 +57,15 @@ export default function AdminPage() {
   const [content, setContent] = useState<string>('')
   const [initialContent, setInitialContent] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(true)
+  const [fetchingList, setFetchingList] = useState<boolean>(false)
   const [saving, setSaving] = useState<boolean>(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const [newFileName, setNewFileName] = useState<string>('')
   const [showNewFileModal, setShowNewFileModal] = useState<boolean>(false)
+
+  // In-memory memoisation cache for API calls (file contents)
+  const cacheRef = useRef<Map<string, FileContent>>(new Map())
 
   const showNotification = useCallback((type: 'success' | 'error', msg: string) => {
     setToast({ type, msg })
@@ -69,18 +75,25 @@ export default function AdminPage() {
   }, [])
 
   // Fetch file list
-  const fetchFileList = useCallback(async () => {
+  const fetchFileList = useCallback(async (bypassCache = false) => {
+    setFetchingList(true)
     try {
       const data = await cms<{ files: FileItem[] }>()
       setFileList(data.files || [])
+      if (bypassCache) {
+        cacheRef.current.clear()
+      }
     } catch (err) {
       showNotification('error', err instanceof Error ? err.message : 'Error fetching files')
+    } finally {
+      setFetchingList(false)
     }
   }, [showNotification])
 
   useEffect(() => {
     let ignore = false
     async function initFileList() {
+      setFetchingList(true)
       try {
         const data = await cms<{ files: FileItem[] }>()
         if (!ignore) {
@@ -89,6 +102,10 @@ export default function AdminPage() {
       } catch (err) {
         if (!ignore) {
           showNotification('error', err instanceof Error ? err.message : 'Error fetching files')
+        }
+      } finally {
+        if (!ignore) {
+          setFetchingList(false)
         }
       }
     }
@@ -101,7 +118,18 @@ export default function AdminPage() {
   useEffect(() => {
     if (!selectedFile) return
     let ignore = false
+
     async function loadFile() {
+      // Check in-memory cache first for memoised response
+      const cached = cacheRef.current.get(selectedFile)
+      if (cached) {
+        setContent(cached.content)
+        setInitialContent(cached.content)
+        setLastSaved(cached.updatedAt ? new Date(cached.updatedAt).toLocaleTimeString() : null)
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       try {
         const data = await cms<FileContent>({ query: `?file=${encodeURIComponent(selectedFile)}` })
@@ -116,7 +144,12 @@ export default function AdminPage() {
           // Keep raw string if parse fails
         }
 
+        const preparedData = { ...data, content: rawContent }
+
         if (!ignore) {
+          // Store in memoisation cache
+          cacheRef.current.set(selectedFile, preparedData)
+
           setContent(rawContent)
           setInitialContent(rawContent)
           setLastSaved(data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : null)
@@ -160,6 +193,17 @@ export default function AdminPage() {
     try {
       const data = await cms<SaveResult>({ method: 'POST', body: { file: selectedFile, content } })
 
+      const nowIso = new Date().toISOString()
+      // Update memoisation cache with saved content
+      cacheRef.current.set(selectedFile, {
+        filename: selectedFile,
+        displayName: selectedFile,
+        exists: true,
+        size: content.length,
+        updatedAt: nowIso,
+        content,
+      })
+
       setInitialContent(content)
       setLastSaved(new Date().toLocaleTimeString())
       showNotification('success', data.message || `Saved ${selectedFile} successfully!`)
@@ -195,7 +239,8 @@ export default function AdminPage() {
     }
 
     setSelectedFile(cleanName)
-    setContent('{\n  "key": "value"\n}')
+    const initialNewContent = '{\n  "key": "value"\n}'
+    setContent(initialNewContent)
     setInitialContent('')
     setShowNewFileModal(false)
     setNewFileName('')
@@ -268,11 +313,12 @@ export default function AdminPage() {
             </select>
 
             <button
-              onClick={() => fetchFileList()}
+              onClick={() => fetchFileList(true)}
+              disabled={fetchingList}
               className="btn btn-ghost btn-xs btn-square"
-              title="Refresh File List"
+              title="Refresh File List (Bypasses Cache)"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={14} className={fetchingList ? 'animate-spin text-brand' : ''} />
             </button>
 
             <button
@@ -311,8 +357,17 @@ export default function AdminPage() {
               disabled={loading || saving || !!jsonError || !isDirty}
               className="button-primary btn-sm flex items-center gap-1 text-xs font-bold"
             >
-              <Save size={14} />
-              {saving ? 'Saving...' : 'Save File'}
+              {saving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  Save File
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -361,7 +416,8 @@ export default function AdminPage() {
             <span className="font-semibold text-brand-2">
               src/data/{selectedFile}
             </span>
-            <span className="text-base-content/60">
+            <span className="text-base-content/60 flex items-center gap-2">
+              {loading && <Loader2 size={12} className="animate-spin text-brand" />}
               {loading ? 'Loading file...' : 'JSON Content Editor'}
             </span>
           </div>
@@ -377,20 +433,17 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Textarea Editor */}
+          {/* JSON Editor Component */}
           <div className="relative flex-1 min-h-[500px]">
             {loading ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-base-200/80">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-base-200/80 z-20 gap-3">
                 <span className="loading loading-spinner loading-lg text-primary"></span>
+                <span className="text-xs font-mono text-base-content/70 animate-pulse">
+                  Fetching file content...
+                </span>
               </div>
             ) : (
-              <textarea
-                className="w-full h-full min-h-[500px] p-4 bg-base-200 font-mono text-sm leading-relaxed focus:outline-none resize-y border-none text-base-content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Enter JSON file content here..."
-                spellCheck={false}
-              />
+              <JsonEditor value={content} onChange={setContent} />
             )}
           </div>
         </div>
