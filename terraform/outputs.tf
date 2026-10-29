@@ -35,7 +35,7 @@ output "messaging_sender_id" {
 }
 
 output "app_id" {
-  value       = data.google_firebase_web_app_config.default.app_id
+  value       = google_firebase_web_app.default.app_id
   description = "Firebase App ID."
 }
 
