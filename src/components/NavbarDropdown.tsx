@@ -1,4 +1,6 @@
+import { signOut } from 'firebase/auth'
 import { Ellipsis, LogOut, Settings, User, type LucideIcon } from 'lucide-react'
+import { getFirebaseAuth } from '../lib/firebase.ts'
 import { profile } from '../data/profile.ts'
 
 const ICONS: Record<(typeof profile.nav.dropdownItems)[number]['icon'], LucideIcon> = {
@@ -27,12 +29,31 @@ export default function NavbarDropdown() {
       >
         {nav.dropdownItems.map(({ label, icon }) => {
           const Icon = ICONS[icon]
+          const isLogout = icon === 'log-out'
+
+          const handleClick = async () => {
+            if (isLogout) {
+              const auth = getFirebaseAuth()
+              if (auth) {
+                try {
+                  await signOut(auth)
+                } catch (error) {
+                  console.error('Sign out error:', error)
+                }
+              }
+            }
+          }
+
           return (
             <li key={label}>
-              <a className="hover-subtle">
+              <button
+                type="button"
+                onClick={handleClick}
+                className="hover-subtle w-full text-left flex items-center gap-2"
+              >
                 <Icon size={16} aria-hidden="true" />
                 {label}
-              </a>
+              </button>
             </li>
           )
         })}

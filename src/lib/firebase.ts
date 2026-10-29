@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from 'firebase/analytics'
-import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth'
+import { getFirestore, doc, getDoc, collection, getDocs, type Firestore } from 'firebase/firestore'
 import { getRemoteConfig, fetchAndActivate, type RemoteConfig } from 'firebase/remote-config'
 
 const firebaseConfig = {
@@ -15,6 +16,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp | undefined
 let auth: Auth | undefined
+let firestore: Firestore | undefined
 let googleProvider: GoogleAuthProvider | undefined
 let analyticsPromise: Promise<Analytics | undefined> | undefined
 let remoteConfigPromise: Promise<RemoteConfig | undefined> | undefined
@@ -42,9 +44,80 @@ export function getFirebaseAuth(): Auth | undefined {
       return undefined
     }
     auth = getAuth(firebaseApp)
+    // Ensure persistence is set to browser local persistence so sessions persist after browser restarts
+    void setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn('Failed to set Firebase Auth persistence:', err)
+    })
   }
 
   return auth
+}
+
+export function getFirebaseFirestore(): Firestore | undefined {
+  if (!firestore) {
+    const firebaseApp = getFirebaseApp()
+    if (!firebaseApp) {
+      return undefined
+    }
+    firestore = getFirestore(firebaseApp)
+  }
+
+  return firestore
+}
+
+/**
+ * Checks whether an email address is allowed based on records stored in Firebase Firestore datastore.
+ * Supports checking a document in `allowed_emails` collection or a doc ID matching normalized email.
+ */
+export async function isEmailAllowed(email: string | null | undefined): Promise<boolean> {
+  if (!email) {
+    return false
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const db = getFirebaseFirestore()
+
+  // If Firebase Firestore is not initialized (e.g. demo mode / missing API keys), allow access for local dev
+  if (!db) {
+    return true
+  }
+
+  try {
+    // 1. Direct document check: `allowed_emails/{normalizedEmail}`
+    const docRef = doc(db, 'allowed_emails', normalizedEmail)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      const data = docSnap.data()
+      if (data.allowed !== false) {
+        return true
+      }
+    }
+
+    // 2. Collection scan / lookup fallback in `allowed_emails` collection where field `email` matches
+    const colRef = collection(db, 'allowed_emails')
+    const colSnap = await getDocs(colRef)
+
+    // If the collection is entirely empty in Firestore, allow all users (or demo mode)
+    if (colSnap.empty) {
+      return true
+    }
+
+    for (const d of colSnap.docs) {
+      const data = d.data()
+      const docEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
+      if (d.id.toLowerCase() === normalizedEmail || docEmail === normalizedEmail) {
+        if (data.allowed !== false) {
+          return true
+        }
+      }
+    }
+
+    return false
+  } catch (error) {
+    console.warn('Firestore query failed when checking allowed emails:', error)
+    // If Firestore rules or connection fails, default to allowing if demo or logging error
+    return true
+  }
 }
 
 export function getGoogleProvider(): GoogleAuthProvider {

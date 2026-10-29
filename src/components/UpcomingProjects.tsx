@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { FolderKanban, Lock, CheckCircle2 } from 'lucide-react'
-import { signInWithPopup } from 'firebase/auth'
-import { getFirebaseAuth, getGoogleProvider } from '../lib/firebase.ts'
+import { signInWithPopup, signOut } from 'firebase/auth'
+import { getFirebaseAuth, getGoogleProvider, isEmailAllowed } from '../lib/firebase.ts'
 import { profile } from '../data/profile.ts'
 import SectionHeading from './SectionHeading.tsx'
 import Reveal from './Reveal.tsx'
@@ -82,7 +82,16 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     }
 
     try {
-      await signInWithPopup(auth, getGoogleProvider())
+      const credential = await signInWithPopup(auth, getGoogleProvider())
+      const user = credential.user
+      const allowed = await isEmailAllowed(user.email)
+
+      if (!allowed) {
+        await signOut(auth)
+        setLoginError(`Access restricted: Email address (${user.email || 'unknown'}) is not in the allowed emails datastore.`)
+        return
+      }
+
       onLogin()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Google authentication failed. Please try again.'
