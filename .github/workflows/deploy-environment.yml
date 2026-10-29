@@ -1,0 +1,80 @@
+name: Deploy environment
+
+# Reusable: applies Terraform, then deploys the Cloud Functions, Firestore/Storage rules and
+# the App Hosting site of one environment. Called by deploy.yml.
+#
+# Authenticates with Workload Identity Federation (no keys): the GitHub environment's variables
+# GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOYER_SERVICE_ACCOUNT and
+# TF_STATE_BUCKET are written by scripts/sync-github-env.sh.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      ref:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      TFVARS: environments/${{ inputs.environment }}.tfvars
+    steps:
+      - name: Check the environment is provisioned
+        id: env
+        run: |
+          if [ -z "$PROJECT_ID" ]; then
+            echo "::notice::Environment '${{ inputs.environment }}' is not provisioned yet; skipping. Run ./scripts/recreate-environment.sh ${{ inputs.environment }}."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.env.outputs.ready == 'true'
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: google-github-actions/auth@v2
+        if: steps.env.outputs.ready == 'true'
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        if: steps.env.outputs.ready == 'true'
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: Terraform apply
+        if: steps.env.outputs.ready == 'true' && hashFiles(format('terraform/{0}', env.TFVARS)) != ''
+        working-directory: terraform
+        run: |
+          terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          terraform apply -input=false -auto-approve -var-file="$TFVARS"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.env.outputs.ready == 'true'
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        if: steps.env.outputs.ready == 'true'
+        with:
+          node-version: 22
+
+      - name: Deploy functions, rules and App Hosting
+        if: steps.env.outputs.ready == 'true'
+        run: bash scripts/deploy-backend.sh "$PROJECT_ID"

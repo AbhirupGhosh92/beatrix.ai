@@ -1,86 +1,55 @@
-# Firebase Infrastructure Automation with Terraform
+# Environments and deployment
 
-This directory contains Terraform scripts to automate the provisioning and recreation of the Beatrix.ai GCP and Firebase infrastructure in lower environments (e.g., `dev`, `staging`, `qa`).
+Beatrix.ai runs in up to three Firebase/GCP projects, all built from this Terraform code:
 
-## Prerequisites
+| Environment | tfvars | Deployed |
+|---|---|---|
+| `dev` | `environments/dev.tfvars` | automatically on every push to `main` |
+| `staging` | `environments/staging.tfvars` | automatically on every push to `main`, after dev succeeds |
+| `production` | `environments/production.tfvars` (add when the project exists) | **only manually**: Actions > Deploy > Run workflow > `production` + ref |
 
-Ensure you have the following CLI tools installed:
-1. **Terraform** (>= 1.5.0)
-2. **Google Cloud SDK (`gcloud`)**
-3. **Firebase CLI (`firebase-tools`)**
-4. **Node.js** (>= 20) and **pnpm**
+`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` runs `terraform apply`, then `scripts/deploy-backend.sh` (Cloud Functions, Firestore/Storage rules and the App Hosting site from source). An environment whose GitHub environment has no variables yet is skipped with a notice, so merging is safe before staging or production exist.
 
-Authenticate with GCP and Firebase before running Terraform:
-```bash
-gcloud auth login
-gcloud auth application-default login
-firebase login
-```
+## Runbook: provisioning an environment (agents MUST follow this)
 
-## Structure
+Provisioning is split between **manual steps the user does** and **automation the agent runs**. An agent never does the manual steps itself (no `gcloud projects create`, no billing changes, no console clicks, no creating Storage or sign-in providers), never works around a failed check, and never edits these checks out. Instead:
 
-```text
-terraform/
-├── main.tf                 # GCP services, Firebase project, Web App, Firestore, Storage, Rules, and IAM
-├── variables.tf            # Input variable declarations
-├── outputs.tf              # Project & Web App output attributes
-├── terraform.tfvars.example# Template for environment variables
-└── environments/
-    └── dev.tfvars          # Pre-configured tfvars for 'dev' environment
-```
+1. **Ask first.** Confirm the environment name and project ID with the user. If `environments/<env>.tfvars` does not exist, create it from `dev.tfvars` (ask the user for the CMS admin emails and the developer members).
+2. **Run** `./scripts/recreate-environment.sh <env>`. It is idempotent and stops with **exit code 3** and an `ACTION REQUIRED` list whenever a manual step is missing.
+3. **On exit code 3**, give the user the listed steps one at a time, in order, with the links printed. Wait until the user says a step is done, then re-run the script. Repeat until it completes.
+4. **Report** the site URL printed at the end, and anything that failed.
 
-## Agent & Automation Governance
+The manual steps, in the order the script asks for them:
 
-As specified in `AGENTS.md`:
-- All infrastructure changes **must** happen via agents/code using Terraform files in `terraform/`.
-- Manual GCP or Firebase Console modifications are prohibited without updating the Terraform codebase.
-- Run `npm run infra:check` before committing infrastructure or rule updates.
+| # | Step (user) | Checked by |
+|---|---|---|
+| 1 | Install and sign in to `gcloud` (incl. `gcloud auth application-default login`), `firebase` and `gh` | `env-preflight.sh pre` |
+| 2 | Create the GCP project with the ID from the tfvars | `env-preflight.sh pre` |
+| 3 | Link a billing account to the project | `env-preflight.sh pre` |
+| 4 | Firebase console > Storage > **Get started** (creates `<project>.firebasestorage.app`, which the functions read) | `env-preflight.sh post` |
+| 5 | Firebase console > Authentication > **Get started**, then enable the **Google** provider | `env-preflight.sh post` |
+| 6 | Authentication > Settings > Authorized domains: add the App Hosting domain the script prints | `env-preflight.sh post` |
+| 7 | Production only: in GitHub Settings > Environments > `production`, add yourself as a required reviewer (optional extra gate) | not checked |
 
-## Provisioned Resources
+Everything else is automated by the script: the Terraform state bucket (`gs://<project>-tfstate`, the one bootstrap resource outside Terraform), `terraform apply`, `.env.local` (dev only), seeding `cms/profile.json` into the default Storage bucket (skipped when it already exists), deploying functions, rules and App Hosting, and writing the GitHub environment variables for CI (`scripts/sync-github-env.sh`).
 
-Terraform manages:
-- **GCP APIs**: Enables Firebase, Firestore, Storage, Cloud Functions v2, Cloud Run, Artifact Registry, Identity Platform, and IAM APIs.
-- **Firebase Project & Web App**: Connects Firebase to the GCP project and registers the web application instance.
-- **Cloud Firestore**: Provisions Native mode Firestore database `(default)`.
-- **Cloud Storage Bucket**: Creates the primary CMS storage bucket with CORS enabled.
-- **Firebase Security Rules**: Deploys `firestore.rules` and `storage.rules`.
-- **IAM & Service Accounts**: Creates server service account (`beatrix-server-<env>`) with Firestore User, Storage Object Admin, and Cloud Run Invoker roles.
+Run only the checks with `npm run infra:preflight -- <env> [pre|post]`.
 
-## Quick Start: Recreating Infrastructure
+## What Terraform manages
 
-The easiest way to recreate an entire lower environment is using the master automation script:
+- **APIs** for Firebase, Firestore, Storage, Cloud Functions v2, Cloud Run, Cloud Build, Artifact Registry, App Hosting, Identity Toolkit, IAM and STS.
+- **Firebase project and web app**, **Firestore** `(default)` (abandoned rather than deleted on destroy in production), the `<project>-cms-<env>` bucket (not used by the code today; the functions use the default Storage bucket), and the **security rules**.
+- **CMS admins**: one `allowed_emails/{email}` document with `admin: true` per `allowed_admin_emails` entry.
+- **App Hosting**: backend `beatrix-web` (must match `backendId` in `firebase.json`) with no GitHub connection, running as `firebase-app-hosting-compute@<project>`, the only identity allowed to invoke the Cloud Functions. `developer_members` may impersonate it for local development. The web app config reaches the build as `FIREBASE_WEBAPP_CONFIG`, which `next.config.ts` maps to the `NEXT_PUBLIC_FIREBASE_*` variables.
+- **CI identity**: Workload Identity pool `github` that accepts only this repository's jobs running in the GitHub environment with the same name, and the `github-deployer` service account they act as. No keys.
+- `beatrix-server-<env>`: legacy server service account, kept for now.
 
-```bash
-# Recreate the 'dev' environment:
-./scripts/recreate-environment.sh dev beatrix-ai-dev
-```
-
-This script will:
-1. Run `terraform apply` using `terraform/environments/dev.tfvars`.
-2. Extract web app configurations into `.env.local`.
-3. Upload initial profile JSON to Cloud Storage (`gs://<project>-cms-<env>/cms/profile.json`).
-4. Authorize initial admin emails in Firestore (`allowed_emails/{email}`).
-5. Build and deploy backend Cloud Functions and security rules.
-
-## Manual Terraform Workflow
-
-If you prefer running Terraform manually:
+## Manual Terraform workflow
 
 ```bash
 cd terraform
-
-# 1. Initialize Terraform plugins
-terraform init
-
-# 2. Plan changes
+terraform init -reconfigure -backend-config="bucket=<project_id>-tfstate"
 terraform plan -var-file="environments/dev.tfvars"
-
-# 3. Apply changes
-terraform apply -var-file="environments/dev.tfvars"
 ```
 
-After `terraform apply`, seed data and deploy functions using:
-```bash
-./scripts/seed-data.sh <PROJECT_ID> <BUCKET_NAME> "admin@example.com"
-./scripts/deploy-backend.sh <PROJECT_ID>
-```
+Always `-reconfigure` with the right bucket when switching environments: state is per project, so dev and staging never share it. Run `npm run infra:check` before committing infrastructure or rule changes.

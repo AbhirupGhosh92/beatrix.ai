@@ -10,9 +10,11 @@
    - Infrastructure changes MUST occur via code and agents. Manual changes in the Google Cloud Console or Firebase Console without updating Terraform configurations are prohibited.
    - Always run `npm run infra:check` when making changes to infrastructure or security rules to ensure Terraform configurations remain synchronized and syntax is valid.
 
-3. **Lower Environment Recreation**:
-   - To recreate or provision lower environments (such as `dev`, `staging`, `qa`), run:
+3. **Environments & Deployment** (full runbook: `terraform/README.md`):
+   - Every push to `main` deploys `dev`, then `staging`, via `.github/workflows/deploy.yml`. `production` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic production deploys, and never trigger one unasked.
+   - To create, recreate or repair an environment, run:
      ```bash
-     npm run infra:recreate <env> [gcp-project-id]
+     ./scripts/recreate-environment.sh <env>
      ```
-   - This script initializes Terraform, applies resources, writes `.env.local` configuration, seeds initial CMS and Firestore data, and deploys Cloud Functions and security rules.
+     It applies Terraform, seeds data, deploys, and configures the GitHub environment for CI.
+   - **Manual steps are the user's.** Creating the GCP project, linking billing, Firebase Storage "Get started", enabling the Firebase Auth Google provider, authorized domains and CLI logins are done by the user. When the script exits with code 3 and prints `ACTION REQUIRED`, give the user those steps one at a time, wait for them to confirm each, and re-run the script. Never do these steps yourself, and never skip, bypass or delete the checks in `scripts/env-preflight.sh`.

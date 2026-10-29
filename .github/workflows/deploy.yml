@@ -1,0 +1,51 @@
+name: Deploy
+
+# Every push to main deploys dev, then staging (once dev succeeded). Production is never
+# deployed automatically: run this workflow by hand ("Run workflow"), pick `production` and
+# the branch, tag or commit to ship. Any environment can be redeployed the same way.
+#
+# Each GitHub environment (dev, staging, production) is set up by
+# `./scripts/recreate-environment.sh <env>`; until then its jobs are skipped with a notice.
+# See terraform/README.md for the runbook.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [production, staging, dev]
+        default: production
+      ref:
+        description: Branch, tag or commit SHA to deploy
+        type: string
+        default: main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  dev:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: dev
+      ref: ${{ github.sha }}
+
+  staging:
+    if: github.event_name == 'push'
+    needs: dev
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: staging
+      ref: ${{ github.sha }}
+
+  manual:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: ${{ inputs.environment }}
+      ref: ${{ inputs.ref }}
