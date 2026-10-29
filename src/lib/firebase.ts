@@ -55,6 +55,14 @@ export function getGoogleProvider(): GoogleAuthProvider {
   return googleProvider
 }
 
+export async function signOutUser(): Promise<void> {
+  const firebaseAuth = getFirebaseAuth()
+  if (firebaseAuth) {
+    const { signOut } = await import('firebase/auth')
+    await signOut(firebaseAuth)
+  }
+}
+
 export async function initAnalytics(): Promise<Analytics | undefined> {
   if (analyticsPromise) {
     return analyticsPromise
