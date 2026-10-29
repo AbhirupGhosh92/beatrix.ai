@@ -1,0 +1,46 @@
+name: Infrastructure Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+      - 'scripts/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - 'apphosting.yaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+      - 'scripts/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - 'apphosting.yaml'
+
+jobs:
+  validate-infra:
+    name: Validate Infrastructure Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Format Check
+        run: terraform -chdir=terraform fmt -check
+
+      - name: Terraform Init & Validate
+        run: |
+          cd terraform
+          terraform init -backend=false
+          terraform validate
+
+      - name: Run Infrastructure Sync Check
+        run: bash scripts/check-infra.sh

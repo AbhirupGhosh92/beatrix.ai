@@ -17,6 +17,7 @@ A single-page personal bio / resume site aimed at recruiters, built with a cyber
 - [Scripts](#scripts)
 - [Project structure](#project-structure)
 - [Theming](#theming)
+- [Infrastructure Automation (Terraform)](#infrastructure-automation-terraform)
 - [Deployment](#deployment-firebase-app-hosting)
 - [Git hooks](#git-hooks)
 - [Contributing and branch protection](#contributing-and-branch-protection)
@@ -76,6 +77,9 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | `npm run functions:build` | `pnpm --prefix functions run build` |
 | `npm run deploy:functions` | `firebase deploy --only functions,firestore:rules,storage` |
 | `npm run functions:serve` | `pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth` |
+| `npm run infra:recreate` | `bash scripts/recreate-environment.sh` |
+| `npm run infra:seed` | `bash scripts/seed-data.sh` |
+| `npm run infra:check` | `bash scripts/check-infra.sh` |
 <!-- scripts:end -->
 
 ## Project structure
@@ -120,7 +124,6 @@ src/
 │       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
-│   ├── profile.json
 │   └── profile.ts
 ├── hooks/
 │   └── useInView.ts
@@ -136,6 +139,17 @@ src/
 ## Theming
 
 Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
+
+## Infrastructure Automation (Terraform)
+
+Infrastructure for lower environments (`dev`, `staging`, etc.) is fully automated using Terraform in the `terraform/` directory:
+
+```bash
+# Recreate infrastructure for dev environment:
+npm run infra:recreate dev beatrix-ai-dev
+```
+
+This automates GCP API enablement, Firebase Web App provisioning, Cloud Firestore database creation, Cloud Storage bucket configuration, security rules release, and initial data seeding. See [`terraform/README.md`](terraform/README.md) for full details.
 
 ## Deployment (Firebase App Hosting)
 
