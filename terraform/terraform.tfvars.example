@@ -1,0 +1,7 @@
+project_id           = "your-firebase-dev-project-id"
+environment          = "dev"
+region               = "us-central1"
+firestore_location_id = "nam5"
+allowed_admin_emails = [
+  "admin@example.com"
+]
