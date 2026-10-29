@@ -59,9 +59,9 @@ resource "google_firebase_project" "default" {
 }
 
 resource "google_firebase_web_app" "default" {
-  provider     = google-beta
-  project      = var.project_id
-  display_name = "beatrix-ai-web-${var.environment}"
+  provider        = google-beta
+  project         = var.project_id
+  display_name    = "beatrix-ai-web-${var.environment}"
   deletion_policy = "DELETE"
 
   depends_on = [google_firebase_project.default]
