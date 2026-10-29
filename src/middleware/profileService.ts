@@ -35,9 +35,9 @@ function readLocal(): Profile | undefined {
   return existsSync(file) ? parse(readFileSync(file, 'utf-8')) : undefined
 }
 
-export async function getProfile(): Promise<Profile> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value
+let inFlight: Promise<Profile> | undefined
 
+async function load(): Promise<Profile> {
   let value: Profile | undefined
   try {
     const { content } = await callCloudFunction<{ content: string | null }>('getProfile')
@@ -51,4 +51,13 @@ export async function getProfile(): Promise<Profile> {
   value ??= readLocal() ?? parse(JSON.stringify(defaults))
   cache = { at: Date.now(), value }
   return value
+}
+
+export async function getProfile(): Promise<Profile> {
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value
+  // generateMetadata and the layout call this concurrently; share one request.
+  inFlight ??= load().finally(() => {
+    inFlight = undefined
+  })
+  return inFlight
 }

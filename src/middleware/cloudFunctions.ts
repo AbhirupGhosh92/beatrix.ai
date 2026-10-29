@@ -66,5 +66,8 @@ export async function callCloudFunction<Response>(name: string, body: object = {
     if (message) throw new CloudFunctionError(res.status, message)
     throw new CloudFunctionError(502, `Cloud function ${name} is unavailable (HTTP ${res.status}).`)
   }
+  if (data === undefined) {
+    throw new CloudFunctionError(502, `Cloud function ${name} returned an invalid or empty response.`)
+  }
   return data as Response
 }
