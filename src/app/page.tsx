@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { isRole, type Role } from '../lib/access.ts'
+import { hasDrawerContent } from '../lib/drawer.ts'
 import Navbar from '../components/layout/Navbar.tsx'
+import { useProfile } from '../components/layout/ProfileProvider.tsx'
 import DrawerMenu from '../components/layout/DrawerMenu.tsx'
 import Hero from '../components/sections/Hero.tsx'
 import Stats from '../components/sections/Stats.tsx'
@@ -30,6 +32,8 @@ export default function Home() {
   // The server's session decides who is logged in and what role they hold; nothing here is trusted.
   const [role, setRole] = useState<Role | null>(null)
   const isLoggedIn = role !== null
+  // No menu button and no drawer when there is nothing to list for this user.
+  const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role)
 
   const refreshSession = useCallback(async () => setRole(await fetchSessionRole()), [])
 
@@ -50,7 +54,7 @@ export default function Home() {
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
         <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">
-            <Navbar isLoggedIn={isLoggedIn} onLogout={() => setRole(null)} />
+            <Navbar isLoggedIn={isLoggedIn} showMenu={showMenu} onLogout={() => setRole(null)} />
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8 lg:py-6">
@@ -68,7 +72,7 @@ export default function Home() {
         <Footer />
         <BackToTop />
       </div>
-      {role && <DrawerMenu role={role} />}
+      {showMenu && role && <DrawerMenu role={role} />}
     </div>
   )
 }

@@ -453,8 +453,13 @@
     "moreLabel": "More",
     "toggleThemeLabel": "Toggle dark theme",
     "drawerItems": [
-      "Sidebar Item 1",
-      "Sidebar Item 2"
+      {
+        "id": "resume-builder",
+        "label": "Resume builder",
+        "href": "/resume-builder",
+        "icon": "file-text",
+        "enabled": false
+      }
     ],
     "dropdownItems": [
       {

@@ -101,18 +101,31 @@ src/
 │   │   │   └── page.tsx
 │   │   └── cms/
 │   │       └── page.tsx
-│   └── api/
-│       ├── admin/
-│       │   ├── cms/
-│       │   │   └── route.ts
-│       │   └── users/
-│       │       └── route.ts
-│       └── auth/
-│           ├── me/
-│           │   └── route.ts
-│           └── session/
-│               └── route.ts
+│   ├── api/
+│   │   ├── admin/
+│   │   │   ├── cms/
+│   │   │   │   └── route.ts
+│   │   │   ├── resumes/
+│   │   │   │   └── route.ts
+│   │   │   └── users/
+│   │   │       └── route.ts
+│   │   ├── auth/
+│   │   │   ├── me/
+│   │   │   │   └── route.ts
+│   │   │   └── session/
+│   │   │       └── route.ts
+│   │   └── resumes/
+│   │       ├── route.ts
+│   │       ├── [id]/
+│   │       │   └── route.ts
+│   │       └── config/
+│   │           └── route.ts
+│   └── resume-builder/
+│       ├── layout.tsx
+│       └── page.tsx
 ├── components/
+│   ├── admin/
+│   │   └── OrphanedResumes.tsx
 │   ├── layout/
 │   │   ├── AdminNav.tsx
 │   │   ├── BackToTop.tsx
@@ -122,7 +135,17 @@ src/
 │   │   ├── Navbar.tsx
 │   │   ├── NavbarDropdown.tsx
 │   │   ├── ProfileProvider.tsx
+│   │   ├── ResumeNav.tsx
 │   │   └── ThemeToggle.tsx
+│   ├── resume/
+│   │   ├── ExportPanel.tsx
+│   │   ├── FieldInput.tsx
+│   │   ├── ResumeBuilder.tsx
+│   │   ├── ResumeEditor.tsx
+│   │   ├── ResumeList.tsx
+│   │   ├── StructureEditor.tsx
+│   │   ├── StructureForm.tsx
+│   │   └── TemplatePreview.tsx
 │   ├── sections/
 │   │   ├── About.tsx
 │   │   ├── BeyondCode.tsx
@@ -141,16 +164,36 @@ src/
 │       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
-│   └── profile.ts
+│   ├── profile.ts
+│   ├── resume-config.example.json
+│   └── resumeConfig.ts
 ├── hooks/
 │   └── useInView.ts
 ├── lib/
 │   ├── access.ts
-│   └── firebase.ts
+│   ├── drawer.ts
+│   ├── firebase.ts
+│   ├── jsonDefaults.ts
+│   ├── resumeClient.ts
+│   ├── resumeConfigSanitize.ts
+│   ├── resumeForm.ts
+│   ├── resumeTypes.ts
+│   ├── resumeValidation.ts
+│   └── resume/
+│       ├── export.ts
+│       ├── markdown.ts
+│       ├── model.ts
+│       ├── sample.ts
+│       ├── style.ts
+│       ├── toDocx.ts
+│       └── toPdf.ts
 ├── middleware/
 │   ├── adminService.ts
 │   ├── cloudFunctions.ts
 │   ├── profileService.ts
+│   ├── resumeAdminService.ts
+│   ├── resumeConfigService.ts
+│   ├── resumeService.ts
 │   ├── routeHelpers.ts
 │   ├── sessionService.ts
 │   └── userService.ts

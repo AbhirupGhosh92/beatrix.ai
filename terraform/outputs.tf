@@ -73,3 +73,8 @@ output "deployer_service_account_email" {
   value       = google_service_account.deployer.email
   description = "Service account GitHub Actions deploys as."
 }
+
+output "resumes_bucket" {
+  value       = google_storage_bucket.resumes_storage.name
+  description = "Cloud Storage bucket name for user resumes."
+}

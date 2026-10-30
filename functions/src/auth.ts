@@ -39,3 +39,28 @@ export async function requirePermission(idToken: unknown, permission: Permission
   if (!can(role, permission)) throw new ApiError(403, `${email} is not allowed to do this.`);
   return email;
 }
+
+/**
+ * Permission gate for the user-facing APIs: the `__session` cookie the Next.js server forwards must
+ * be a valid, unrevoked session whose email still resolves to a role holding `permission`. The
+ * owner of any data is this verified email, never something taken from the request body.
+ */
+export async function requireSession(
+  cookie: unknown,
+  permission: Permission,
+): Promise<{ email: string; role: Role }> {
+  if (typeof cookie !== "string" || !cookie) throw new ApiError(401, "Sign-in required.");
+
+  let email: string;
+  try {
+    email = verifiedEmail(await getAuth().verifySessionCookie(cookie, true));
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(401, "Invalid or expired session.");
+  }
+
+  const role = await roleForEmail(email);
+  if (!role) throw new ApiError(401, "This account no longer has access.");
+  if (!can(role, permission)) throw new ApiError(403, "Not allowed.");
+  return { email, role };
+}

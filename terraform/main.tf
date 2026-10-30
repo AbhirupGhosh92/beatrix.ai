@@ -170,6 +170,40 @@ resource "google_storage_bucket" "cms_storage" {
 }
 
 # ------------------------------------------------------------------------------
+# Cloud Storage Bucket for user resumes (private, per-owner objects)
+# ------------------------------------------------------------------------------
+# Only the Cloud Functions (Admin SDK) touch this bucket; browsers never do. The name must match
+# functions/src/firebase.ts (`<project id>-resumes`). Deleted or overwritten resumes stay
+# recoverable by an operator for 30 days; the admin purge function deletes every version.
+resource "google_storage_bucket" "resumes_storage" {
+  name                        = "${var.project_id}-resumes"
+  location                    = var.region
+  project                     = var.project_id
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      days_since_noncurrent_time = 30
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.enabled_services]
+}
+
+# ------------------------------------------------------------------------------
 # Firebase Security Rules (Firestore & Storage)
 # ------------------------------------------------------------------------------
 resource "google_firebaserules_ruleset" "firestore" {

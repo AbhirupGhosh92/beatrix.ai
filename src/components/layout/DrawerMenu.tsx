@@ -1,9 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { Sliders } from 'lucide-react'
+import { Circle, FileText, Sliders } from 'lucide-react'
+import type { DrawerIcon } from '../../data/profile.ts'
 import { can, type Role } from '../../lib/access.ts'
+import { visibleDrawerItems } from '../../lib/drawer.ts'
 import { useProfile } from './ProfileProvider.tsx'
+
+const ICONS: Record<DrawerIcon, typeof Circle> = { 'file-text': FileText, circle: Circle }
 
 export default function DrawerMenu({ role }: { role: Role }) {
   const profile = useProfile()
@@ -16,11 +20,18 @@ export default function DrawerMenu({ role }: { role: Role }) {
         <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold edge-b mb-2">
           {nav.drawerTitle}
         </div>
-        {nav.drawerItems.map((item) => (
-          <li key={item}>
-            <a className="hover-subtle">{item}</a>
-          </li>
-        ))}
+        {visibleDrawerItems(nav.drawerItems, role)
+          .map((item) => {
+            const Icon = ICONS[item.icon]
+            return (
+              <li key={item.id}>
+                <Link href={item.href} className="hover-subtle flex items-center gap-2">
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            )
+          })}
 
         {/* Admin CMS section: only for roles holding cms:write (the server enforces it too). */}
         {can(role, 'cms:write') && (

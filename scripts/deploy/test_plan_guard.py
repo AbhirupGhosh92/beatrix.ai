@@ -60,6 +60,12 @@ class GuardTest(unittest.TestCase):
         p = plan(("google_firestore_database", "default", ["create", "delete"]))
         self.assertEqual(run_guard(p), 1)
 
+    def test_resumes_bucket_cannot_be_deleted_or_replaced(self):
+        # User resumes are personal data: the bucket is a protected google_storage_bucket.
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["delete"]))), 1)
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["delete", "create"]))), 1)
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["update"]))), 0)
+
     def test_deleting_unprotected_resource_passes(self):
         p = plan(
             ("google_project_iam_member", "deployer", ["delete"]),

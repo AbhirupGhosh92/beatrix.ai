@@ -9,3 +9,10 @@ export const db = () => getFirestore();
 export const bucket = () => getStorage().bucket();
 
 export type StorageFile = ReturnType<ReturnType<typeof bucket>["file"]>;
+
+/**
+ * Private bucket of user resumes (`<project id>-resumes`, created by Terraform). Kept apart from the
+ * CMS bucket so personal data has its own retention and access.
+ */
+export const resumesBucket = () =>
+  getStorage().bucket(`${process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT}-resumes`);
