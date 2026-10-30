@@ -14,9 +14,18 @@ const CACHE_TTL_MS = 10 * 60_000
 const REPO = process.env.RELEASES_REPO || 'AbhirupGhosh92/beatrix.ai'
 
 let cache: { at: number; value: LatestRelease | null } | undefined
+let inFlight: Promise<LatestRelease | null> | undefined
 
-export async function getLatestRelease(): Promise<LatestRelease | null> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value
+// Concurrent requests share one GitHub call (the unauthenticated limit is 60/hour).
+export function getLatestRelease(): Promise<LatestRelease | null> {
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return Promise.resolve(cache.value)
+  inFlight ??= load().finally(() => {
+    inFlight = undefined
+  })
+  return inFlight
+}
+
+async function load(): Promise<LatestRelease | null> {
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json' },
