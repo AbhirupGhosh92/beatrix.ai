@@ -37,3 +37,4 @@
 - [ ] Infrastructure changes are in `terraform/`
 - [ ] `profile.example.json` and `profile.ts` updated together if profile fields changed
 - [ ] Docs (`CLAUDE.md`, README) updated if behavior or structure changed
+- [ ] OpenSpec change (`openspec/changes/<name>`) linked and archived with `/opsx:archive`, or the change is exempt per `.claude/rules/openspec.md`

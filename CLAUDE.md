@@ -17,7 +17,9 @@ npm run start     # next start (run build first)
 
 A versioned `.githooks/pre-push` hook (enable with `git config core.hooksPath .githooks`) runs `scripts/update-readme.mjs`, which regenerates the README's marked Scripts and Project structure sections and aborts the push if they changed. `main` is branch-protected on GitHub: push a branch and open a PR.
 
-Components must be functional (hooks only; no class components), and every GitHub issue and PR must use the standard detailed format; see `.claude/rules/react.md` and `.claude/rules/github-workflow.md` (templates in `.github/`). All AI agents working in this repo must follow them.
+Components must be functional (hooks only; no class components), and every GitHub issue and PR must use the standard detailed format; see `.claude/rules/react.md`, `.claude/rules/github-workflow.md` and `.claude/rules/openspec.md` (templates in `.github/`). All AI agents working in this repo must follow them.
+
+From version 1.2.0 the workflow is spec-driven with OpenSpec: current behavior lives in `openspec/specs/<capability>/spec.md` and each non-trivial change is a folder `openspec/changes/<name>/` (proposal, design, tasks, spec deltas) created with `/opsx:propose`, implemented with `/opsx:apply` and archived with `/opsx:archive` before the PR is ready. The issue comes first, then the branch, then the change; exemptions, the issue/branch/PR mapping and spec-writing rules are in `.claude/rules/openspec.md`. Keep `openspec/specs/` accurate (`openspec validate --all`), and never invent behavior in a spec.
 
 Branch names must be `<feature|bug|spike|hotfix>/<issue-id>-<summary>` (lowercase, hyphenated, e.g. `feature/12-add-login`) or `release/<major.minor[.patch]>`. Create the GitHub issue first to get the ID. The same pattern is checked by `.github/workflows/branch-name.yml` on PRs, and the `.claude/hooks/check-branch-name.py` hook (wired up in `.claude/settings.json`) blocks Claude from creating or pushing branches that do not match.
 

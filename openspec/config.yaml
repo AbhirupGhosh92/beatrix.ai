@@ -1,0 +1,28 @@
+schema: spec-driven
+
+# Project context
+context: |
+  Every change maps to a GitHub issue (standard template) and a branch named
+  <feature|bug|spike|hotfix>/<issue-id>-<summary>. Components are functional (hooks only). Deployments never touch unchanged
+  data or components; see docs/DEPLOYMENT.md and .claude/rules/environments.md.
+  Acceptance criteria must be checkable with npm run typecheck, lint, build or a stated
+  manual browser check; there is no test runner.
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Reference the GitHub issue (Fixes #<id>) and state what is out of scope
+  tasks:
+    - Include a final task listing the docs to update (CLAUDE.md, docs/DEPLOYMENT.md, README)
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
