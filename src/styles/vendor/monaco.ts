@@ -43,10 +43,18 @@ function readTokens(mode: Mode): Partial<Record<TokenName, string>> {
   return out
 }
 
+let sharedCtx: CanvasRenderingContext2D | null = null
+
 /** Normalises any CSS color (hex, oklch, var results, ...) to #rrggbb for Monaco. */
 function toHex(color: string): string | undefined {
   if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase()
-  const ctx = document.createElement('canvas').getContext('2d')
+  if (!sharedCtx) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    sharedCtx = canvas.getContext('2d', { willReadFrequently: true })
+  }
+  const ctx = sharedCtx
   if (!ctx) return undefined
   ctx.fillStyle = '#000000'
   ctx.fillStyle = color
@@ -86,9 +94,11 @@ function defineTheme(monaco: Monaco, name: string, mode: Mode) {
 /**
  * Defines both Monaco themes from the code palette. Call it before the editor is
  * created (the `theme` prop is applied at creation and an undefined name falls
- * back to white `vs`) and again after a palette change.
+ * back to white `vs`) and again after a palette change. Client only: it reads the
+ * DOM, so it does nothing during server rendering.
  */
 export function defineMonacoThemes(monaco: Monaco) {
+  if (typeof document === 'undefined') return
   defineTheme(monaco, MONACO_DARK_THEME, 'dark')
   defineTheme(monaco, MONACO_LIGHT_THEME, 'light')
 }
