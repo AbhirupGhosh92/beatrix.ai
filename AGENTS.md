@@ -11,7 +11,7 @@
    - Always run `npm run infra:check` when making changes to infrastructure or security rules to ensure Terraform configurations remain synchronized and syntax is valid.
 
 3. **Environments & Deployment** (full runbook: `terraform/README.md`):
-   - Every push to `main` deploys `dev`, then `staging`, via `.github/workflows/deploy.yml`. `production` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic production deploys, and never trigger one unasked.
+   - Every push to `main` deploys `dev`, then `staging`, via `.github/workflows/deploy.yml`. `prod` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic prod deploys, and never trigger one unasked.
    - To create, recreate or repair an environment, run:
      ```bash
      ./scripts/recreate-environment.sh <env>

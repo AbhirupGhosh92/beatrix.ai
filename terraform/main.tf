@@ -114,7 +114,7 @@ resource "google_firestore_database" "default" {
   type                        = "FIRESTORE_NATIVE"
   concurrency_mode            = "OPTIMISTIC"
   app_engine_integration_mode = "DISABLED"
-  deletion_policy             = var.environment == "production" ? "ABANDON" : "DELETE"
+  deletion_policy             = var.environment == "prod" ? "ABANDON" : "DELETE"
 
   depends_on = [google_project_service.enabled_services]
 }
