@@ -183,6 +183,98 @@ Get an id from the Network tab (`/api/resumes` response) while signed in as Base
 | T11.1 | `bash scripts/deploy/components.sh hash functions` before and after editing a tracked file in `functions/src/` (it hashes tracked files only, so `git add` new ones) | the hash changes |
 | T11.2 | Same command after editing only `README.md` | unchanged |
 
+## Spec scenario coverage (task 7.1)
+
+Every scenario in the change's spec deltas, with how it was checked in the build environment (no cloud login) and what is left for dev.
+
+Legend: **Run** = executed here against the real code. **Stand-in** = real function/service code run against an in-memory model of Firestore and Storage (or with only the network stubbed), so logic is proven but Google's actual behaviour is not. **Dev** = only checkable on a deployed project (case IDs above).
+
+Evidence names: `fn` = resume and admin functions harness (44 checks), `chain` = CMS save to function to service (16), `proxy` = the real `proxy()` with session and profile stubbed (28), `ui-builder` = the real builder components in Chromium with the compiled CSS and a mock API (56), `ui-cms` = the real CMS page (13), `ui-orphans` = the admin table (15), `ui-preview` and `ui-export` = preview and export in Chromium, `ui-themes` = no horizontal scroll at 320, 768 and 1920 px in both themes, `unit` = validators, sanitizer, menu helper, plan guard (10 tests), `build` = typecheck, lint, `npm run build`, functions build.
+
+### access-control
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| Disabled item | Run | `proxy`: page 404 rewrite and API 404 JSON for base, advanced and admin. Dev: T1.5 |
+| Config unavailable | Stand-in | `proxy` with the unreadable-config fallback modelled (items off); the real `getProfile` fallback to the example is by code reading. Dev: T1.5 |
+| Flag does not grant access | Run | `proxy`: enabled flag with a reader still gets the redirect or 403 |
+| Reader requests the builder | Run | `proxy`: redirect to `/`. Dev: T1.2 |
+| Reader calls the API | Run | `proxy`: 403 for `/api/resumes` and `/api/resumes/config`. Dev: T1.2, T7.6 |
+
+### admin-cms
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| File not created yet | Run | `chain` (listed, exists false), `ui-cms` (opens as the default, unsaved, "(New)"). Dev: T2.0 |
+| Saving creates it | Stand-in | `chain` and `ui-cms` (Save posts the default). Dev: T2.2 |
+| Existing file untouched | Run | `ui-cms`: stored content shown as is, not dirty |
+
+### deployment-pipeline
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| Plan deletes the resumes bucket | Run | `unit`: delete and replace blocked, update passes; fails without the protection (mutation check). Dev: T0.1 plan |
+| Unrelated change | Run | `components.sh hash`: functions and apphosting hashes unchanged by a docs-only edit, functions hash changes when a function changes. Dev: T11 |
+
+### profile-content
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| Item turned off | Run | `unit` (menu helper), `proxy`. Drawer look: T1.5 |
+| Old string items | Run | `unit`: strings load as disabled entries. Dev: T1.6 |
+| Missing flag | Run | `unit`: missing or non-boolean `enabled` is off |
+| Nothing to show | Run | `unit`: reader and base with nothing enabled get no menu. Rendered page: T1.8 |
+| Admin | Run | `unit`: admin keeps the menu with nothing enabled. Rendered page: T1.9 |
+| Entry enabled | Run | `unit`. Rendered page: T1.3, T1.11 |
+| Anonymous | Run | `unit`: no menu; the top bar is untouched by this change. Rendered page: T1.10 |
+
+### resume-builder
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| Enabled item for a base user | Run | `proxy` (passes the gate), `unit` (entry listed). Rendered drawer: T1.3 |
+| Reader / Item disabled (gate) | Run | `proxy` |
+| Base user form | Run | `ui-builder`: default structure fields, no structure editor for base |
+| Base user cannot change the structure | Run | `fn` (400), `ui-builder` (no editor) |
+| Untouched form | Run | `ui-builder`: empty fields, placeholders only, Generate disabled, 4 required fields listed |
+| Invalid field | Run | `ui-builder`: email, phone and link errors, cleared on fix |
+| Server revalidates | Run | `fn` (unknown section, wrong shape), `unit` (size and length limits) |
+| Save an incomplete draft | Run | `fn`, `ui-builder` |
+| Base user explicit save | Run | `ui-builder`: Save needed, leave-page confirmation |
+| Advanced autosave | Run | `ui-builder`: saved after about 1.5 s with no Save button |
+| Stale autosave | Run | `fn` (409 on old generation), `ui-builder` (conflict banner with Reload). Real Storage generations: T4.6 |
+| Fourth resume for a base user | Run | `fn`, `ui-builder` |
+| Parallel creates | Stand-in | `fn`: exactly one of two succeeds, with transactions serialised by the model. Real Firestore: T8.1 |
+| Downgrade | Run | `fn`: lists all, can open and edit, cannot create until under the cap |
+| Valid custom structure / Invalid structure | Run | `ui-builder`, `fn`, `unit` |
+| Disabled template | Stand-in | `chain` (disabled kept in config), the route's filter by reading the code. Dev: T2.3 |
+| Unknown value in a template | Run | `unit`, `chain`: skipped with a warning. Dev: T2.4 |
+| Picking a template / Switching template | Run | `ui-preview`, `ui-builder`. Embedded PDF display: T6.9, T6.10 |
+| Own data untouched | Run | the preview takes only the template and the structure; `ui-builder` checks the caption and sample-only content |
+| Markdown | Run | `ui-builder`: no preview, template select disabled |
+| No inline PDF viewer | Run | `ui-preview` (both branches). A real phone: T6.13 |
+| Generate a PDF | Run | `ui-export`, `ui-builder`: valid PDFs, distinct per template, rasterised and read |
+| Generate DOCX | Run | `ui-export`: real styles, no tables, converts to PDF in LibreOffice. **Not run in Microsoft Word**: T6.2 |
+| Only one output at a time | Run | `ui-builder`: 3 clicks, 3 downloads |
+| Other user's resume | Run | `fn`: 404 on get, save and delete. Real: T7.1, T7.3 |
+| Admin (cannot read others) | Run | `fn`: 404. Real: T7.2 |
+| Owner claimed in the request | Run | `fn`; the route forwards only title, structure and data (code). Real: T7.4 |
+| Changed Google email | Run | by construction (owner is the verified email); `fn` shows a second user sees only their own |
+| Config edited / Key missing | Stand-in | `chain`, `unit`. Dev: T2.2, T2.6 |
+
+### resume-data-retention
+| Scenario | Status | Evidence / left for dev |
+|---|---|---|
+| User deletes a resume | Stand-in | `fn`: removed for the user, older versions kept. Real bucket: T9.2, T9.3 |
+| Window passes | Dev | cannot be run in a session; the 30-day rule is checked in T9.1 |
+| Revoke and restore | Run | `fn`: data kept, returned unchanged. Dev: T10.2, T10.4 |
+| Revoked user cannot read | Run | `fn` |
+| Orphan appears / Active user hidden | Run | `fn`, `ui-orphans` |
+| No content exposed | Run | `fn` (row keys are exactly email, count, bytes, updatedAt), `ui-orphans` (columns). Network check: T10.3 |
+| Delete an orphan | Stand-in | `fn`: every version removed, index cleared, audit written. Real GCS delete-by-generation: T10.7, T10.8 |
+| Active owner / Wrong confirmation / Not an admin | Run | `fn`, `ui-orphans` |
+
+### Not run anywhere in this environment
+- `terraform fmt`, `terraform plan` and `apply` (no Terraform CLI or cloud login), and any deploy.
+- Microsoft Word, a real phone, and a desktop browser's built-in PDF viewer inside the preview frame.
+- The real Firestore and Google Cloud Storage behaviours that the stand-ins model: generation preconditions, listing and deleting noncurrent versions, transaction retries, lifecycle expiry.
+- The rendered landing page and drawer (the page needs the live site); the menu rule itself is covered by `unit`.
+
 ## Report back
 
 For every FAIL: the case ID, what you did, what you saw, and for API cases the status code and body. Function logs help: `firebase functions:log --project beatrix-ai-dev --only resumeCreate` (or the function name involved).

@@ -29,6 +29,7 @@ A deployment changes **only what the release changes**. Specifically:
 |---|---|
 | Firestore data (including `allowed_emails`) | Never deleted or replaced by a deploy. The database has delete protection, `prevent_destroy`, `ABANDON` on destroy and 7-day point-in-time recovery. A plan that would delete or replace it fails before anything is applied. |
 | CMS files (`cms/profile.json`, `cms-backups/`) | Never written by a deploy. They are copied to a timestamped backup first, and both buckets keep old versions. |
+| User resumes (`gs://<project>-resumes`, Firestore `resume_owners`, `resume_audit`) | Never written, deleted or snapshotted by a deploy. The bucket is protected like the other stateful resources and keeps old versions for 30 days (section 10.1b). The pre-deploy snapshot and `harden-buckets.sh` only handle the state and CMS buckets, so personal resume data is never copied into the state bucket. |
 | Cloud Functions | Redeployed only when `functions/` (or the `functions` block of `firebase.json`) changed. The Firebase CLI is run **without** `--force`, so it refuses to delete a function that is missing from the source instead of deleting it. |
 | Security rules | Redeployed only when `firestore.rules`, `storage.rules` or their `firebase.json` entries changed. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
@@ -446,7 +447,18 @@ Be aware of these; none of them is hidden by the pipeline:
   rules. Both come from the same files in git, so they agree.
 - **Bucket naming.** The CMS files live in the default Firebase Storage bucket
   (`<project>.firebasestorage.app`), which Firebase creates; the Terraform-managed `<project>-cms-<env>`
-  bucket is currently unused by the code but protected the same way.
+  bucket is currently unused by the code but protected the same way. The Terraform-managed
+  `<project>-resumes` bucket **is** used (by the resume functions) and its name is derived from the project
+  id in `functions/src/firebase.ts`, so the two must stay in step.
+- **Resume builder not exercised on GCP yet.** The resume functions, bucket rules and admin cleanup were
+  checked against in-memory models of Firestore and Storage and in a headless browser, not against a deployed
+  project. Still to confirm on `dev` (checklist in `openspec/changes/resume-builder/verification.md`): the
+  Terraform plan for the new bucket, deleting an object generation by number (the admin purge), listing
+  noncurrent versions, generation preconditions on save, the cap under truly parallel requests, and the
+  30-day lifecycle rule. The functions' runtime service account reaches the new bucket through the same
+  project-wide access it uses for the CMS bucket; no explicit IAM binding was added for it.
+- **Resume restores are manual.** There is no restore button; an operator restores a deleted resume from
+  its noncurrent version (section 10.1b). An admin's purge is a hard delete and cannot be restored.
 - **Single maintainer.** Without a second reviewer, "approval" is the owner confirming their own
   deploy. The plan, the typed confirmation and the release-ref rule still apply.
 
@@ -465,5 +477,6 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/deploy/smoke-test.sh` | Post-deploy read-only checks |
 | `scripts/deploy-backend.sh` | Deploys the selected components, no `--force` unless `--allow-destructive` |
 | `scripts/recreate-environment.sh` | Provision or repair an environment (plan, guard, apply) |
-| `terraform/` | Infrastructure, including the data protections |
+| `functions/src/resumes.ts`, `resumeAdmin.ts` | Resume storage, cap and ownership; admin list and purge of data left by revoked users |
+| `terraform/` | Infrastructure, including the data protections (CMS bucket, resumes bucket) |
 | `terraform/README.md` | Environment provisioning runbook |
