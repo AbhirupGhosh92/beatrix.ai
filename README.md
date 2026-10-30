@@ -135,6 +135,7 @@ src/
 │   │   ├── Navbar.tsx
 │   │   ├── NavbarDropdown.tsx
 │   │   ├── ProfileProvider.tsx
+│   │   ├── ReleaseNotes.tsx
 │   │   ├── ResumeNav.tsx
 │   │   └── ThemeToggle.tsx
 │   ├── resume/
@@ -164,6 +165,7 @@ src/
 │       └── SectionHeading.tsx
 ├── data/
 │   ├── profile.example.json
+│   ├── profile.json
 │   ├── profile.ts
 │   ├── resume-config.example.json
 │   └── resumeConfig.ts
@@ -191,6 +193,7 @@ src/
 │   ├── adminService.ts
 │   ├── cloudFunctions.ts
 │   ├── profileService.ts
+│   ├── releaseService.ts
 │   ├── resumeAdminService.ts
 │   ├── resumeConfigService.ts
 │   ├── resumeService.ts

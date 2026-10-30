@@ -481,3 +481,7 @@ Be aware of these; none of them is hidden by the pipeline:
 | `functions/src/resumes.ts`, `resumeAdmin.ts` | Resume storage, cap and ownership; admin list and purge of data left by revoked users |
 | `terraform/` | Infrastructure, including the data protections (CMS bucket, resumes bucket) |
 | `terraform/README.md` | Environment provisioning runbook |
+
+## GitHub releases
+
+Pushing a `release/<major.minor[.patch]>` branch runs `.github/workflows/release.yml`, which tags `vX.Y.Z` and publishes a GitHub release marked Latest using `RELEASE_NOTES.md` from that branch. It does not deploy anything; deployment stays as described above. The site shows the latest release version and notes in a modal at the bottom of the page.

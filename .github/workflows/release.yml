@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - 'release/**'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          version="${BRANCH#release/}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::'$BRANCH' is not release/<major.minor[.patch]>"
+            exit 1
+          fi
+          if [[ ! -s RELEASE_NOTES.md ]]; then
+            echo "::error::RELEASE_NOTES.md is missing or empty on $BRANCH"
+            exit 1
+          fi
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "$tag" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$tag" --target "$SHA" --title "$tag" --notes-file RELEASE_NOTES.md --latest
+          fi
