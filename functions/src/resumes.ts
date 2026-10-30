@@ -19,7 +19,7 @@ import {
 // resume config's limits and rules; only the site can call these functions (IAM), and the config
 // is admin data, not user input.
 
-const OWNERS = "resume_owners";
+export const OWNERS = "resume_owners";
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_TITLE = 80;
 
@@ -40,8 +40,8 @@ interface StoredResume {
 }
 
 const ownerHash = (email: string) => createHash("sha256").update(email).digest("hex");
-const prefixOf = (email: string) => `owners/${ownerHash(email)}/`;
-const ownerRef = (email: string) => db().doc(`${OWNERS}/${email}`);
+export const prefixOf = (email: string) => `owners/${ownerHash(email)}/`;
+export const ownerRef = (email: string) => db().doc(`${OWNERS}/${email}`);
 
 function readConfig(value: unknown): Config {
   const c = value as Partial<Config> | null;

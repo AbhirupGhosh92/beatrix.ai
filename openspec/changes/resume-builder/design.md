@@ -24,7 +24,7 @@ See proposal.md for motivation. Relevant current state:
 ## Decisions
 
 **1. Menu flag lives on each `nav` item; the gate reads it on the server.**
-`nav.drawerItems[]` entries are `{id, label, href, icon, enabled}`. A `FEATURE_ROUTES` table in `access.ts` maps a path prefix to an item `id`. The proxy and the API routes call `getProfile()` (already cached) and answer 404 when the item is off or missing. Permission stays in code (`ROUTE_PERMISSIONS`); config can only close a route, never open one. If the profile cannot be loaded the feature route stays closed.
+`nav.drawerItems[]` entries are `{id, label, href, icon, enabled}`. A `FEATURE_ROUTES` table in `access.ts` maps a path prefix to an item `id`. The proxy and the API routes call `getProfile()` (already cached) and answer 404 when the item is off or missing. Permission stays in code (`ROUTE_PERMISSIONS`); config can only close a route, never open one. If the profile cannot be loaded the feature route stays closed. The admin cleanup routes (`/api/admin/resumes`) are not tied to the flag: orphaned data must stay removable while the feature is switched off.
 *Alternative:* flag in the resume config. Rejected: the proxy would load a second config for every request, and the menu needs the flag anyway.
 
 **2. Compatibility for old `drawerItems` strings.** `getProfile()` maps a string to `{label, enabled: false}` and fills missing `enabled` as false, so an old stored profile can never surface a link unintentionally. The example profile ships the new shape with the resume item enabled only where the admin chooses.

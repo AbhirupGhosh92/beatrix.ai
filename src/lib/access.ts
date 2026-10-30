@@ -75,7 +75,6 @@ const ROUTE_PERMISSIONS: readonly (readonly [prefix: string, permission: Permiss
 const FEATURE_ROUTES: readonly (readonly [prefix: string, itemId: string])[] = [
   ['/resume-builder', 'resume-builder'],
   ['/api/resumes', 'resume-builder'],
-  ['/api/admin/resumes', 'resume-builder'],
 ]
 
 const DEFAULT_PERMISSION: Permission = 'site:view'

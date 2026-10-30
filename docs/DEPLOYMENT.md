@@ -350,8 +350,18 @@ gcloud storage cp 'gs://<project>-resumes/owners/<hash>/<id>.json#<generation>' 
 ```
 
 After restoring a deleted resume, correct that owner's `resume_owners/<email>` document (`count`) in
-Firestore so the cap counts it. An admin's purge of an orphaned owner deletes every version and cannot be
-undone this way.
+Firestore so the cap counts it.
+
+**Revoked users keep their data.** Revoking access never deletes resumes; restoring access returns them
+unchanged. `/admin/access` shows a "Resume data without access" table (functions `adminListResumeOwners`
+and `adminPurgeResumeOwner`, `cms:write` only) listing owners whose access is revoked or whose
+`allowed_emails` entry is gone, with email, resume count, size and last change, never any content.
+Its **Delete data** button is a **hard delete**: after the admin types the owner's email it removes every
+stored version of every resume of that owner, so the 30-day recovery above does not apply to it. The
+functions refuse an owner who still has access, delete nothing when the typed email does not match, and
+record each purge (admin, owner, time, number of files) in the Firestore collection `resume_audit`.
+These routes are not tied to the `resume-builder` menu flag, so orphaned data stays removable while the
+feature is switched off.
 
 ### 10.2 Firestore (point-in-time recovery, last 7 days)
 

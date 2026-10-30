@@ -6,6 +6,7 @@ import { Loader2, RefreshCw, UserPlus } from 'lucide-react'
 import { ROLES } from '../../../lib/access.ts'
 import type { Role } from '../../../lib/access.ts'
 import { getFirebaseAuth, getIdToken } from '../../../lib/firebase.ts'
+import OrphanedResumes from '../../../components/admin/OrphanedResumes.tsx'
 
 type Action = 'add' | 'setRole' | 'revoke' | 'restore'
 
@@ -243,6 +244,8 @@ export default function AccessPage() {
         </table>
       </div>
       {truncated && <p className="text-meta">Showing the first 500 users only.</p>}
+
+      <OrphanedResumes notify={notify} />
     </main>
   )
 }
