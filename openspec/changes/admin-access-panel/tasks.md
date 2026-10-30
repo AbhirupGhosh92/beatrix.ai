@@ -2,9 +2,9 @@
 
 ## 1. Backend functions
 
-- [ ] 1.1 Update `requireAdmin` in `functions/src/auth.ts` to accept `role === "admin"` or `admin === true`, and verify with `pnpm --prefix functions build`
-- [ ] 1.2 Add `functions/src/users.ts` with `registerUser` (create-only transaction, updates `lastLoginAt` for existing docs) and verify with `pnpm --prefix functions build` plus a run against the Firebase emulator or dev project showing first sign-in creates a `reader` doc and a second changes only `lastLoginAt`
-- [ ] 1.3 Add `adminListUsers` and `adminSetUser` (add, set-role, revoke, restore) with self-lockout and last-admin guards in a transaction, export them in `functions/src/index.ts`, and verify 400 on self-revoke, self-demote, last admin and invalid role, 403 for non-admins
+- [x] 1.1 Update `requireAdmin` in `functions/src/auth.ts` to accept `role === "admin"` or `admin === true`, and verify with `pnpm --prefix functions build`
+- [x] 1.2 Add `functions/src/users.ts` with `registerUser` (create-only transaction, updates `lastLoginAt` for existing docs) and verify with `pnpm --prefix functions build` plus a run against the Firebase emulator or dev project showing first sign-in creates a `reader` doc and a second changes only `lastLoginAt`
+- [x] 1.3 Add `adminListUsers` and `adminSetUser` (add, set-role, revoke, restore) with self-lockout and last-admin guards in a transaction, export them in `functions/src/index.ts`, and verify 400 on self-revoke, self-demote, last admin and invalid role, 403 for non-admins
 
 ## 2. Next.js server layer
 
