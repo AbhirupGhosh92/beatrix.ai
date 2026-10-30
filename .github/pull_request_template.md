@@ -5,7 +5,7 @@
 <!-- Fixes #<id> (the branch name must also use this id). -->
 
 ## Type
-<!-- bug | feature | spike | hotfix | chore -->
+<!-- bug | feature | spike | hotfix | chore (chore branches use the feature/ prefix) -->
 
 ## Problem / Context
 <!-- What was wrong or missing? Include the root cause for bugs. -->
