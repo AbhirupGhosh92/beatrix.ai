@@ -16,7 +16,13 @@ tf_out() { terraform -chdir="${ROOT_DIR}/terraform" output -raw "$1"; }
 PROJECT_ID="$(tf_out project_id)"
 
 echo "==> Configuring GitHub environment '${ENV_NAME}' for project ${PROJECT_ID}..."
-gh api --silent -X PUT "repos/{owner}/{repo}/environments/${ENV_NAME}"
+# Create the environment only when it does not exist: a PUT on an existing environment resets
+# its protection rules (required reviewers, deployment branch policy) set up in the GitHub UI.
+if gh api --silent "repos/{owner}/{repo}/environments/${ENV_NAME}" 2>/dev/null; then
+  echo "    Environment already exists, keeping its protection rules."
+else
+  gh api --silent -X PUT "repos/{owner}/{repo}/environments/${ENV_NAME}"
+fi
 
 gh variable set GCP_PROJECT_ID --env "${ENV_NAME}" --body "${PROJECT_ID}"
 gh variable set GCP_WORKLOAD_IDENTITY_PROVIDER --env "${ENV_NAME}" --body "$(tf_out workload_identity_provider)"

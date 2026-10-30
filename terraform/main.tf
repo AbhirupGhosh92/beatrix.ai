@@ -114,7 +114,18 @@ resource "google_firestore_database" "default" {
   type                        = "FIRESTORE_NATIVE"
   concurrency_mode            = "OPTIMISTIC"
   app_engine_integration_mode = "DISABLED"
-  deletion_policy             = var.environment == "prod" ? "ABANDON" : "DELETE"
+
+  # Data protection: the database can never be deleted by Terraform or by an API call
+  # (delete protection), a destroy only drops it from state (ABANDON), a plan that would
+  # destroy or replace it fails (prevent_destroy), and the last 7 days stay restorable
+  # (point-in-time recovery). See docs/DEPLOYMENT.md for the restore steps.
+  deletion_policy                   = "ABANDON"
+  delete_protection_state           = "DELETE_PROTECTION_ENABLED"
+  point_in_time_recovery_enablement = "POINT_IN_TIME_RECOVERY_ENABLED"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   depends_on = [google_project_service.enabled_services]
 }
@@ -126,8 +137,27 @@ resource "google_storage_bucket" "cms_storage" {
   name                        = "${var.project_id}-cms-${var.environment}"
   location                    = var.region
   project                     = var.project_id
-  force_destroy               = true
+  force_destroy               = false
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  # Keep old versions of overwritten or deleted files so they can be restored.
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      days_since_noncurrent_time = 90
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   cors {
     origin          = ["*"]
@@ -266,6 +296,10 @@ resource "google_firebase_app_hosting_backend" "web" {
   service_account  = google_service_account.apphosting_compute.email
   serving_locality = "GLOBAL_ACCESS"
   environment      = var.environment
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   depends_on = [google_project_iam_member.apphosting_compute_runner]
 }

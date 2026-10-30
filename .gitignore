@@ -41,3 +41,7 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/terraform.tfvars
+# saved plans can contain sensitive values: never commit them
+terraform/tfplan
+terraform/plan.json
+terraform/plan.txt

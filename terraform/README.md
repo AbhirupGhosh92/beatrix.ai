@@ -8,7 +8,9 @@ Beatrix.ai runs in up to three Firebase/GCP projects, all built from this Terraf
 | `staging` | `environments/staging.tfvars` | automatically on every push to `main`, after dev succeeds |
 | `prod` | `environments/prod.tfvars` | **only manually**: Actions > Deploy > Run workflow > `prod` + ref |
 
-`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` runs `terraform apply`, then `scripts/deploy-backend.sh` (Cloud Functions, Firestore/Storage rules and the App Hosting site from source). An environment whose GitHub environment has no variables yet is skipped with a notice, so merging is safe before staging or prod exist.
+`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` verifies the code, makes a Terraform **plan** (blocked if it would delete or replace a stateful resource), asks for approval on `prod`, snapshots the CMS files, applies the **saved plan**, and then deploys only the components (Cloud Functions, rules, App Hosting site) whose sources changed. An environment whose GitHub environment has no variables yet is skipped with a notice (dev, staging), so merging is safe before staging exists; an unprovisioned `prod` fails the run.
+
+The whole pipeline, its guarantees, the one-time GitHub setup (environments, reviewers) and the deploy, rollback and restore runbooks are in [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md). Read it before deploying `prod`.
 
 ## Runbook: provisioning an environment (agents MUST follow this)
 
@@ -29,9 +31,9 @@ The manual steps, in the order the script asks for them:
 | 4 | Firebase console > Storage > **Get started** (creates `<project>.firebasestorage.app`, which the functions read) | `env-preflight.sh post` |
 | 5 | Firebase console > Authentication > **Get started**, then enable the **Google** provider | `env-preflight.sh post` |
 | 6 | Authentication > Settings > Authorized domains: add the App Hosting domain the script prints | `env-preflight.sh post` |
-| 7 | Prod only: in GitHub Settings > Environments > `prod`, add yourself as a required reviewer (optional extra gate) | not checked |
+| 7 | Prod only: in GitHub Settings > Environments, create `prod-release` with **required reviewers** and set the deployment branch rules described in `docs/DEPLOYMENT.md` section 7.2 (the prod approval gate) | not checked |
 
-Everything else is automated by the script: the Terraform state bucket (`gs://<project>-tfstate`, the one bootstrap resource outside Terraform), `terraform apply`, `.env.local` (dev only), seeding `cms/profile.json` into the default Storage bucket (skipped when it already exists), deploying functions, rules and App Hosting, and writing the GitHub environment variables for CI (`scripts/sync-github-env.sh`).
+Everything else is automated by the script: the Terraform state bucket (`gs://<project>-tfstate`, the one bootstrap resource outside Terraform), `terraform plan` + plan guard + apply of that plan (never `-auto-approve` of an unreviewed plan), `.env.local` (dev only), seeding `cms/profile.json` into the default Storage bucket (skipped when it already exists), deploying functions, rules and App Hosting, and writing the GitHub environment variables for CI (`scripts/sync-github-env.sh`).
 
 Run only the checks with `npm run infra:preflight -- <env> [pre|post]`.
 
