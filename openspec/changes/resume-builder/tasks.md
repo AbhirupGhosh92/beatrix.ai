@@ -12,8 +12,9 @@
 ## 2. Resume config
 
 - [x] 2.1 Define the resume config type and `resume-config.example.json` (templates, `limits.baseMaxResumes: 3`, `defaultStructure`, `structureRules`); verify `npm run typecheck` passes
-- [ ] 2.2 Add the `getResumeConfig` private function and `src/middleware/resumeConfigService.ts` (cache ~30s, example fallback, missing-key fill, invalid templates skipped); verify an edited config in the CMS changes the builder without a rebuild
+- [x] 2.2 Add the `getResumeConfig` private function and `src/middleware/resumeConfigService.ts` (cache ~30s, example fallback, missing-key fill, invalid templates skipped); verify an edited config in the CMS changes the builder without a rebuild
 - [x] 2.3 Add the shared validation module (structure and data checks, field types, limits) for the app and mirror it in `functions/`; verify the same sample inputs give the same result in both
+- [x] 2.4 Always list `resume-config.json` in the admin file list (functions `cms.ts`) and open it pre-filled with the default config, unsaved, when it does not exist yet (`/admin/cms`); verify with the fake-storage harness that the list includes it before it exists, and a render/DOM check that the editor content is the default and dirty
 
 ## 3. Storage, ownership and caps
 

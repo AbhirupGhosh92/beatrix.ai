@@ -59,8 +59,9 @@ plus the `NEXT_PUBLIC_FIREBASE_*` web config. Run `pnpm install && npm run dev`.
 
 | ID | Do | Expect |
 |---|---|---|
+| T2.0 | Open `/admin/cms` and the file dropdown | `resume-config.json (Resume builder) (New)` is listed; opening it shows the default config as unsaved; reloading the page without saving leaves nothing stored |
 | T2.1 | With no `resume-config.json` stored, open a resume, look at the template list | Classic, Modern, Sidebar |
-| T2.2 | In `/admin/cms` create `resume-config.json` (paste `src/data/resume-config.example.json`), set `limits.baseMaxResumes` to 2, save, wait 40 s | Base A sees "x of 2 used" without a rebuild |
+| T2.2 | In `/admin/cms` pick **resume-config.json (Resume builder) (New)** from the file list (it opens pre-filled with the default config, marked Unsaved Changes), set `limits.baseMaxResumes` to 2, **Save File**, wait 40 s | Base A sees "x of 2 used" without a rebuild |
 | T2.3 | Set one template `"enabled": false` | it disappears from the picker |
 | T2.4 | Set another template's `layout` to `"fancy"` | that template is skipped, the page still works |
 | T2.5 | Set `baseMaxResumes` to `0` | the cap shows 3 again (an invalid limit silently falls back to the example) |

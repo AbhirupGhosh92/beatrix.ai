@@ -2,6 +2,9 @@
 // profile. Keep resume-config.example.json in step: it supplies every key a stored file lacks.
 import type { Structure, StructureRules } from '../lib/resumeValidation.ts'
 
+/** The CMS file (under cms/ in Storage) that holds the resume builder config. */
+export const RESUME_CONFIG_FILE = 'resume-config.json'
+
 /** Layouts implemented in code; a template picks one by id. */
 export const TEMPLATE_LAYOUTS = ['classic', 'sidebar'] as const
 export type TemplateLayout = (typeof TEMPLATE_LAYOUTS)[number]

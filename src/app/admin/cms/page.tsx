@@ -13,7 +13,12 @@ import {
   Loader2,
 } from 'lucide-react'
 import { JsonEditor } from '../../../components/ui/JsonEditor.tsx'
+import resumeConfigExample from '../../../data/resume-config.example.json'
+import { RESUME_CONFIG_FILE } from '../../../data/resumeConfig.ts'
 import { getIdToken } from '../../../lib/firebase.ts'
+
+// What an admin starts from when creating the resume builder config (opened unsaved until saved once).
+const DEFAULT_RESUME_CONFIG = JSON.stringify(resumeConfigExample, null, 2)
 
 // The browser only talks to this site's own /api/admin/cms route; the server calls the Cloud
 // Functions. The Firebase ID token proves who is signed in.
@@ -131,7 +136,9 @@ export default function AdminPage() {
       try {
         const data = await cms<FileContent>({ query: `?file=${encodeURIComponent(selectedFile)}` })
 
-        let rawContent = data.content || ''
+        // A resume config that was never saved opens as the default config, unsaved.
+        const isNewResumeConfig = !data.exists && selectedFile === RESUME_CONFIG_FILE
+        let rawContent = isNewResumeConfig ? DEFAULT_RESUME_CONFIG : data.content || ''
         try {
           if (rawContent) {
             const parsed = JSON.parse(rawContent)
@@ -144,11 +151,11 @@ export default function AdminPage() {
         const preparedData = { ...data, content: rawContent }
 
         if (!ignore) {
-          // Store in memoisation cache
-          cacheRef.current.set(selectedFile, preparedData)
+          // Store in memoisation cache (not the unsaved default, so it stays a draft)
+          if (!isNewResumeConfig) cacheRef.current.set(selectedFile, preparedData)
 
           setContent(rawContent)
-          setInitialContent(rawContent)
+          setInitialContent(isNewResumeConfig ? '' : rawContent)
           setLastSaved(data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : null)
         }
       } catch (err) {
@@ -236,7 +243,7 @@ export default function AdminPage() {
     }
 
     setSelectedFile(cleanName)
-    const initialNewContent = '{\n  "key": "value"\n}'
+    const initialNewContent = cleanName === RESUME_CONFIG_FILE ? DEFAULT_RESUME_CONFIG : '{\n  "key": "value"\n}'
     setContent(initialNewContent)
     setInitialContent('')
     setShowNewFileModal(false)

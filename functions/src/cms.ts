@@ -25,7 +25,12 @@ export function cmsFile(name: unknown): StorageFile {
 }
 
 export async function fileInfo(file: StorageFile, filename: string): Promise<FileInfo> {
-  const displayName = filename === PROFILE_FILE ? "profile.json (Active Profile)" : filename;
+  const displayName =
+    filename === PROFILE_FILE
+      ? "profile.json (Active Profile)"
+      : filename === RESUME_CONFIG_FILE
+        ? "resume-config.json (Resume builder)"
+        : filename;
   const [exists] = await file.exists();
   if (!exists) return { filename, displayName, exists: false, size: 0, updatedAt: null };
   const [meta] = await file.getMetadata();
@@ -43,7 +48,8 @@ export async function listFiles(): Promise<FileInfo[]> {
   const found = files
     .map((f) => f.name.slice(CMS_PREFIX.length))
     .filter((name) => FILE_NAME.test(name));
-  const names = Array.from(new Set([PROFILE_FILE, ...found]));
+  // The resume builder config is always listed so an admin can create it from the CMS.
+  const names = Array.from(new Set([PROFILE_FILE, RESUME_CONFIG_FILE, ...found]));
   return Promise.all(names.map((name) => fileInfo(cmsFile(name), name)));
 }
 
