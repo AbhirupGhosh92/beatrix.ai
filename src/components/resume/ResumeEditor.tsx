@@ -6,7 +6,8 @@ import { reconcileData } from '../../lib/resumeForm.ts'
 import { ResumeApiError, resumeApi } from '../../lib/resumeClient.ts'
 import type { BuilderConfig } from '../../lib/resumeTypes.ts'
 import { validateForGenerate, type ResumeData, type Structure } from '../../lib/resumeValidation.ts'
-import ExportPanel, { type ExportFormat } from './ExportPanel.tsx'
+import { exportResume, saveBlob, type ExportFormat } from '../../lib/resume/export.ts'
+import ExportPanel from './ExportPanel.tsx'
 import StructureEditor from './StructureEditor.tsx'
 import StructureForm from './StructureForm.tsx'
 
@@ -41,6 +42,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set())
   const [showAll, setShowAll] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const autosave = config.canCustomize
 
@@ -121,10 +123,27 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
     onClose()
   }
 
-  function generate(templateId: string, format: ExportFormat) {
+  async function generate(templateId: string, format: ExportFormat) {
+    if (!doc) return
     setShowAll(true)
-    if (issues.length > 0) return
-    setNotice(`Exporting ${format.toUpperCase()}${format === 'md' ? '' : ` with the "${templateId}" template`} is added in the next step.`)
+    if (issues.length > 0 || exporting) return
+    setExporting(true)
+    setNotice(null)
+    try {
+      const { blob, filename, warnings } = await exportResume({
+        title: doc.title,
+        structure,
+        data: doc.data,
+        format,
+        template: config.templates.find((template) => template.id === templateId),
+      })
+      saveBlob(blob, filename)
+      setNotice([`Downloaded ${filename}.`, ...warnings].join(' '))
+    } catch (err) {
+      setNotice(`Could not generate the file: ${err instanceof Error ? err.message : 'unknown error'}`)
+    } finally {
+      setExporting(false)
+    }
   }
 
   if (loadError) {
@@ -210,7 +229,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
         <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
           <section className="surface rounded-box flex flex-col gap-3 p-4" aria-labelledby="generate-heading">
             <h2 id="generate-heading" className="heading-display text-lg font-bold text-brand">Generate</h2>
-            <ExportPanel templates={config.templates} valid={issues.length === 0} onGenerate={generate} />
+            <ExportPanel templates={config.templates} valid={issues.length === 0} busy={exporting} onGenerate={(templateId, format) => void generate(templateId, format)} />
             {notice && <p role="status" className="text-meta">{notice}</p>}
           </section>
           {issues.length > 0 && (

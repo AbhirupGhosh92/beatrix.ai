@@ -67,6 +67,7 @@ A template is a closed token set (fonts from a short list, sizes, colors, spacin
 - [Client-side generation cannot be trusted or audited] → Acceptable by decision: output is the user's own data; the server only stores JSON and enforces size, shape and ownership.
 - [Index and object can drift if a function fails midway] → Reserve-then-write with release on failure; the orphan list tolerates an index id with no object and the purge removes by prefix.
 - [Advanced users editing structures can create huge forms] → `structureRules` caps sections, fields and lengths, enforced on the server.
+- [PDF standard fonts only draw Windows-1252 characters] → Accented Latin letters, curly quotes and dashes work; other scripts (for example Devanagari, CJK) and emoji print as `?` in the PDF. The export warns the user before they rely on it and points to DOCX or Markdown, which keep full Unicode.
 - [DOCX can still reflow if a recipient lacks a font] → Fonts restricted to Word defaults; exact visual parity is only promised for PDF.
 - [Hard delete is irreversible] → Typed confirmation, orphan-only guard and an audit entry; user-initiated deletes keep the 30-day window.
 - [Large export libraries] → Dynamically imported on the builder page only.

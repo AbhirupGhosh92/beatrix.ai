@@ -32,11 +32,11 @@
 
 ## 5. Export
 
-- [ ] 5.1 Build the document model and the Markdown renderer; verify a sample resume produces the expected `.md`
+- [x] 5.1 Build the document model and the Markdown renderer; verify a sample resume produces the expected `.md`
 - [ ] 5.2 Add the template tokens, layout ids and the template picker (only enabled, valid templates); verify a disabled template is hidden and an invalid one is skipped without breaking the page
-- [ ] 5.3 Add the DOCX renderer with heading/paragraph styles, Word-safe fonts, no layout tables; verify the file opens in Word or LibreOffice with selectable text and converts to PDF with the same content and structure
-- [ ] 5.4 Add the PDF renderer with embedded standard fonts and the layouts; verify the PDF matches each template's style and contains no watermark
-- [ ] 5.5 Load both libraries with dynamic imports; verify they are absent from the landing page bundle in the `npm run build` output and that one Generate click produces exactly one file
+- [x] 5.3 Add the DOCX renderer with heading/paragraph styles, Word-safe fonts, no layout tables; verify the file opens in Word or LibreOffice with selectable text and converts to PDF with the same content and structure
+- [x] 5.4 Add the PDF renderer with embedded standard fonts and the layouts; verify the PDF matches each template's style and contains no watermark
+- [x] 5.5 Load both libraries with dynamic imports; verify they are absent from the landing page bundle in the `npm run build` output and that one Generate click produces exactly one file
 
 ## 6. Retention and admin cleanup
 

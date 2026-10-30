@@ -1,25 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Loader2 } from 'lucide-react'
 import type { ResumeTemplate } from '../../data/resumeConfig.ts'
-
-export const FORMATS = [
-  { id: 'pdf', label: 'PDF' },
-  { id: 'docx', label: 'Word (DOCX)' },
-  { id: 'md', label: 'Markdown' },
-] as const
-export type ExportFormat = (typeof FORMATS)[number]['id']
+import { FORMATS, type ExportFormat } from '../../lib/resume/export.ts'
 
 interface Props {
   templates: ResumeTemplate[]
   /** False while any field is invalid or a required one is empty. */
   valid: boolean
+  /** True while a file is being generated. */
+  busy: boolean
   onGenerate: (templateId: string, format: ExportFormat) => void
 }
 
 // Picks one template and one format; generating is blocked until the resume is valid.
-export default function ExportPanel({ templates, valid, onGenerate }: Props) {
+export default function ExportPanel({ templates, valid, busy, onGenerate }: Props) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
   const [format, setFormat] = useState<ExportFormat>('pdf')
   const noTemplates = templates.length === 0
@@ -56,10 +52,10 @@ export default function ExportPanel({ templates, valid, onGenerate }: Props) {
       <button
         type="button"
         className="button-primary"
-        disabled={!valid || (format !== 'md' && noTemplates)}
+        disabled={!valid || busy || (format !== 'md' && noTemplates)}
         onClick={() => onGenerate(templateId, format)}
       >
-        <Download size={16} /> Generate
+        {busy ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} Generate
       </button>
       {!valid && <p className="text-meta">Fix the highlighted fields to enable Generate.</p>}
     </div>
