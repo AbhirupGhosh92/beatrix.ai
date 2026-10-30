@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { Sliders } from 'lucide-react'
+import { can, type Role } from '../../lib/access.ts'
 import { useProfile } from './ProfileProvider.tsx'
 
-export default function DrawerMenu() {
+export default function DrawerMenu({ role }: { role: Role }) {
   const profile = useProfile()
   const { nav } = profile
 
@@ -21,21 +22,23 @@ export default function DrawerMenu() {
           </li>
         ))}
 
-        {/* Admin CMS Section only visible in Burger Menu */}
-        <div className="pt-4 border-t border-base-300 mt-4">
-          <div className="px-3 pb-2 text-xs uppercase tracking-wider text-muted font-semibold">
-            {nav.adminTitle}
+        {/* Admin CMS section: only for roles holding cms:write (the server enforces it too). */}
+        {can(role, 'cms:write') && (
+          <div className="pt-4 border-t border-base-300 mt-4">
+            <div className="px-3 pb-2 text-xs uppercase tracking-wider text-muted font-semibold">
+              {nav.adminTitle}
+            </div>
+            <li>
+              <Link
+                href={nav.adminHref}
+                className="hover-neon text-brand-2 flex items-center gap-2 font-bold py-2.5"
+              >
+                <Sliders size={18} />
+                <span>{nav.adminLabel}</span>
+              </Link>
+            </li>
           </div>
-          <li>
-            <Link
-              href={nav.adminHref}
-              className="hover-neon text-brand-2 flex items-center gap-2 font-bold py-2.5"
-            >
-              <Sliders size={18} />
-              <span>{nav.adminLabel}</span>
-            </Link>
-          </li>
-        </div>
+        )}
       </ul>
     </div>
   )

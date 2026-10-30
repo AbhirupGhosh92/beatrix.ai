@@ -90,14 +90,20 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 ```text
 src/
 ├── index.css
+├── proxy.ts
 ├── app/
 │   ├── layout.tsx
 │   ├── page.tsx
 │   ├── admin/
 │   │   └── page.tsx
 │   └── api/
-│       └── admin/
-│           └── cms/
+│       ├── admin/
+│       │   └── cms/
+│       │       └── route.ts
+│       └── auth/
+│           ├── me/
+│           │   └── route.ts
+│           └── session/
 │               └── route.ts
 ├── components/
 │   ├── layout/
@@ -132,11 +138,13 @@ src/
 ├── hooks/
 │   └── useInView.ts
 ├── lib/
+│   ├── access.ts
 │   └── firebase.ts
 ├── middleware/
 │   ├── adminService.ts
 │   ├── cloudFunctions.ts
-│   └── profileService.ts
+│   ├── profileService.ts
+│   └── sessionService.ts
 └── styles/
     ├── base/
     │   └── elements.css
@@ -191,9 +199,9 @@ npm run deploy:functions   # firebase deploy --only functions,firestore:rules,st
 `.github/workflows/deploy-functions.yml` does the same on every push to `main` that touches `functions/` or the rules (add the repository secret `FIREBASE_SERVICE_ACCOUNT` with a service-account JSON key and the variable `FIREBASE_PROJECT_ID`).
 
 - Architecture: the browser only talks to the Next.js server (`src/app/api/*`, backed by the services in `src/middleware/`). Only that server calls the Cloud Functions, so function URLs, tokens, paths and payloads never reach a client.
-- Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile` and `status`. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.
+- Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile`, `sessionCreate`, `sessionVerify` and `status`. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.
 - `profile.json` is stored in Firebase Storage (`cms/profile.json` in the default bucket). Seed it once with `gcloud storage cp src/data/profile.json gs://PROJECT_ID.firebasestorage.app/cms/profile.json`; after that, edit it in the admin panel (`/admin`). Edits go live within about 30 seconds, no rebuild. Previous versions are kept in `cms-backups/`.
-- Only users whose `allowed_emails/{email}` Firestore document has `admin: true` can use the admin APIs; the functions verify the forwarded Firebase ID token themselves. `storage.rules` and `firestore.rules` deny direct client access to everything else.
+- Every route except `/` requires a server-verified session (an httpOnly cookie set at sign-in and checked by `src/proxy.ts`). Roles come from `allowed_emails/{email}.role` (`reader` by default, then `user-base`, `user-advanced`, `admin`; a legacy `admin: true` entry is an admin). Only the `admin` role can use `/admin` and the admin APIs; the functions verify the forwarded Firebase ID token themselves. `storage.rules` and `firestore.rules` deny direct client access to everything else.
 - The server needs the Firebase project id (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or App Hosting's `GOOGLE_CLOUD_PROJECT`). For local development set `FUNCTIONS_CALLER_SERVICE_ACCOUNT=firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com` in `.env.local` (your gcloud user needs the Service Account Token Creator role on it); without reachable functions the site falls back to `src/data/profile.json`, then `profile.example.json`.
 - Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.

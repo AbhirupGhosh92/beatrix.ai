@@ -1,19 +1,20 @@
 import { ApiError, privateEndpoint } from "./http";
-import { requireAdmin } from "./auth";
+import { requirePermission } from "./auth";
 import { backup, cmsFile, fileInfo, listFiles, MAX_FILE_BYTES, readText } from "./cms";
 
-// Every handler first calls requireAdmin(), which rejects anyone who is not signed in with a
-// whitelisted email flagged admin: true (on top of the IAM restriction to the site's server).
+// Every handler first requires the cms:write permission (the admin role), which rejects anyone who
+// is not signed in with an allow-listed email of that role (on top of the IAM restriction to the
+// site's server).
 
 /** Admin: the editable JSON files and their metadata. */
 export const adminListFiles = privateEndpoint(async (body) => {
-  await requireAdmin(body.idToken);
+  await requirePermission(body.idToken, "cms:write");
   return { files: await listFiles() };
 });
 
 /** Admin: one file's content (empty when it does not exist yet). */
 export const adminGetFile = privateEndpoint(async (body) => {
-  await requireAdmin(body.idToken);
+  await requirePermission(body.idToken, "cms:write");
   const filename = body.file as string;
   const file = cmsFile(filename);
   const info = await fileInfo(file, filename);
@@ -22,7 +23,7 @@ export const adminGetFile = privateEndpoint(async (body) => {
 
 /** Admin: validates and saves a JSON file, backing up the previous version first. */
 export const adminSaveFile = privateEndpoint(async (body) => {
-  const email = await requireAdmin(body.idToken);
+  const email = await requirePermission(body.idToken, "cms:write");
   const filename = body.file as string;
   const file = cmsFile(filename);
   const { content } = body;

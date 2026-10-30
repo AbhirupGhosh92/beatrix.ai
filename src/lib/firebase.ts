@@ -1,7 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from 'firebase/analytics'
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth'
-import { getFirestore, doc, getDoc, type Firestore } from 'firebase/firestore'
 import { getRemoteConfig, fetchAndActivate, type RemoteConfig } from 'firebase/remote-config'
 
 const firebaseConfig = {
@@ -16,7 +15,6 @@ const firebaseConfig = {
 
 let app: FirebaseApp | undefined
 let auth: Auth | undefined
-let firestore: Firestore | undefined
 let googleProvider: GoogleAuthProvider | undefined
 let analyticsPromise: Promise<Analytics | undefined> | undefined
 let remoteConfigPromise: Promise<RemoteConfig | undefined> | undefined
@@ -59,45 +57,6 @@ export async function getIdToken(): Promise<string | undefined> {
   if (!firebaseAuth) return undefined
   await firebaseAuth.authStateReady()
   return firebaseAuth.currentUser?.getIdToken()
-}
-
-export function getFirebaseFirestore(): Firestore | undefined {
-  if (!firestore) {
-    const firebaseApp = getFirebaseApp()
-    if (!firebaseApp) {
-      return undefined
-    }
-    firestore = getFirestore(firebaseApp)
-  }
-
-  return firestore
-}
-
-/**
- * Checks whether an email address is allowed based on records stored in Firebase Firestore datastore.
- * The document ID must be the lowercase email; `allowed: false` revokes access.
- */
-export async function isEmailAllowed(email: string | null | undefined): Promise<boolean> {
-  if (!email) {
-    return false
-  }
-
-  const normalizedEmail = email.trim().toLowerCase()
-  const db = getFirebaseFirestore()
-
-  // If Firebase Firestore is not initialized (e.g. demo mode / missing API keys), allow access for local dev
-  if (!db) {
-    return true
-  }
-
-  try {
-    // `allowed_emails/{normalizedEmail}`: the rules only let a user read their own document.
-    const docSnap = await getDoc(doc(db, 'allowed_emails', normalizedEmail))
-    return docSnap.exists() && docSnap.data().allowed !== false
-  } catch (error) {
-    console.warn('Firestore query failed when checking allowed emails:', error)
-    return false
-  }
 }
 
 export function getGoogleProvider(): GoogleAuthProvider {

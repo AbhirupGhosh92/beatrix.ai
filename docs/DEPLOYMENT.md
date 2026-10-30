@@ -191,7 +191,30 @@ you add a new resource that holds data or identity.
 - **Private artifacts.** Saved plans, markers and backups live in the private, versioned,
   public-access-prevented state bucket; `terraform/tfplan` and `plan.json` are git-ignored.
 - **Functions stay private.** Only the App Hosting service account can invoke them; admin functions also
-  verify the Firebase ID token and the `admin: true` flag. Unchanged by this pipeline.
+  verify the Firebase ID token and require the `cms:write` permission (the `admin` role). Unchanged by this pipeline.
+
+### Access control and roles
+
+Every route except `/` (and the sign-in endpoint and static files) needs a server-verified session; the
+gate is `src/proxy.ts`, backed by the private `sessionCreate` and `sessionVerify` functions. The full
+description is in `CLAUDE.md` (Access control) and the spec `openspec/specs/access-control/`.
+
+- **Roles** live in `allowed_emails/{email}.role`: `reader` (default when unset), `user-base`,
+  `user-advanced`, `admin`. Entries seeded by Terraform with `admin: true` and no `role` are admins, so
+  existing environments keep working. `allowed: false` or deleting the document removes access.
+- **Promote or demote** by editing the `role` field of the user's `allowed_emails/{email}` document in
+  the Firebase console (Firestore). It takes effect on the user's next request, with no re-login.
+  Terraform only manages the admin documents listed in `allowed_admin_emails`; do not set a different
+  `role` on those by hand, since Terraform rewrites them on the next apply.
+- **Emergency lock-out of one user:** set `allowed: false`, and optionally revoke their refresh tokens
+  (`getAuth().revokeRefreshTokens(uid)` with the Admin SDK, or the console) so the session cookie dies too.
+- **Deploy order:** the functions and App Hosting components are deployed by one `firebase deploy`, so
+  their order is not guaranteed. This is safe: a new site without `sessionVerify` fails closed (protected
+  routes redirect or return 503, `/` still works), and new functions with the old site change nothing
+  visible. The smoke test's "`/api/admin/cms` without a token returns 401" now comes from the proxy and
+  still holds.
+- **Local development** uses the real functions through `FUNCTIONS_CALLER_SERVICE_ACCOUNT`; with no
+  reachable functions the gate denies instead of letting everyone in.
 
 ## 7. One-time setup
 
