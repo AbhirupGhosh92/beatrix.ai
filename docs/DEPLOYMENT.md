@@ -147,6 +147,7 @@ has no cloud access and no token permissions. It exists only to hold the run unt
 | Firestore documents | Not touched by deploys | The only documents Terraform manages are `allowed_emails/<email>` entries listed in `allowed_admin_emails`. Removing an email from the tfvars deletes that document, which the plan guard blocks unless `allow_destructive` is set. |
 | User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
+| User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. |
 | Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
 | Security rules | Component hash | Skipped when the rule files are unchanged. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
@@ -333,6 +334,24 @@ gcloud storage cp --recursive gs://<project>-tfstate/backups/<time>-<sha>/storag
 ```
 
 Replace `<project>` with the GCP project id (for example `beatrix-ai-prod`).
+
+### 10.1b User resumes (deleted or overwritten in the last 30 days)
+
+Resumes live in `gs://<project>-resumes/owners/<sha256 of the owner email>/<resume id>.json`. Deleting or
+overwriting one keeps the previous version for 30 days; there is no restore button, an operator restores it:
+
+```bash
+# the owner folder is the sha256 of the lowercase email
+printf '%s' 'person@example.com' | sha256sum
+gcloud storage ls --all-versions gs://<project>-resumes/owners/<hash>/
+# copy the wanted generation back as the live object
+gcloud storage cp 'gs://<project>-resumes/owners/<hash>/<id>.json#<generation>' \
+                  gs://<project>-resumes/owners/<hash>/<id>.json
+```
+
+After restoring a deleted resume, correct that owner's `resume_owners/<email>` document (`count`) in
+Firestore so the cap counts it. An admin's purge of an orphaned owner deletes every version and cannot be
+undone this way.
 
 ### 10.2 Firestore (point-in-time recovery, last 7 days)
 

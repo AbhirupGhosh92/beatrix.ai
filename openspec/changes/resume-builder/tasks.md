@@ -17,10 +17,10 @@
 ## 3. Storage, ownership and caps
 
 - [ ] 3.1 Add the resumes bucket (versioning, 30-day noncurrent rule, `force_destroy = false`, `prevent_destroy`) and IAM for the App Hosting compute account in `terraform/`, with outputs; verify `npm run infra:check` and `terraform plan` succeed
-- [ ] 3.2 Add a plan guard test that a delete/replace of the resumes bucket is blocked (extend `scripts/deploy/` tests); verify the test fails without the guard and passes with it
+- [x] 3.2 Add a plan guard test that a delete/replace of the resumes bucket is blocked (extend `scripts/deploy/` tests); verify the test fails without the guard and passes with it
 - [ ] 3.3 Implement the resume functions (list, get, create, save, delete) with `privateEndpoint()`, ID-token verification, owner from the token, hashed owner prefix, transactional cap on `resume_owners/{email}` and generation precondition on save; verify with the emulator or a deployed dev project that another user's id returns 404, parallel creates stop at the cap and a stale save returns 409
-- [ ] 3.4 Add `src/middleware/resumeService.ts` and the `/api/resumes` route handlers using the shared helpers; verify the browser only ever calls the Next.js routes
-- [ ] 3.5 Confirm the resume functions are covered by the existing `functions` component hash in `scripts/deploy/components.sh` (no new component needed); verify with `components.sh hash functions` that the hash changes when a resume function changes and not on a docs-only change
+- [x] 3.4 Add `src/middleware/resumeService.ts` and the `/api/resumes` route handlers using the shared helpers; verify the browser only ever calls the Next.js routes
+- [x] 3.5 Confirm the resume functions are covered by the existing `functions` component hash in `scripts/deploy/components.sh` (no new component needed); verify with `components.sh hash functions` that the hash changes when a resume function changes and not on a docs-only change
 
 ## 4. Builder page and form
 
