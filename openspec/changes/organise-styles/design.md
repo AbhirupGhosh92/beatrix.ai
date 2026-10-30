@@ -74,6 +74,21 @@ Three phases, each shippable on its own and reviewed with the manual and snapsho
 3. Add vendor adapters and syntax tokens; simplify `JsonEditor.tsx`.
 There is no data, infrastructure or deployment change, so the standard pipeline applies unchanged.
 
+## Audit results (task 1.3)
+
+Measured over `src/components` and `src/app` (263 `className` uses, 22 components). Candidate classes below meet decision 4's threshold with an **exact** match, so replacing them cannot change rendering. Near-matches that differ in a value (for example opacity 70 vs 80) stay separate classes; unifying them would change appearance and is out of scope.
+
+| Class | Utilities it replaces | Uses |
+|---|---|---|
+| `surface` | `bg-base-200 border border-base-300` | 6 exact (plus ~8 variants that add radius, padding or opacity and keep those inline) |
+| `edge-b` | `border-b border-base-300` | 4 |
+| `text-muted` | `text-base-content/60` | 7 |
+| `text-meta` | `text-sm opacity-70` | 3 |
+| `text-meta-strong` | `text-sm opacity-80` | 3 |
+| `heading-display` | `font-display uppercase tracking-wide` (non-heading elements; `h1`-`h6` already get this from the base rule) | 3 |
+
+Below the threshold and left as utilities: `bg-base-100 font-mono text-sm` (2), `font-display text-brand` (2), `text-sm uppercase` (2). `text-brand*`, `text-pain/gain`, `button-*`, `hover-*` and `glitch-hover` already exist and stay. This is smaller than the starting set in decision 4: `surface-panel` is dropped (its variants differ too much) and `meta-text` is split into `text-meta` and `text-meta-strong`.
+
 ## Open Questions
 
 - Whether the computed-style snapshot snippet should be committed (for example under `scripts/`) for reuse or kept as an untracked developer aid. This does not change the specs or tasks.

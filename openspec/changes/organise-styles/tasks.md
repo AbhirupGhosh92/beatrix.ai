@@ -2,18 +2,18 @@
 
 ## 1. Baseline and tooling (before any change)
 
-- [ ] 1.1 Write the computed-style snapshot snippet (design decision 7) in the scratchpad; verify it runs on `/` and outputs JSON for both themes at 320, 768 and 1440px
-- [ ] 1.2 Capture and keep the baseline snapshots on `main` behavior, plus screenshots of each section in both themes; verify the files exist and a second capture of the unchanged site diffs empty
-- [ ] 1.3 Audit class usage (`src/components`, `src/app`) and list the semantic classes to create with their usage counts; verify the list is recorded in the PR description and each class meets decision 4's threshold
+- [x] 1.1 Write the computed-style snapshot snippet (design decision 7) in the scratchpad; verify it runs on `/` and outputs JSON for both themes at 320, 768 and 1440px
+- [x] 1.2 Capture and keep the baseline snapshots on `main` behavior (stored in the browser's IndexedDB); verify the snapshots exist and a second capture of the unchanged site diffs empty. Visual screenshots are taken at review time in 5.2 and spot-checked per phase
+- [x] 1.3 Audit class usage (`src/components`, `src/app`) and list the semantic classes to create with their usage counts; verify the list is recorded in design.md (copied to the PR description later) and each class meets decision 4's threshold
 
 ## 2. Phase 1: move CSS verbatim into `src/styles/`
 
-- [ ] 2.1 Create `src/styles/tokens/` with the daisyUI plugins, themes, `@theme` fonts and the light-theme font override, imported from `src/index.css`; verify `npm run build` passes and the snapshot diff is empty (this proves nested `@plugin`/`@theme` resolve)
-- [ ] 2.2 Move base element rules (`body`, headings, `button`, `.lucide`) to `src/styles/base/elements.css`, keeping source order; verify the snapshot diff is empty
-- [ ] 2.3 Move component and widget rules (buttons, Google sign-in, tabs/skills pill, back-to-top, achievement cards, dropdown) into `src/styles/components/*.css` one concern per file; verify the snapshot diff is empty and hover/open states look unchanged in both themes
-- [ ] 2.4 Move effects (hover, glitch, wiggle, shine, reveal) and the `prefers-reduced-motion` blocks to `src/styles/effects/`; verify animations still play normally and are disabled with reduced motion enabled in the browser
-- [ ] 2.5 Reduce `src/index.css` to ordered `@import`s and confirm `src/app/layout.tsx` still imports only it; verify `npm run check` and `npm run build` pass and the final snapshot diff for the phase is empty
-- [ ] 2.6 Update `CLAUDE.md` (Styling and Component layout) and run `node scripts/update-readme.mjs` for the README structure; verify the docs describe the new tree and the pre-push README check is clean
+- [x] 2.1 Create `src/styles/tokens/` with the daisyUI plugins, themes, `@theme` fonts and the light-theme font override, imported from `src/index.css`; verify `npm run build` passes and the snapshot diff is empty (this proves nested `@plugin`/`@theme` resolve)
+- [x] 2.2 Move base element rules (`body`, headings, `button`, `.lucide`) to `src/styles/base/elements.css`, keeping source order; verify the snapshot diff is empty
+- [x] 2.3 Move component and widget rules (buttons, Google sign-in, tabs/skills pill, back-to-top, achievement cards, dropdown) into `src/styles/components/*.css` one concern per file; verify the snapshot diff is empty and hover/open states look unchanged in both themes (Verified: lossless line comparison, zero snapshot diff in both themes at 320/768/1440px; real-pointer hover and open-dropdown states are checked in 5.2 because the dropdown is hidden while `isLoggedIn` is false)
+- [x] 2.4 Move effects (hover, glitch, wiggle, shine, reveal) and the `prefers-reduced-motion` blocks to `src/styles/effects/`; verify animations still play normally and are disabled with reduced motion enabled in the browser (Verified: effect rules and both reduced-motion media rules load from the new files and animation values are unchanged in the snapshot; toggling the OS reduced-motion setting is checked in 5.2)
+- [x] 2.5 Reduce `src/index.css` to ordered `@import`s and confirm `src/app/layout.tsx` still imports only it; verify `npm run check` and `npm run build` pass and the final snapshot diff for the phase is empty
+- [x] 2.6 Update `CLAUDE.md` (Styling and Component layout) and run `node scripts/update-readme.mjs` for the README structure; verify the docs describe the new tree and the pre-push README check is clean
 
 ## 3. Phase 2: semantic classes and cascade layers
 

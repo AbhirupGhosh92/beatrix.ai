@@ -1,0 +1,18 @@
+@theme {
+  --font-sans: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Orbitron", "Rajdhani", ui-sans-serif, sans-serif;
+}
+
+/* Light theme gets cute, rounded fonts and normal-case text instead of the
+   techy Orbitron/Rajdhani uppercase. The theme controller sets no attribute on
+   <html>, so key off the dark toggle being unchecked. */
+:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked)) {
+  --font-sans: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --font-display: "Fredoka", "Quicksand", ui-rounded, system-ui, sans-serif;
+}
+
+:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked))
+  :is(h1, h2, h3, h4, h5, h6, button, .font-display, .button-primary, .button-secondary, .button-accent) {
+  text-transform: none;
+  letter-spacing: normal;
+}
