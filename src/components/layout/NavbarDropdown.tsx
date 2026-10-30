@@ -12,7 +12,7 @@ const ICONS: Record<Profile['nav']['dropdownItems'][number]['icon'], LucideIcon>
   'log-out': LogOut,
 }
 
-export default function NavbarDropdown() {
+export default function NavbarDropdown({ onLogout }: { onLogout: () => void }) {
   const profile = useProfile()
   const { nav } = profile
 
@@ -37,14 +37,22 @@ export default function NavbarDropdown() {
 
           const handleClick = async () => {
             if (isLogout) {
-              const auth = getFirebaseAuth()
-              if (auth) {
-                try {
-                  await signOut(auth)
-                } catch (error) {
-                  console.error('Sign out error:', error)
-                }
+              // End the server session first (clears the cookie). If that fails, still sign out of the
+              // Firebase client session, but keep showing the user as logged in since the cookie lives.
+              let serverSessionEnded = false
+              try {
+                const res = await fetch('/api/auth/session', { method: 'DELETE' })
+                serverSessionEnded = res.ok
+              } catch (error) {
+                console.error('Server session delete failed:', error)
               }
+              try {
+                const auth = getFirebaseAuth()
+                if (auth) await signOut(auth)
+              } catch (error) {
+                console.error('Sign out error:', error)
+              }
+              if (serverSessionEnded) onLogout()
             }
           }
 

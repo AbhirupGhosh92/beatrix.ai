@@ -20,4 +20,5 @@ export const status = onRequest({ invoker: [SITE_SERVER_ACCOUNT] }, (request, re
 // `firebase deploy --only functions`.
 export { getProfile } from "./profile";
 export { adminListFiles, adminGetFile, adminSaveFile } from "./admin";
-export { registerUser, adminListUsers, adminSetUser } from "./users";
+export { sessionCreate, sessionVerify } from "./session";
+export { adminListUsers, adminSetUser } from "./users";

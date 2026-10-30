@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Loader2, RefreshCw, UserPlus } from 'lucide-react'
+import { ROLES } from '../../../lib/access.ts'
+import type { Role } from '../../../lib/access.ts'
 import { getFirebaseAuth, getIdToken } from '../../../lib/firebase.ts'
 
-type Role = 'reader' | 'admin'
 type Action = 'add' | 'setRole' | 'revoke' | 'restore'
 
 interface AccessUser {
@@ -203,8 +204,11 @@ export default function AccessPage() {
                       aria-label={`Role for ${user.email}`}
                       onChange={(e) => run(user.email, 'setRole', e.target.value as Role)}
                     >
-                      <option value="reader">reader</option>
-                      <option value="admin">admin</option>
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td>

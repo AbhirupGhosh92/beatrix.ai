@@ -41,7 +41,7 @@ Run only the checks with `npm run infra:preflight -- <env> [pre|post]`.
 
 - **APIs** for Firebase, Firestore, Storage, Cloud Functions v2, Cloud Run, Cloud Build, Artifact Registry, App Hosting, Identity Toolkit, IAM and STS.
 - **Firebase project and web app**, **Firestore** `(default)` (abandoned rather than deleted on destroy in prod), the `<project>-cms-<env>` bucket (not used by the code today; the functions use the default Storage bucket), and the **security rules**.
-- **CMS admins**: one `allowed_emails/{email}` document with `admin: true` per `allowed_admin_emails` entry.
+- **CMS admins**: one `allowed_emails/{email}` document with `admin: true` per `allowed_admin_emails` entry (read as the `admin` role; other users' roles are set with the `role` field and are not managed by Terraform).
 - **App Hosting**: backend `beatrix-web` (must match `backendId` in `firebase.json`) with no GitHub connection, running as `firebase-app-hosting-compute@<project>`, the only identity allowed to invoke the Cloud Functions. `developer_members` may impersonate it for local development. The web app config reaches the build as `FIREBASE_WEBAPP_CONFIG`, which `next.config.ts` maps to the `NEXT_PUBLIC_FIREBASE_*` variables.
 - **CI identity**: Workload Identity pool `github` that accepts only this repository's jobs running in the GitHub environment with the same name, and the `github-deployer` service account they act as. No keys.
 - `beatrix-server-<env>`: legacy server service account, kept for now.

@@ -1,8 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { ApiError, privateEndpoint } from "./http";
-import { requireAdmin, roleOf, verifiedUser } from "./auth";
-import type { Role } from "./auth";
+import { requirePermission } from "./auth";
 import { db } from "./firebase";
+import { ROLES, resolveRole, type Role } from "./policy";
 
 const USERS = "allowed_emails";
 const MAX_USERS = 500;
@@ -11,48 +11,44 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const userRef = (email: string) => db().doc(`${USERS}/${email}`);
 
 /**
- * First sign-in registration: creates `allowed_emails/{email}` as a `reader` when it does not exist.
- * An existing document is never overwritten; only `lastLoginAt` is touched, so roles and
- * revocations survive. The token must carry a verified email (otherwise 401).
+ * First sign-in registration: creates `allowed_emails/{email}` as a `reader` when it does not
+ * exist. An existing document is never overwritten; only `lastLoginAt` is touched, so roles and
+ * revocations survive. Called by `sessionCreate` once the token's email is verified.
  */
-export const registerUser = privateEndpoint(async (body) => {
-  const { email, name } = await verifiedUser(body.idToken);
+export async function registerIfAbsent(email: string, displayName: string): Promise<void> {
   const ref = userRef(email);
-
-  return db().runTransaction(async (tx) => {
+  await db().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists) {
+    if (snap.exists) {
+      tx.update(ref, { lastLoginAt: FieldValue.serverTimestamp() });
+    } else {
       tx.create(ref, {
         email,
-        displayName: name,
+        displayName,
         role: "reader",
-        admin: false,
         allowed: true,
         createdAt: FieldValue.serverTimestamp(),
         lastLoginAt: FieldValue.serverTimestamp(),
       });
-      return { created: true, role: "reader", allowed: true };
     }
-    tx.update(ref, { lastLoginAt: FieldValue.serverTimestamp() });
-    return { created: false, role: roleOf(snap.data()), allowed: snap.data()?.allowed !== false };
   });
-});
+}
 
 const iso = (value: unknown): string | null =>
   value && typeof (value as { toDate?: unknown }).toDate === "function"
     ? (value as { toDate(): Date }).toDate().toISOString()
     : null;
 
-/** Admin: every onboarded user. Legacy documents without `role` read as admin only when `admin: true`. */
+/** Admin: every onboarded user with the role resolved the same way the access gate does. */
 export const adminListUsers = privateEndpoint(async (body) => {
-  await requireAdmin(body.idToken);
+  await requirePermission(body.idToken, "cms:write");
   const snap = await db().collection(USERS).limit(MAX_USERS + 1).get();
   const users = snap.docs.slice(0, MAX_USERS).map((doc) => {
     const data = doc.data();
     return {
       email: doc.id,
       displayName: typeof data.displayName === "string" ? data.displayName : "",
-      role: roleOf(data),
+      role: resolveRole({ ...data, allowed: true }) ?? "reader",
       allowed: data.allowed !== false,
       createdAt: iso(data.createdAt),
       lastLoginAt: iso(data.lastLoginAt),
@@ -69,20 +65,20 @@ const ACTIONS: readonly Action[] = ["add", "setRole", "revoke", "restore"];
  * any change that would leave no active admin (counted inside the transaction).
  */
 export const adminSetUser = privateEndpoint(async (body) => {
-  const actor = await requireAdmin(body.idToken);
+  const actor = await requirePermission(body.idToken, "cms:write");
 
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!EMAIL_PATTERN.test(email)) throw new ApiError(400, "A valid email is required.");
   const action = body.action as Action;
   if (!ACTIONS.includes(action)) throw new ApiError(400, "Unknown action.");
   const role = body.role as Role | undefined;
-  if (action === "setRole" && role !== "reader" && role !== "admin") {
-    throw new ApiError(400, "Role must be reader or admin.");
+  if (action === "setRole" && !ROLES.includes(role as Role)) {
+    throw new ApiError(400, `Role must be one of: ${ROLES.join(", ")}.`);
   }
 
   const ref = userRef(email);
-  const losesAccess = action === "revoke" || (action === "setRole" && role === "reader");
-  if (losesAccess && email === actor) {
+  const losesAdmin = action === "revoke" || (action === "setRole" && role !== "admin");
+  if (losesAdmin && email === actor) {
     throw new ApiError(400, "You cannot revoke or demote your own account.");
   }
 
@@ -96,7 +92,6 @@ export const adminSetUser = privateEndpoint(async (body) => {
         email,
         displayName: "",
         role: "reader",
-        admin: false,
         allowed: true,
         createdAt: FieldValue.serverTimestamp(),
         ...meta,
@@ -105,14 +100,13 @@ export const adminSetUser = privateEndpoint(async (body) => {
     }
     if (!snap.exists) throw new ApiError(404, `${email} is not onboarded.`);
 
-    const target = snap.data();
-    if (losesAccess && roleOf(target) === "admin" && target?.allowed !== false) {
-      const admins = await tx.get(db().collection(USERS).where("admin", "==", true));
-      const others = admins.docs.filter((d) => d.id !== email && d.data().allowed !== false);
+    if (losesAdmin && resolveRole(snap.data()) === "admin") {
+      const all = await tx.get(db().collection(USERS).limit(MAX_USERS + 1));
+      const others = all.docs.filter((d) => d.id !== email && resolveRole(d.data()) === "admin");
       if (others.length === 0) throw new ApiError(400, "At least one active admin must remain.");
     }
 
-    if (action === "setRole") tx.update(ref, { role, admin: role === "admin", ...meta });
+    if (action === "setRole") tx.update(ref, { role, ...meta });
     else tx.update(ref, { allowed: action === "restore", ...meta });
   });
 

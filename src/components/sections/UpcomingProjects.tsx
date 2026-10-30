@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { FolderKanban, Lock, CheckCircle2 } from 'lucide-react'
 import { signInWithPopup, signOut } from 'firebase/auth'
-import { getFirebaseAuth, getGoogleProvider, isEmailAllowed } from '../../lib/firebase.ts'
-import { registerCurrentUser } from '../../lib/register-user.ts'
+import { getFirebaseAuth, getGoogleProvider } from '../../lib/firebase.ts'
 import { useProfile } from '../layout/ProfileProvider.tsx'
 import SectionHeading from '../ui/SectionHeading.tsx'
 import Reveal from '../ui/Reveal.tsx'
@@ -35,7 +34,7 @@ function GoogleIcon() {
 
 interface UpcomingProjectsProps {
   isLoggedIn: boolean
-  onLogin: () => void
+  onLogin: () => void | Promise<void>
 }
 
 export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjectsProps) {
@@ -50,27 +49,34 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     setLoginError(null)
 
     const auth = getFirebaseAuth()
-    if (!auth || auth.app.options.apiKey === 'demo-api-key') {
-      setTimeout(() => {
-        setIsLoggingIn(false)
-        onLogin()
-      }, 500)
+    if (!auth) {
+      setLoginError(upcoming.lock.failedError)
+      setIsLoggingIn(false)
       return
     }
 
     try {
       const credential = await signInWithPopup(auth, getGoogleProvider())
       const user = credential.user
-      await registerCurrentUser()
-      const allowed = await isEmailAllowed(user.email)
 
-      if (!allowed) {
+      // The server checks the allow list and sets the httpOnly session cookie.
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: await user.getIdToken() }),
+      })
+      if (!res.ok) {
         await signOut(auth)
-        setLoginError(upcoming.lock.restrictedError.replace('{email}', user.email || upcoming.lock.unknownEmail))
+        const data = await res.json().catch(() => ({}))
+        setLoginError(
+          res.status === 403
+            ? upcoming.lock.restrictedError.replace('{email}', user.email || upcoming.lock.unknownEmail)
+            : data.error || upcoming.lock.failedError,
+        )
         return
       }
 
-      onLogin()
+      await onLogin()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : upcoming.lock.failedError
       setLoginError(errorMsg)

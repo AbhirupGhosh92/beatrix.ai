@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { getFirebaseAuth, isEmailAllowed } from '../lib/firebase.ts'
-import { registerCurrentUser } from '../lib/register-user.ts'
+import { useState, useEffect, useCallback } from 'react'
+import { isRole, type Role } from '../lib/access.ts'
 import Navbar from '../components/layout/Navbar.tsx'
 import DrawerMenu from '../components/layout/DrawerMenu.tsx'
 import Hero from '../components/sections/Hero.tsx'
@@ -17,36 +15,33 @@ import UpcomingProjects from '../components/sections/UpcomingProjects.tsx'
 import Footer from '../components/layout/Footer.tsx'
 import BackToTop from '../components/layout/BackToTop.tsx'
 
+/** The current session's role from the server, or null when logged out or unreachable. */
+async function fetchSessionRole(): Promise<Role | null> {
+  try {
+    const res = await fetch('/api/auth/me', { cache: 'no-store' })
+    const data = res.ok ? await res.json() : null
+    return isRole(data?.role) ? data.role : null
+  } catch {
+    return null
+  }
+}
+
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  // The server's session decides who is logged in and what role they hold; nothing here is trusted.
+  const [role, setRole] = useState<Role | null>(null)
+  const isLoggedIn = role !== null
+
+  const refreshSession = useCallback(async () => setRole(await fetchSessionRole()), [])
 
   useEffect(() => {
-    const auth = getFirebaseAuth()
-    if (!auth) {
-      return
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        await registerCurrentUser()
-        const allowed = await isEmailAllowed(user.email)
-        if (allowed) {
-          setIsLoggedIn(true)
-        } else {
-          console.warn(`User email ${user.email} is not in the allowed emails datastore. Signing out.`)
-          await signOut(auth)
-          setIsLoggedIn(false)
-        }
-      } else {
-        setIsLoggedIn(false)
-      }
+    let ignore = false
+    fetchSessionRole().then((current) => {
+      if (!ignore) setRole(current)
     })
-    return () => unsubscribe()
+    return () => {
+      ignore = true
+    }
   }, [])
-
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-  }
 
   return (
     <div className="drawer">
@@ -55,7 +50,7 @@ export default function Home() {
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
         <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">
-            <Navbar isLoggedIn={isLoggedIn} />
+            <Navbar isLoggedIn={isLoggedIn} onLogout={() => setRole(null)} />
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8 lg:py-6">
@@ -67,13 +62,13 @@ export default function Home() {
             <Skills />
             <Education />
             <BeyondCode />
-            <UpcomingProjects isLoggedIn={isLoggedIn} onLogin={handleLogin} />
+            <UpcomingProjects isLoggedIn={isLoggedIn} onLogin={refreshSession} />
           </main>
         </div>
         <Footer />
         <BackToTop />
       </div>
-      {isLoggedIn && <DrawerMenu />}
+      {role && <DrawerMenu role={role} />}
     </div>
   )
 }
