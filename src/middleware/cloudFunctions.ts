@@ -35,13 +35,24 @@ function functionUrl(name: string): string {
 // proxy calls a function on every protected request.
 const TOKEN_REUSE_MS = 50 * 60 * 1000
 const tokenCache = new Map<string, { headers: Record<string, string>; expiresAt: number }>()
+// Concurrent requests that find the token expired share one mint instead of each minting their own.
+const pendingTokens = new Map<string, Promise<Record<string, string>>>()
 
 async function authHeaders(audience: string): Promise<Record<string, string>> {
   const cached = tokenCache.get(audience)
   if (cached && cached.expiresAt > Date.now()) return cached.headers
-  const headers = await mintAuthHeaders(audience)
-  tokenCache.set(audience, { headers, expiresAt: Date.now() + TOKEN_REUSE_MS })
-  return headers
+
+  let pending = pendingTokens.get(audience)
+  if (!pending) {
+    pending = mintAuthHeaders(audience)
+      .then((headers) => {
+        tokenCache.set(audience, { headers, expiresAt: Date.now() + TOKEN_REUSE_MS })
+        return headers
+      })
+      .finally(() => pendingTokens.delete(audience))
+    pendingTokens.set(audience, pending)
+  }
+  return pending
 }
 
 async function mintAuthHeaders(audience: string): Promise<Record<string, string>> {
