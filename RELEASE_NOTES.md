@@ -1,0 +1,4 @@
+- Sign in with Google to unlock more of the site; access is now managed by role.
+- New Resume Builder: create, edit and download your resume as PDF, Word or Markdown.
+- Admins can manage who has access from a new Access page.
+- The current app version now appears at the bottom of the page; tap it to see what's new.
