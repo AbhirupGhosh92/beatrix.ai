@@ -450,12 +450,13 @@ Be aware of these; none of them is hidden by the pipeline:
   bucket is currently unused by the code but protected the same way. The Terraform-managed
   `<project>-resumes` bucket **is** used (by the resume functions) and its name is derived from the project
   id in `functions/src/firebase.ts`, so the two must stay in step.
-- **Resume builder not exercised on GCP yet.** The resume functions, bucket rules and admin cleanup were
-  checked against in-memory models of Firestore and Storage and in a headless browser, not against a deployed
-  project. Still to confirm on `dev` (checklist in `openspec/changes/resume-builder/verification.md`): the
-  Terraform plan for the new bucket, deleting an object generation by number (the admin purge), listing
-  noncurrent versions, generation preconditions on save, the cap under truly parallel requests, and the
-  30-day lifecycle rule. The functions' runtime service account reaches the new bucket through the same
+- **Resume builder: dev run reported, not itemised.** The resume functions, bucket rules and admin cleanup
+  were built against in-memory models of Firestore and Storage and in a headless browser, then run on `dev`
+  by the owner, who reported that it works. The per-case results were not recorded. The checklist is
+  `openspec/changes/archive/2026-10-30-resume-builder/verification.md`; the cases worth repeating before
+  the first prod deploy are the Terraform plan for the new bucket, the admin purge deleting every object
+  version, restoring a deleted resume, and the 30-day lifecycle rule. Opening the DOCX in Microsoft Word was
+  not tested by the author. The functions' runtime service account reaches the new bucket through the same
   project-wide access it uses for the CMS bucket; no explicit IAM binding was added for it.
 - **Resume restores are manual.** There is no restore button; an operator restores a deleted resume from
   its noncurrent version (section 10.1b). An admin's purge is a hard delete and cannot be restored.
