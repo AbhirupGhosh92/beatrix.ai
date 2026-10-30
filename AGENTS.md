@@ -11,7 +11,8 @@
    - Always run `npm run infra:check` when making changes to infrastructure or security rules to ensure Terraform configurations remain synchronized and syntax is valid.
 
 3. **Environments & Deployment** (full runbook: `terraform/README.md`):
-   - Every push to `main` deploys `dev`, then `staging`, via `.github/workflows/deploy.yml`. `prod` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic prod deploys, and never trigger one unasked. Deployments are plan-reviewed, plan-guarded and component-selective, and must never touch unchanged data, files, configuration, functions or services: do not weaken that pipeline (no `-auto-approve`, no `firebase deploy --force`, no removing `prevent_destroy`/delete protection/versioning). Read `docs/DEPLOYMENT.md` and `.claude/rules/environments.md` first.
+   - Every push to `main` deploys `dev` via `.github/workflows/deploy.yml`. `prod` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic prod deploys, and never trigger one unasked. Deployments are plan-reviewed, plan-guarded and component-selective, and must never touch unchanged data, files, configuration, functions or services: do not weaken that pipeline (no `-auto-approve`, no `firebase deploy --force`, no removing `prevent_destroy`/delete protection/versioning). Read `docs/DEPLOYMENT.md` and `.claude/rules/environments.md` first.
+   - To deploy by hand use the skills `dev-deploy` (a pushed ref to dev) and `prod-deploy` (the current `release/*` branch to prod, only on the user's explicit yes); they run the Deploy workflow and narrate each step.
    - To create, recreate or repair an environment, run:
      ```bash
      ./scripts/recreate-environment.sh <env>

@@ -1,6 +1,6 @@
 ---
 name: provision-environment
-description: Create, recreate or repair a Beatrix.ai environment (dev, staging, prod) in GCP/Firebase. Guides the user through each manual step (project, billing, Storage, sign-in) and automates the rest. Use when the user asks to create, set up, provision, recreate or fix an environment, or when a deploy fails because an environment is missing something.
+description: Create, recreate or repair a Beatrix.ai environment (dev, prod) in GCP/Firebase. Guides the user through each manual step (project, billing, Storage, sign-in) and automates the rest. Use when the user asks to create, set up, provision, recreate or fix an environment, or when a deploy fails because an environment is missing something.
 ---
 
 # Provision an environment
@@ -9,7 +9,7 @@ The canonical runbook is `terraform/README.md`; this is the procedure to follow.
 
 ## 1. Confirm the target
 
-- Environment name (`dev`, `staging`, `prod`) and its project ID from `terraform/environments/<env>.tfvars`.
+- Environment name (`dev`, `prod`) and its project ID from `terraform/environments/<env>.tfvars`.
 - If the tfvars file does not exist, create it from `dev.tfvars`. Ask the user for `allowed_admin_emails` (CMS admins) and `developer_members` (e.g. `user:name@example.com`, may run the dev server against it) instead of guessing.
 - For `prod`, say clearly that provisioning creates infrastructure only. The app is deployed there only by a manual run of the Deploy workflow, so ask before triggering one.
 

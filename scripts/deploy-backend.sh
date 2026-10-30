@@ -15,6 +15,8 @@ set -euo pipefail
 #                        refuses (non-interactive) instead of deleting. Never used by default.
 # ==============================================================================
 
+source "$(dirname "${BASH_SOURCE[0]}")/deploy/log.sh"
+
 PROJECT_ID=""
 COMPONENTS="functions,rules,apphosting"
 ALLOW_DESTRUCTIVE=0
@@ -23,15 +25,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --components)        COMPONENTS="${2:?--components needs a value}"; shift 2 ;;
     --allow-destructive) ALLOW_DESTRUCTIVE=1; shift ;;
-    -*)                  echo "Error: unknown option '$1'"; exit 1 ;;
+    -*)                  fail "unknown option '$1'" "see the usage at the top of this script" ;;
     *)                   PROJECT_ID="$1"; shift ;;
   esac
 done
 PROJECT_ID="${PROJECT_ID:-${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}}"
 
 if [[ -z "${PROJECT_ID}" ]]; then
-  echo "Error: PROJECT_ID must be provided as 1st argument or via NEXT_PUBLIC_FIREBASE_PROJECT_ID."
-  exit 1
+  fail "PROJECT_ID must be provided as 1st argument or via NEXT_PUBLIC_FIREBASE_PROJECT_ID." "pass the project id, e.g. beatrix-ai-dev"
 fi
 
 ONLY=()
@@ -43,20 +44,22 @@ for component in "${WANTED[@]}"; do
     rules)      ONLY+=("firestore:rules" "storage") ;;
     apphosting) ONLY+=("apphosting") ;;
     "")         ;;
-    *)          echo "Error: unknown component '${component}' (functions | rules | apphosting)"; exit 1 ;;
+    *)          fail "unknown component '${component}'" "use functions, rules or apphosting" ;;
   esac
 done
 
 if [[ ${#ONLY[@]} -eq 0 ]]; then
-  echo "==> No components selected for ${PROJECT_ID}: nothing is deployed."
+  decision "deploy" "no components selected for ${PROJECT_ID}, nothing is deployed"
   exit 0
 fi
 
-echo "==> Deploying [${COMPONENTS}] to project: ${PROJECT_ID}"
+step_start "Deploy components"
+info "project: ${PROJECT_ID}"
+info "components: ${COMPONENTS} (anything not listed is not touched)"
 
 # Step 1: build the functions package (only when functions are being deployed)
 if [[ "${DEPLOY_FUNCTIONS}" -eq 1 ]]; then
-  echo "==> Building Cloud Functions typescript codebase..."
+  decision "build functions" "functions are being deployed, building them first"
   pnpm --prefix functions install --frozen-lockfile
   pnpm --prefix functions run build
 fi
@@ -67,7 +70,7 @@ command -v firebase &>/dev/null || FIREBASE=(npx --yes firebase-tools)
 
 DEPLOY_FLAGS=(--non-interactive)
 if [[ "${ALLOW_DESTRUCTIVE}" -eq 1 ]]; then
-  echo "==> WARNING: --allow-destructive is set, so removed Cloud Functions will be deleted."
+  decision "--force" "--allow-destructive is set, so Cloud Functions removed from the source WILL BE DELETED"
   DEPLOY_FLAGS+=(--force)
 fi
 
@@ -80,4 +83,5 @@ if [[ "${DEPLOY_FUNCTIONS}" -eq 1 ]]; then
   "${FIREBASE[@]}" functions:artifacts:setpolicy --project "${PROJECT_ID}" --force
 fi
 
-echo "==> Deployment complete."
+result "deployment of [${COMPONENTS}] to ${PROJECT_ID} complete"
+step_end

@@ -1,14 +1,13 @@
 # Environments and deployment
 
-Beatrix.ai runs in up to three Firebase/GCP projects, all built from this Terraform code:
+Beatrix.ai runs in two Firebase/GCP projects, all built from this Terraform code:
 
 | Environment | tfvars | Deployed |
 |---|---|---|
 | `dev` | `environments/dev.tfvars` | automatically on every push to `main` |
-| `staging` | `environments/staging.tfvars` | automatically on every push to `main`, after dev succeeds |
 | `prod` | `environments/prod.tfvars` | **only manually**: Actions > Deploy > Run workflow > `prod` + ref |
 
-`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` verifies the code, makes a Terraform **plan** (blocked if it would delete or replace a stateful resource), asks for approval on `prod`, snapshots the CMS files, applies the **saved plan**, and then deploys only the components (Cloud Functions, rules, App Hosting site) whose sources changed. An environment whose GitHub environment has no variables yet is skipped with a notice (dev, staging), so merging is safe before staging exists; an unprovisioned `prod` fails the run.
+`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` verifies the code, makes a Terraform **plan** (blocked if it would delete or replace a stateful resource), asks for approval on `prod`, snapshots the CMS files, applies the **saved plan**, and then deploys only the components (Cloud Functions, rules, App Hosting site) whose sources changed. An environment whose GitHub environment has no variables yet is skipped with a notice (dev), so merging is safe before dev exists; an unprovisioned `prod` fails the run.
 
 The whole pipeline, its guarantees, the one-time GitHub setup (environments, reviewers) and the deploy, rollback and restore runbooks are in [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md). Read it before deploying `prod`.
 
@@ -54,4 +53,4 @@ terraform init -reconfigure -backend-config="bucket=<project_id>-tfstate"
 terraform plan -var-file="environments/dev.tfvars"
 ```
 
-Always `-reconfigure` with the right bucket when switching environments: state is per project, so dev and staging never share it. Run `npm run infra:check` before committing infrastructure or rule changes.
+Always `-reconfigure` with the right bucket when switching environments: state is per project, so dev and prod never share it. Run `npm run infra:check` before committing infrastructure or rule changes.

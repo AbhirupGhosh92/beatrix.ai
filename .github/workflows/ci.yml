@@ -1,0 +1,63 @@
+name: CI
+
+# Pull request checks for the app: the same typecheck, lint and build the deploy runs, so a
+# broken change fails on the PR instead of in the dev deploy after merge. No cloud access.
+# Details: docs/DEPLOYMENT.md, "Pull request checks".
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same PR replaces the older run (this workflow holds no credentials).
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PNPM_VERSION: 11
+
+jobs:
+  checks:
+    name: Typecheck, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          echo "[step]     Install dependencies (frozen lockfiles: site and functions)"
+          pnpm install --frozen-lockfile
+          pnpm --prefix functions install --frozen-lockfile
+          echo "[result]   dependencies installed"
+
+      - name: Typecheck, lint and build the site
+        run: |
+          echo "[step]     Typecheck, lint and build the site"
+          echo "[info]     typecheck"; npm run typecheck
+          echo "[info]     lint";      npm run lint
+          echo "[info]     build";     npm run build
+          echo "[result]   site typechecks, lints and builds"
+
+      - name: Build the Cloud Functions
+        run: |
+          echo "[step]     Build the Cloud Functions"
+          pnpm --prefix functions run build
+          echo "[result]   functions build"
+
+      - name: Deployment script checks
+        run: bash scripts/check-scripts.sh

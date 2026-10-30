@@ -1,16 +1,16 @@
 name: Deploy
 
-# Every push to main deploys dev, then staging (once dev succeeded). Prod is never deployed
-# automatically: run this workflow by hand ("Run workflow"), choose `prod`, a release ref
-# (release/<major.minor[.patch]> or v<major.minor.patch>) and type `prod` in `confirm`. Any
-# environment can be redeployed the same way.
+# Every push to main deploys dev. Prod is never deployed automatically: run this workflow by
+# hand ("Run workflow"), choose `prod`, a release ref (release/<major.minor[.patch]> or
+# v<major.minor.patch>) and type `prod` in `confirm`. Any environment can be redeployed the
+# same way.
 #
 # The pipeline (verify -> plan -> guard -> approve (prod) -> backup -> apply -> selective
 # component deploy -> smoke test) lives in deploy-environment.yml and is described step by step
 # in docs/DEPLOYMENT.md, including the one-time GitHub setup (environments, reviewers).
 #
-# Each GitHub environment (dev, staging, prod) is set up by
-# `./scripts/recreate-environment.sh <env>`; until then dev/staging jobs are skipped with a notice.
+# Each GitHub environment (dev, prod) is set up by
+# `./scripts/recreate-environment.sh <env>`; until then a dev run is skipped with a notice.
 
 on:
   push:
@@ -20,7 +20,7 @@ on:
       environment:
         description: Environment to deploy
         type: choice
-        options: [dev, staging, prod]
+        options: [dev, prod]
         default: dev
         required: true
       ref:
@@ -53,19 +53,6 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       environment: dev
-      ref: ${{ github.sha }}
-      allow_destructive: false
-      redeploy_all: false
-
-  staging:
-    if: github.event_name == 'push'
-    needs: dev
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      environment: staging
       ref: ${{ github.sha }}
       allow_destructive: false
       redeploy_all: false

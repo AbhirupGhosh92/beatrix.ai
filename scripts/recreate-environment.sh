@@ -70,7 +70,7 @@ cd "${ROOT_DIR}"
 bash "${SCRIPT_DIR}/env-preflight.sh" "${ENV_NAME}" post "${PROJECT_ID}"
 
 # ------------------------------------------------------------------------------
-# 5. Local dev config (dev only, so provisioning staging never rewrites it)
+# 5. Local dev config (dev only, so provisioning prod never rewrites it)
 # ------------------------------------------------------------------------------
 if [[ "${ENV_NAME}" == "dev" ]]; then
   echo "==> Writing .env.local for the dev environment..."

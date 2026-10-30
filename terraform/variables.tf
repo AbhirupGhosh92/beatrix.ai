@@ -5,7 +5,7 @@ variable "project_id" {
 
 variable "environment" {
   type        = string
-  description = "Target environment name (e.g., dev, staging, qa)."
+  description = "Target environment name (dev or prod)."
   default     = "dev"
 }
 
