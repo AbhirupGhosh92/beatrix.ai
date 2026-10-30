@@ -275,6 +275,10 @@ Evidence names: `fn` = resume and admin functions harness (44 checks), `chain` =
 - The real Firestore and Google Cloud Storage behaviours that the stand-ins model: generation preconditions, listing and deleting noncurrent versions, transaction retries, lifecycle expiry.
 - The rendered landing page and drawer (the page needs the live site); the menu rule itself is covered by `unit`.
 
+## Dev result
+
+The owner ran this checklist on `dev` after deploying and reported that the resume builder works properly. The dev-only tasks were ticked on that statement; individual case results were not itemised, so any case that matters for release (for example T6.2 in Microsoft Word, T9.3 restore, T10.7 purge) is worth a second look before prod.
+
 ## Report back
 
 For every FAIL: the case ID, what you did, what you saw, and for API cases the status code and body. Function logs help: `firebase functions:log --project beatrix-ai-dev --only resumeCreate` (or the function name involved).
