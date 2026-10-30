@@ -146,15 +146,22 @@ src/
     │   ├── google-signin.css
     │   ├── navigation.css
     │   ├── skills-tabs.css
-    │   └── text-colors.css
+    │   ├── surfaces.css
+    │   ├── text-colors.css
+    │   └── typography.css
     ├── effects/
     │   ├── glitch.css
     │   ├── hover.css
     │   ├── reduced-motion.css
     │   └── reveal.css
-    └── tokens/
-        ├── fonts.css
-        └── themes.css
+    ├── tokens/
+    │   ├── code.css
+    │   ├── fonts.css
+    │   ├── themes.css
+    │   └── variants.css
+    └── vendor/
+        ├── json-view.css
+        └── monaco.ts
 ```
 <!-- structure:end -->
 

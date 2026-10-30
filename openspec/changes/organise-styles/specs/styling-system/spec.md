@@ -32,15 +32,15 @@ Light and dark themes SHALL be defined only by theme tokens, and semantic classe
 - **THEN** all semantic classes update to the other theme's tokens and text keeps at least 4.5:1 contrast (3:1 for large text)
 
 ### Requirement: Third-party UI inherits the app theme
-Embedded third-party UI (the code editor and the JSON tree viewer) SHALL take its colors from the same theme tokens as the rest of the app, through adapters that live with the other styles.
+Embedded third-party UI (the code editor and the JSON tree viewer) SHALL take its colors from a shared code palette defined with the other theme tokens, through adapters that live with the other styles.
 
 #### Scenario: Token change reaches the editor
-- **WHEN** a theme token such as the primary or background color changes
-- **THEN** the editor and JSON viewer reflect it without edits to the component that embeds them
+- **WHEN** a code palette token such as the code background color changes
+- **THEN** the editor and JSON viewer reflect it in both themes without edits to the component that embeds them
 
 #### Scenario: Adding another library
 - **WHEN** a new third-party UI library is added
-- **THEN** it can be aligned with the app by adding one adapter that maps its theming hooks to the existing tokens
+- **THEN** it can be aligned with the app by adding one adapter that maps its theming hooks to the shared tokens
 
 ### Requirement: Refactoring preserves appearance and behavior
 Reorganising styles SHALL NOT change the rendered appearance, fonts, palette, interaction effects or layout of the site in either theme at any width from 320px to 1920px.

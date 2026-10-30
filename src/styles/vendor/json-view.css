@@ -1,0 +1,35 @@
+/* @uiw/react-json-view reads its colors from --w-rjv-* custom properties on its
+   container; map them to the code palette in tokens/code.css. Replaces the
+   darkTheme/lightTheme style objects that JsonEditor.tsx used to pass in. */
+.w-json-view-container {
+  --w-rjv-font-family: monospace;
+  --w-rjv-color: var(--code-tree-fg);
+  --w-rjv-key-string: var(--code-tree-fg);
+  --w-rjv-background-color: var(--code-tree-bg);
+  --w-rjv-line-color: var(--code-tree-line);
+  --w-rjv-arrow-color: var(--w-rjv-color);
+  --w-rjv-edit-color: var(--w-rjv-color);
+  --w-rjv-info-color: var(--code-tree-info);
+  --w-rjv-update-color: var(--code-tree-update);
+  --w-rjv-copied-color: var(--code-tree-copied);
+  --w-rjv-copied-success-color: var(--code-tree-copied-success);
+  --w-rjv-curlybraces-color: var(--code-tree-brace);
+  --w-rjv-brackets-color: var(--code-tree-brace);
+  --w-rjv-quotes-color: var(--w-rjv-key-string);
+  --w-rjv-quotes-string-color: var(--w-rjv-type-string-color);
+  --w-rjv-type-string-color: var(--code-tree-string);
+  --w-rjv-type-int-color: var(--code-tree-int);
+  --w-rjv-type-float-color: var(--code-tree-float);
+  --w-rjv-type-bigint-color: var(--code-tree-int);
+  --w-rjv-type-boolean-color: var(--code-tree-boolean);
+  --w-rjv-type-date-color: var(--code-tree-date);
+  --w-rjv-type-url-color: var(--code-tree-url);
+  --w-rjv-type-null-color: var(--code-tree-null);
+  --w-rjv-type-nan-color: var(--code-tree-nan);
+  --w-rjv-type-undefined-color: var(--code-tree-undefined);
+
+  /* the library's light theme sets a colon color, its dark theme leaves it unset */
+  @variant theme-light {
+    --w-rjv-colon-color: var(--code-tree-colon);
+  }
+}

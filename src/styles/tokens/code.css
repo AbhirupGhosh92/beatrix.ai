@@ -1,0 +1,79 @@
+/* Code palette used by embedded third-party UI: the Monaco editor and the JSON
+   tree viewer (see vendor/). The values are the colors those themes used before
+   they were tokenised; point a token at a theme color (for example
+   `var(--color-base-100)`) to restyle both. Monaco reads these through
+   vendor/monaco.ts, so keep each value a plain CSS color.
+   Light is the default; [data-theme] lets a probe element read either palette. */
+:root,
+[data-theme="beatrix-light"] {
+  /* editor */
+  --code-bg: #ffffff;
+  --code-fg: #1f2937;
+  --code-line-highlight: #f3f4f6;
+  --code-cursor: #9333ea;
+  --code-line-number: #9ca3af;
+  --code-line-number-active: #9333ea;
+
+  /* JSON syntax */
+  --code-key: #9333ea;
+  --code-string: #0284c7;
+  --code-number: #e11d48;
+  --code-keyword: #059669;
+
+  /* tree viewer */
+  --code-tree-fg: #002b36;
+  --code-tree-bg: #ffffff;
+  --code-tree-line: #ebebeb;
+  --code-tree-info: #0000004d;
+  --code-tree-update: #ebcb8b;
+  --code-tree-copied: #002b36;
+  --code-tree-copied-success: #28a745;
+  --code-tree-brace: #236a7c;
+  --code-tree-colon: #002b36;
+  --code-tree-string: #cb4b16;
+  --code-tree-int: #268bd2;
+  --code-tree-float: #859900;
+  --code-tree-boolean: #2aa198;
+  --code-tree-date: #586e75;
+  --code-tree-url: #0969da;
+  --code-tree-null: #d33682;
+  --code-tree-nan: #859900;
+  --code-tree-undefined: #586e75;
+}
+
+[data-theme="beatrix-dark"],
+:root:has(input.theme-controller[value="beatrix-dark"]:checked) {
+  /* editor */
+  --code-bg: #00060e;
+  --code-fg: #f3f4f6;
+  --code-line-highlight: #111827;
+  --code-cursor: #03d8f3;
+  --code-whitespace: #374151;
+  --code-line-number: #4b5563;
+  --code-line-number-active: #03d8f3;
+
+  /* JSON syntax */
+  --code-key: #03d8f3;
+  --code-string: #fcee0c;
+  --code-number: #ff1493;
+  --code-keyword: #b026ff;
+
+  /* tree viewer */
+  --code-tree-fg: #0184a6;
+  --code-tree-bg: #202020;
+  --code-tree-line: #323232;
+  --code-tree-info: #656565;
+  --code-tree-update: #ebcb8b;
+  --code-tree-copied: #0184a6;
+  --code-tree-copied-success: #28a745;
+  --code-tree-brace: #1896b6;
+  --code-tree-string: #cb4b16;
+  --code-tree-int: #268bd2;
+  --code-tree-float: #859900;
+  --code-tree-boolean: #2aa198;
+  --code-tree-date: #586e75;
+  --code-tree-url: #649bd8;
+  --code-tree-null: #d33682;
+  --code-tree-nan: #076678;
+  --code-tree-undefined: #586e75;
+}
