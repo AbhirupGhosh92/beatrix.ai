@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import Editor, { type OnMount } from '@monaco-editor/react'
+import Editor, { type BeforeMount } from '@monaco-editor/react'
 import JsonView from '@uiw/react-json-view'
 import { darkTheme } from '@uiw/react-json-view/dark'
 import { lightTheme } from '@uiw/react-json-view/light'
@@ -55,8 +55,9 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
     }
   }, [])
 
-  // Monaco Editor onMount handler to define custom Cyberpunk / Light Monaco themes
-  const handleEditorDidMount: OnMount = (_editor, monaco) => {
+  // Define the custom themes before the editor is created: the `theme` prop is
+  // applied at creation, and an undefined theme name falls back to white `vs`.
+  const handleBeforeMount: BeforeMount = (monaco) => {
     // Define Cyberpunk Dark Theme
     monaco.editor.defineTheme('beatrix-dark-theme', {
       base: 'vs-dark',
@@ -97,8 +98,6 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
         'editorLineNumber.activeForeground': '#9333ea',
       },
     })
-
-    monaco.editor.setTheme(isDarkTheme ? 'beatrix-dark-theme' : 'beatrix-light-theme')
   }
 
   // Parse JSON for tree view
@@ -187,7 +186,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
             language="json"
             value={value}
             onChange={(val) => onChange(val ?? '')}
-            onMount={handleEditorDidMount}
+            beforeMount={handleBeforeMount}
             theme={isDarkTheme ? 'beatrix-dark-theme' : 'beatrix-light-theme'}
             options={{
               readOnly,
