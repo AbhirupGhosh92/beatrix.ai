@@ -63,6 +63,19 @@ const PUBLIC_FILE = /\.(?:svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|txt|xml
 const ROUTE_PERMISSIONS: readonly (readonly [prefix: string, permission: Permission])[] = [
   ['/admin', 'cms:write'],
   ['/api/admin', 'cms:write'],
+  ['/resume-builder', 'features:basic'],
+  ['/api/resumes', 'features:basic'],
+]
+
+/**
+ * Routes that belong to a drawer menu item and exist only while that item is enabled in the
+ * profile (404 otherwise, for every role). The flag can only close a route; who may open it stays
+ * with ROUTE_PERMISSIONS above.
+ */
+const FEATURE_ROUTES: readonly (readonly [prefix: string, itemId: string])[] = [
+  ['/resume-builder', 'resume-builder'],
+  ['/api/resumes', 'resume-builder'],
+  ['/api/admin/resumes', 'resume-builder'],
 ]
 
 const DEFAULT_PERMISSION: Permission = 'site:view'
@@ -92,4 +105,17 @@ export function requiredPermission(pathname: string): Permission | null {
     }
   }
   return best?.permission ?? DEFAULT_PERMISSION
+}
+
+/** The menu item id a path is tied to, or null when the path is not a switchable feature. */
+export function featureItemId(pathname: string): string | null {
+  for (const [prefix, itemId] of FEATURE_ROUTES) {
+    if (matchesPrefix(pathname, prefix)) return itemId
+  }
+  return null
+}
+
+/** Whether the menu item `itemId` is present and enabled. A missing item counts as off. */
+export function isFeatureEnabled(items: readonly { id: string; enabled: boolean }[], itemId: string): boolean {
+  return items.some((item) => item.id === itemId && item.enabled)
 }

@@ -2,11 +2,11 @@
 
 ## 1. Menu config and feature gate
 
-- [ ] 1.1 Change `nav.drawerItems` to `nav.items[]` (`id`, `label`, `href`, `icon`, `enabled`) in `src/data/profile.ts` and `profile.example.json`; verify `npm run typecheck` passes
-- [ ] 1.2 Make `getProfile()` read legacy string items as disabled and treat a missing `enabled` as false; verify with a stored profile in the old shape that the page still renders and shows no new link
+- [x] 1.1 Change `nav.drawerItems` from `string[]` to objects (`id`, `label`, `href`, `icon`, `enabled`) in `src/data/profile.ts` and `profile.example.json`; verify `npm run typecheck` passes
+- [x] 1.2 Make `getProfile()` read legacy string items as disabled and treat a missing `enabled` as false; verify with a stored profile in the old shape that the page still renders and shows no new link
 - [ ] 1.3 Render only enabled items in `DrawerMenu.tsx`, with the icon and `href`, and hide items whose route the role cannot use; verify in the browser as reader, base and admin in both themes
 - [ ] 1.4 Add `FEATURE_ROUTES` and the `/resume-builder`, `/api/resumes` (`features:basic`) and `/api/admin/resumes` (`cms:write`) entries to `src/lib/access.ts`; apply the flag check (404, closed when the profile is unavailable) in `src/proxy.ts`; verify requests return 404 when disabled, 403/redirect for a reader, and pass for a base user when enabled
-- [ ] 1.5 Update the `access-control` and `profile-content` notes in `CLAUDE.md` for the structured nav and the feature gate; verify the text matches the code
+- [x] 1.5 Update the `access-control` and `profile-content` notes in `CLAUDE.md` for the structured nav and the feature gate; verify the text matches the code
 
 ## 2. Resume config
 

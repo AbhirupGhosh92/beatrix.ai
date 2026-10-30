@@ -3,7 +3,8 @@
 // routes check permissions again next to the data; this is the first line, not the only one.
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { can, requiredPermission } from './lib/access.ts'
+import { can, featureItemId, isFeatureEnabled, requiredPermission } from './lib/access.ts'
+import { getProfile } from './middleware/profileService.ts'
 import { SESSION_COOKIE, verifySession } from './middleware/sessionService.ts'
 import type { Session } from './middleware/sessionService.ts'
 
@@ -42,6 +43,18 @@ export async function proxy(request: NextRequest) {
 
   if (!can(session.role, needed)) {
     return isApi ? NextResponse.json({ error: 'Not allowed.' }, { status: 403, headers: NO_STORE }) : home()
+  }
+
+  // A switchable feature exists only while its menu item is enabled; getProfile() never throws and
+  // falls back to the example (item off), so an unreadable config keeps the route closed.
+  const itemId = featureItemId(pathname)
+  if (itemId) {
+    const { nav } = await getProfile()
+    if (!isFeatureEnabled(nav.drawerItems, itemId)) {
+      return isApi
+        ? NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE })
+        : NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })
+    }
   }
   return NextResponse.next()
 }

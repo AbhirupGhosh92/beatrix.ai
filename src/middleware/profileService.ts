@@ -4,7 +4,7 @@
 import 'server-only'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Profile } from '../data/profile.ts'
+import type { DrawerItem, Profile } from '../data/profile.ts'
 import defaults from '../data/profile.example.json'
 import { callCloudFunction } from './cloudFunctions.ts'
 
@@ -25,8 +25,31 @@ function withDefaults(base: Json, value: Json): Json {
   return out
 }
 
+/**
+ * Drawer items from an older profile are plain strings. Read those, and any entry without an
+ * explicit `enabled: true`, as disabled so a stored profile can never surface a link by accident.
+ */
+function normalizeDrawerItems(items: unknown): DrawerItem[] {
+  if (!Array.isArray(items)) return []
+  return items.map((item, index): DrawerItem => {
+    if (typeof item === 'string') {
+      return { id: `legacy-${index}`, label: item, href: '', icon: 'circle', enabled: false }
+    }
+    const o = isObject(item) ? item : {}
+    return {
+      id: typeof o.id === 'string' ? o.id : `item-${index}`,
+      label: typeof o.label === 'string' ? o.label : '',
+      href: typeof o.href === 'string' ? o.href : '',
+      icon: o.icon === 'file-text' ? 'file-text' : 'circle',
+      enabled: o.enabled === true,
+    }
+  })
+}
+
 function parse(content: string): Profile {
-  return withDefaults(defaults as Json, JSON.parse(content) as Json) as unknown as Profile
+  const profile = withDefaults(defaults as Json, JSON.parse(content) as Json) as unknown as Profile
+  profile.nav.drawerItems = normalizeDrawerItems(profile.nav.drawerItems)
+  return profile
 }
 
 function readLocal(): Profile | undefined {

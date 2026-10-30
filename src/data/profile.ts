@@ -47,6 +47,18 @@ export interface Achievement {
   solutions: string[]
 }
 
+export type DrawerIcon = 'file-text' | 'circle'
+
+/** A drawer menu entry. `enabled` is the on/off switch; the route's permission lives in access.ts. */
+export interface DrawerItem {
+  /** Stable key that feature routes are tied to (see FEATURE_ROUTES in access.ts). */
+  id: string
+  label: string
+  href: string
+  icon: DrawerIcon
+  enabled: boolean
+}
+
 export interface Profile {
   site: { brand: string }
   nav: {
@@ -55,7 +67,7 @@ export interface Profile {
     toggleThemeLabel: string
     backToTopLabel: string
     drawerTitle: string
-    drawerItems: string[]
+    drawerItems: DrawerItem[]
     adminTitle: string
     adminLabel: string
     adminHref: string
