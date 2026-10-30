@@ -56,16 +56,11 @@ export const adminPurgeResumeOwner = privateEndpoint(async (body) => {
     throw new ApiError(409, "This user still has access. Revoke their access before deleting their data.");
   }
 
-  // Every generation, so noncurrent versions go too and nothing stays recoverable.
+  // Every generation, so noncurrent versions go too and nothing stays recoverable. With
+  // `versions: true` each returned File is bound to its own generation, so delete() removes exactly it.
   const [files] = await resumesBucket().getFiles({ prefix: prefixOf(email), versions: true });
   for (let i = 0; i < files.length; i += DELETE_BATCH) {
-    await Promise.all(
-      files.slice(i, i + DELETE_BATCH).map((file) =>
-        resumesBucket()
-          .file(file.name, { generation: Number(file.metadata.generation) })
-          .delete({ ignoreNotFound: true }),
-      ),
-    );
+    await Promise.all(files.slice(i, i + DELETE_BATCH).map((file) => file.delete({ ignoreNotFound: true })));
   }
 
   await ownerRef(email).delete();

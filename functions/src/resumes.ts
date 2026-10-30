@@ -97,9 +97,9 @@ export const resumeList = privateEndpoint(async (body) => {
     .filter((f) => f.name.endsWith(".json"))
     .map((f) => ({
       id: f.name.slice(f.name.lastIndexOf("/") + 1, -".json".length),
-      title: f.metadata.metadata?.title ?? "Untitled",
-      updatedAt: f.metadata.updated ?? null,
-      size: Number(f.metadata.size ?? 0),
+      title: f.metadata?.metadata?.title ?? "Untitled",
+      updatedAt: f.metadata?.updated ?? null,
+      size: Number(f.metadata?.size ?? 0),
     }))
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   return { resumes, cap: canCustomize(role) ? null : config.baseMaxResumes };

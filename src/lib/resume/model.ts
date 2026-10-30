@@ -104,7 +104,7 @@ export function buildDocument(title: string, structure: Structure, data: ResumeD
   const sectionsToRender = [...rest]
 
   if (first && !first.repeatable) {
-    const entry = (Array.isArray(data[first.id]) ? {} : data[first.id]) as SectionData
+    const entry = (Array.isArray(data[first.id]) || !data[first.id] ? {} : data[first.id]) as SectionData
     const lineFields = first.fields.filter(isLine)
     const [nameField, headlineField] = lineFields.filter((field) => field.type === 'text')
     if (nameField && text(entry, nameField)) doc.name = text(entry, nameField)

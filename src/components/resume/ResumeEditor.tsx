@@ -113,7 +113,10 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
   // Unsaved edits are lost on leaving the page, so ask first.
   useEffect(() => {
     if (!dirty) return
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = '' // older browsers only show the prompt when this is set
+    }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
