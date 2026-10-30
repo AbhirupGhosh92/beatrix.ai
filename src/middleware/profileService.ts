@@ -6,24 +6,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { DrawerItem, Profile } from '../data/profile.ts'
 import defaults from '../data/profile.example.json'
+import { isObject, withDefaults, type Json } from '../lib/jsonDefaults.ts'
 import { callCloudFunction } from './cloudFunctions.ts'
 
 const CACHE_TTL_MS = 30_000
 
 let cache: { at: number; value: Profile } | undefined
-
-type Json = Record<string, unknown>
-const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v)
-
-/** `value` wins; keys it lacks (e.g. a profile saved before a field was added) come from `base`. */
-function withDefaults(base: Json, value: Json): Json {
-  const out: Json = { ...base }
-  for (const [key, v] of Object.entries(value)) {
-    const b = base[key]
-    out[key] = isObject(b) && isObject(v) ? withDefaults(b, v) : v
-  }
-  return out
-}
 
 /**
  * Drawer items from an older profile are plain strings. Read those, and any entry without an

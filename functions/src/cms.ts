@@ -7,6 +7,7 @@ const BACKUP_PREFIX = "cms-backups/";
 const FILE_NAME = /^[a-zA-Z0-9_-]+\.json$/;
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const PROFILE_FILE = "profile.json";
+export const RESUME_CONFIG_FILE = "resume-config.json";
 
 export interface FileInfo {
   filename: string;

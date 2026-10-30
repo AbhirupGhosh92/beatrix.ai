@@ -57,7 +57,7 @@ A template is a closed token set (fonts from a short list, sizes, colors, spacin
 
 **10. Orphans and hard delete.** `adminListResumeOwners` queries `resume_owners` where `count > 0`, resolves each against `allowed_emails`, and returns only owners with `resolveRole()` null as `{email, count, bytes, updatedAt}`. `adminPurgeResumeOwner` requires `cms:write`, re-checks that the owner is orphaned, requires the typed email to match, deletes every object under the owner prefix with `versions: true` (all generations), removes the index doc, and writes an audit entry (`resume_audit`) with admin, owner and time. Both are exposed through `/api/admin/resumes` using the same bearer-token forwarding as the other admin routes.
 
-**11. Deployment.** Resume functions and the resume config form their own component in `components.sh`. Terraform adds the bucket, its IAM for the App Hosting compute account and the lifecycle rule; `google_storage_bucket` is already in `PROTECTED_TYPES`, and a plan guard test covers the new bucket. `storage.rules` stays deny-all.
+**11. Deployment.** Resume functions are part of the existing `functions` component (`components.sh` hashes `functions/`), so they redeploy only when `functions/` changes; the resume config lives in `cms/`, which a deploy never writes. Terraform adds the bucket, its IAM for the App Hosting compute account and the lifecycle rule; `google_storage_bucket` is already in `PROTECTED_TYPES`, and a plan guard test covers the new bucket. `storage.rules` stays deny-all.
 
 ## Risks / Trade-offs
 

@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Resume storage is protected and deployed separately
-The resumes bucket and the per-owner index SHALL be protected resources: the plan guard SHALL block their deletion or replacement, and the bucket SHALL keep deleted versions for 30 days. The resume functions and the resume config SHALL be deployed only when their own component hash changed, and a deploy SHALL NOT write or delete resume data.
+The resumes bucket and the per-owner index SHALL be protected resources: the plan guard SHALL block their deletion or replacement, and the bucket SHALL keep deleted versions for 30 days. The resume functions SHALL be deployed only when the functions component source hash changed, and a deploy SHALL NOT write or delete resume data or the resume config.
 
 #### Scenario: Plan deletes the resumes bucket
 - **WHEN** a plan would delete or replace the resumes bucket

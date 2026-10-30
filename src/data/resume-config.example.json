@@ -1,0 +1,101 @@
+{
+  "limits": {
+    "baseMaxResumes": 3
+  },
+  "structureRules": {
+    "fieldTypes": ["text", "textarea", "email", "url", "phone", "month", "bullets"],
+    "maxSections": 12,
+    "maxFieldsPerSection": 20,
+    "maxEntries": 20,
+    "maxLabelLength": 80,
+    "maxShortLength": 200,
+    "maxTextLength": 3000,
+    "maxBullets": 12,
+    "maxBulletLength": 400,
+    "maxResumeChars": 100000
+  },
+  "defaultStructure": {
+    "sections": [
+      {
+        "id": "contact",
+        "title": "Contact",
+        "fields": [
+          { "id": "name", "label": "Full name", "type": "text", "required": true, "placeholder": "e.g. Alex Morgan" },
+          { "id": "headline", "label": "Headline", "type": "text", "placeholder": "e.g. Senior Software Engineer" },
+          { "id": "email", "label": "Email", "type": "email", "required": true, "placeholder": "e.g. alex@example.com" },
+          { "id": "phone", "label": "Phone", "type": "phone", "placeholder": "e.g. +1 555 010 0199" },
+          { "id": "location", "label": "Location", "type": "text", "placeholder": "e.g. Berlin, Germany" },
+          { "id": "website", "label": "Website or profile link", "type": "url", "placeholder": "e.g. https://example.com" }
+        ]
+      },
+      {
+        "id": "summary",
+        "title": "Summary",
+        "fields": [
+          {
+            "id": "text",
+            "label": "Professional summary",
+            "type": "textarea",
+            "required": true,
+            "placeholder": "e.g. Two or three sentences on your experience, strengths and what you are looking for."
+          }
+        ]
+      },
+      {
+        "id": "experience",
+        "title": "Experience",
+        "repeatable": true,
+        "fields": [
+          { "id": "role", "label": "Job title", "type": "text", "required": true, "placeholder": "e.g. Software Engineer" },
+          { "id": "company", "label": "Company", "type": "text", "required": true, "placeholder": "e.g. Example Corp" },
+          { "id": "location", "label": "Location", "type": "text", "placeholder": "e.g. Remote" },
+          { "id": "start", "label": "Start (YYYY-MM)", "type": "month", "required": true, "placeholder": "e.g. 2021-03" },
+          { "id": "end", "label": "End (YYYY-MM, empty if current)", "type": "month", "placeholder": "e.g. 2024-06" },
+          { "id": "highlights", "label": "Highlights", "type": "bullets", "placeholder": "e.g. Cut build times by 40% by caching dependencies" }
+        ]
+      },
+      {
+        "id": "education",
+        "title": "Education",
+        "repeatable": true,
+        "fields": [
+          { "id": "school", "label": "School", "type": "text", "required": true, "placeholder": "e.g. Example University" },
+          { "id": "degree", "label": "Degree", "type": "text", "required": true, "placeholder": "e.g. BSc Computer Science" },
+          { "id": "start", "label": "Start (YYYY-MM)", "type": "month", "placeholder": "e.g. 2015-09" },
+          { "id": "end", "label": "End (YYYY-MM)", "type": "month", "placeholder": "e.g. 2019-06" },
+          { "id": "details", "label": "Details", "type": "bullets", "placeholder": "e.g. Graduated with honors" }
+        ]
+      },
+      {
+        "id": "skills",
+        "title": "Skills",
+        "fields": [
+          { "id": "list", "label": "Skills", "type": "bullets", "required": true, "placeholder": "e.g. TypeScript, React, SQL" }
+        ]
+      }
+    ]
+  },
+  "templates": [
+    {
+      "id": "classic",
+      "label": "Classic",
+      "enabled": true,
+      "layout": "classic",
+      "style": { "font": "serif", "baseSize": 11, "accent": "#1f3a5f", "spacing": "normal" }
+    },
+    {
+      "id": "modern",
+      "label": "Modern",
+      "enabled": true,
+      "layout": "classic",
+      "style": { "font": "sans", "baseSize": 10, "accent": "#0f766e", "spacing": "relaxed" }
+    },
+    {
+      "id": "sidebar",
+      "label": "Sidebar",
+      "enabled": true,
+      "layout": "sidebar",
+      "style": { "font": "sans", "baseSize": 10, "accent": "#7c3aed", "spacing": "compact" }
+    }
+  ]
+}

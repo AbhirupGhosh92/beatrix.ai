@@ -30,7 +30,7 @@ Out of scope: server-side rendering, watermarks, admin access to resume content,
 ### Modified Capabilities
 - `access-control`: a route's availability can also depend on a feature flag in config (404 when disabled), and `/resume-builder` plus `/api/resumes` require `features:basic`.
 - `profile-content`: menu items are structured entries with an `enabled` flag instead of plain strings.
-- `deployment-pipeline`: the resumes bucket is a protected resource, and the new functions and config are separate deploy components.
+- `deployment-pipeline`: the resumes bucket is a protected resource, and the new functions deploy with the existing functions component.
 
 ## Impact
 

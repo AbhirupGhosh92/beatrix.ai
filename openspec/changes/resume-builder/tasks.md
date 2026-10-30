@@ -10,9 +10,9 @@
 
 ## 2. Resume config
 
-- [ ] 2.1 Define the resume config type and `resume-config.example.json` (templates, `limits.baseMaxResumes: 3`, `defaultStructure`, `structureRules`); verify `npm run typecheck` passes
+- [x] 2.1 Define the resume config type and `resume-config.example.json` (templates, `limits.baseMaxResumes: 3`, `defaultStructure`, `structureRules`); verify `npm run typecheck` passes
 - [ ] 2.2 Add the `getResumeConfig` private function and `src/middleware/resumeConfigService.ts` (cache ~30s, example fallback, missing-key fill, invalid templates skipped); verify an edited config in the CMS changes the builder without a rebuild
-- [ ] 2.3 Add the shared validation module (structure and data checks, field types, limits) for the app and mirror it in `functions/`; verify the same sample inputs give the same result in both
+- [x] 2.3 Add the shared validation module (structure and data checks, field types, limits) for the app and mirror it in `functions/`; verify the same sample inputs give the same result in both
 
 ## 3. Storage, ownership and caps
 
@@ -20,7 +20,7 @@
 - [ ] 3.2 Add a plan guard test that a delete/replace of the resumes bucket is blocked (extend `scripts/deploy/` tests); verify the test fails without the guard and passes with it
 - [ ] 3.3 Implement the resume functions (list, get, create, save, delete) with `privateEndpoint()`, ID-token verification, owner from the token, hashed owner prefix, transactional cap on `resume_owners/{email}` and generation precondition on save; verify with the emulator or a deployed dev project that another user's id returns 404, parallel creates stop at the cap and a stale save returns 409
 - [ ] 3.4 Add `src/middleware/resumeService.ts` and the `/api/resumes` route handlers using the shared helpers; verify the browser only ever calls the Next.js routes
-- [ ] 3.5 Add a `resume` component hash in `scripts/deploy/components.sh` so the functions and config deploy only when changed; verify a docs-only change deploys no resume function
+- [ ] 3.5 Confirm the resume functions are covered by the existing `functions` component hash in `scripts/deploy/components.sh` (no new component needed); verify with `components.sh hash functions` that the hash changes when a resume function changes and not on a docs-only change
 
 ## 4. Builder page and form
 
