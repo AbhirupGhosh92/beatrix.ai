@@ -1,28 +1,35 @@
 import { getAuth } from "firebase-admin/auth";
 import { ApiError, privateEndpoint } from "./http";
 import { roleForEmail, verifiedEmail } from "./auth";
+import { registerIfAbsent } from "./users";
 
 /** Session lifetime. Firebase allows 5 minutes to 14 days. */
 const SESSION_MS = 5 * 24 * 60 * 60 * 1000;
 
 /**
- * Sign-in: exchanges a fresh Firebase ID token for a session cookie value. Only allow-listed
- * emails (an `allowed_emails/{email}` entry that is not `allowed: false`) get one.
+ * Sign-in: exchanges a fresh Firebase ID token for a session cookie value. A verified email with
+ * no `allowed_emails/{email}` entry is registered as a reader first; only revoked entries
+ * (`allowed: false`) are refused.
  */
 export const sessionCreate = privateEndpoint(async (body) => {
   const { idToken } = body;
   if (typeof idToken !== "string" || !idToken) throw new ApiError(401, "Sign-in required.");
 
   let email: string;
+  let name = "";
   try {
-    email = verifiedEmail(await getAuth().verifyIdToken(idToken));
+    const decoded = await getAuth().verifyIdToken(idToken);
+    email = verifiedEmail(decoded);
+    name = typeof decoded.name === "string" ? decoded.name : "";
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw new ApiError(401, "Invalid or expired sign-in.");
   }
 
+  // A verified email seen for the first time is registered as a reader; revoked users stay revoked.
+  await registerIfAbsent(email, name);
   const role = await roleForEmail(email);
-  if (!role) throw new ApiError(403, `${email} is not on the allow list.`);
+  if (!role) throw new ApiError(403, `${email} has been revoked.`);
 
   const cookie = await getAuth().createSessionCookie(idToken, { expiresIn: SESSION_MS });
   return { cookie, maxAgeSeconds: SESSION_MS / 1000, email, role };

@@ -21,3 +21,4 @@ export const status = onRequest({ invoker: [SITE_SERVER_ACCOUNT] }, (request, re
 export { getProfile } from "./profile";
 export { adminListFiles, adminGetFile, adminSaveFile } from "./admin";
 export { sessionCreate, sessionVerify } from "./session";
+export { adminListUsers, adminSetUser } from "./users";
