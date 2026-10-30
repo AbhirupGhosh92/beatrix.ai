@@ -101,9 +101,13 @@ export const adminSetUser = privateEndpoint(async (body) => {
     if (!snap.exists) throw new ApiError(404, `${email} is not onboarded.`);
 
     if (losesAdmin && resolveRole(snap.data()) === "admin") {
-      const all = await tx.get(db().collection(USERS).limit(MAX_USERS + 1));
-      const others = all.docs.filter((d) => d.id !== email && resolveRole(d.data()) === "admin");
-      if (others.length === 0) throw new ApiError(400, "At least one active admin must remain.");
+      // The actor is an admin other than the target (self-changes were rejected above), so one
+      // active admin remains as long as the actor still is one. Re-reading the actor inside the
+      // transaction closes the race where two admins demote each other at the same time.
+      const actorSnap = await tx.get(userRef(actor));
+      if (resolveRole(actorSnap.data()) !== "admin") {
+        throw new ApiError(400, "At least one active admin must remain.");
+      }
     }
 
     if (action === "setRole") tx.update(ref, { role, ...meta });
