@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import FirebaseInit from '../components/layout/FirebaseInit.tsx'
 import { ProfileProvider } from '../components/layout/ProfileProvider.tsx'
+import ReleaseNotes from '../components/layout/ReleaseNotes.tsx'
 import { getProfile } from '../middleware/profileService.ts'
+import { getLatestRelease } from '../middleware/releaseService.ts'
 import '../index.css'
 
 // The profile is read from Cloud Storage per request, so nothing here can be prerendered.
@@ -26,7 +28,7 @@ export const viewport: Viewport = {
 const themeScript = `try{var t=localStorage.getItem('theme');if(t!=='beatrix-dark'&&t!=='beatrix-light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'beatrix-dark':'beatrix-light'}document.documentElement.setAttribute('data-theme',t)}catch(e){}`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const profile = await getProfile()
+  const [profile, release] = await Promise.all([getProfile(), getLatestRelease()])
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before React hydrates.
@@ -44,6 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <FirebaseInit />
         <ProfileProvider profile={profile}>{children}</ProfileProvider>
+        <ReleaseNotes release={release} />
       </body>
     </html>
   )
