@@ -33,8 +33,11 @@ export function ThemeToggle() {
   // Server markup is unchecked (no window); sync the checkbox with the saved or
   // OS theme on mount, then drop the pre-paint data-theme so the controller wins.
   useEffect(() => {
-    if (inputRef.current) inputRef.current.checked = getInitialTheme() === DARK
+    const input = inputRef.current
+    if (input) input.checked = getInitialTheme() === DARK
     document.documentElement.removeAttribute('data-theme')
+    // Setting `checked` fires no event; tell listeners (e.g. the admin JSON editor).
+    input?.dispatchEvent(new Event('change', { bubbles: true }))
   }, [])
 
   return (
