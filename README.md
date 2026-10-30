@@ -19,6 +19,7 @@ A single-page personal bio / resume site aimed at recruiters, built with a cyber
 - [Theming](#theming)
 - [Infrastructure Automation (Terraform)](#infrastructure-automation-terraform)
 - [Deployment](#deployment-firebase-app-hosting)
+- [Spec-driven development](#spec-driven-development-openspec)
 - [Git hooks](#git-hooks)
 - [Contributing and branch protection](#contributing-and-branch-protection)
 
@@ -172,6 +173,17 @@ npm run deploy:functions   # firebase deploy --only functions,firestore:rules,st
 - Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
 - `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
 - Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.
+
+## Spec-driven development (OpenSpec)
+
+From version 1.2.0 changes are specified before they are built with [OpenSpec](https://github.com/Fission-AI/OpenSpec). Current behavior lives in `openspec/specs/<capability>/spec.md`; each non-trivial change is a folder in `openspec/changes/<name>/` (proposal, design, tasks, spec deltas). Install the CLI once, then use the slash commands in Claude Code:
+
+```bash
+npm install -g @fission-ai/openspec@latest   # or: brew install openspec
+openspec validate --all                      # check specs and in-flight changes
+```
+
+`/opsx:propose <name>` creates a change, `/opsx:apply` implements its tasks and `/opsx:archive` merges its spec deltas into `openspec/specs/` before the PR is ready. Create the GitHub issue and branch first. When a spec is required and how it maps to issues and PRs: [`.claude/rules/openspec.md`](.claude/rules/openspec.md).
 
 ## Git hooks
 

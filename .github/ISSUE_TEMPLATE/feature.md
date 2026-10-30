@@ -21,7 +21,7 @@ feature
 <!-- What should exist after this is done. -->
 
 ## Proposed change
-<!-- Approach, components/files involved, data or profile.json fields to add. -->
+<!-- Approach, components/files involved, data or profile.json fields to add. Name the OpenSpec change (`/opsx:propose <name>`) unless exempt per `.claude/rules/openspec.md`. -->
 
 ## Acceptance criteria
 - [ ]

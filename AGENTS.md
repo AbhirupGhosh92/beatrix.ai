@@ -18,3 +18,9 @@
      ```
      It applies Terraform, seeds data, deploys, and configures the GitHub environment for CI.
    - **Manual steps are the user's.** Creating the GCP project, linking billing, Firebase Storage "Get started", enabling the Firebase Auth Google provider, authorized domains and CLI logins are done by the user. When the script exits with code 3 and prints `ACTION REQUIRED`, give the user those steps one at a time, wait for them to confirm each, and re-run the script. Never do these steps yourself, and never skip, bypass or delete the checks in `scripts/env-preflight.sh`.
+
+## Spec-Driven Development (OpenSpec, from 1.2.0)
+
+1. **Specs are the source of truth.** Current behavior is in `openspec/specs/`; every non-trivial change is a folder in `openspec/changes/<name>/` made with `/opsx:propose`, implemented with `/opsx:apply` and archived with `/opsx:archive` before the PR is ready.
+2. **Order of work**: GitHub issue (standard template), then the branch `<feature|bug|spike|hotfix>/<issue-id>-<summary>`, then the OpenSpec change. Review the proposal with the user before writing code.
+3. **Exemptions and rules** (typos, dependency bumps, how to write requirements): see `.claude/rules/openspec.md`. Never invent behavior in a spec, and run `openspec validate --all` before finishing.
