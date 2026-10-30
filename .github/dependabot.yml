@@ -1,0 +1,12 @@
+# Third-party GitHub Actions are pinned to full commit SHAs (see docs/DEPLOYMENT.md, "Security
+# controls"). Dependabot opens a PR when a new release exists and updates the SHA and the
+# version comment together, so pins never go stale silently.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    open-pull-requests-limit: 5

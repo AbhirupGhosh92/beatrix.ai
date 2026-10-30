@@ -49,7 +49,16 @@ fi
 echo "==> Applying Terraform..."
 cd "${ROOT_DIR}/terraform"
 terraform init -reconfigure -input=false -backend-config="bucket=${STATE_BUCKET}"
-terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" -var="project_id=${PROJECT_ID}"
+# Plan first, refuse to destroy or replace stateful resources (Firestore, Storage, ...), then
+# apply exactly that plan. See docs/DEPLOYMENT.md.
+# plan.json can hold unredacted values, so the plan files are removed even if the guard or apply
+# fails (absolute paths: the script changes directory later).
+trap 'rm -f "${ROOT_DIR}/terraform/tfplan" "${ROOT_DIR}/terraform/plan.json"' EXIT
+terraform plan -input=false -out=tfplan -var-file="${TFVARS_FILE}" -var="project_id=${PROJECT_ID}"
+terraform show -json tfplan > plan.json
+python3 -I "${ROOT_DIR}/scripts/deploy/plan_guard.py" plan.json
+terraform apply -input=false tfplan
+rm -f tfplan plan.json
 
 tf_out() { terraform output -raw "$1"; }
 DEFAULT_BUCKET="$(tf_out default_storage_bucket)"

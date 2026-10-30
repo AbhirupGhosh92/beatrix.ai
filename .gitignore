@@ -41,3 +41,11 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/terraform.tfvars
+# saved plans can contain sensitive values: never commit them
+terraform/tfplan
+terraform/plan.json
+terraform/plan.txt
+
+# python bytecode (deployment script tests)
+__pycache__/
+*.pyc
