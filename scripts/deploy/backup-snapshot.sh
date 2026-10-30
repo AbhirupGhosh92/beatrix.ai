@@ -28,7 +28,8 @@ copied=0
 for prefix in cms cms-backups; do
   if [[ -n "$(gcloud storage ls "gs://${CMS_BUCKET}/${prefix}/" 2>/dev/null | head -n 1)" ]]; then
     echo "==> Backing up gs://${CMS_BUCKET}/${prefix}/ to ${DEST}/${prefix}/"
-    gcloud storage cp --recursive "gs://${CMS_BUCKET}/${prefix}" "${DEST}/"
+    # Explicit destination, so the copy lands in ${DEST}/${prefix}/ whether or not ${DEST} exists yet.
+    gcloud storage cp --recursive "gs://${CMS_BUCKET}/${prefix}" "${DEST}/${prefix}"
     copied=1
   fi
 done

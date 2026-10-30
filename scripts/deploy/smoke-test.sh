@@ -23,10 +23,13 @@ fetch() {
 
 echo "==> Smoke test: ${SITE_URL}"
 
-code="$(fetch --output /tmp/smoke-home.html --write-out '%{http_code}' "${SITE_URL}/" || true)"
+html_tmp="$(mktemp)"
+trap 'rm -f "${html_tmp}"' EXIT
+
+code="$(fetch --output "${html_tmp}" --write-out '%{http_code}' "${SITE_URL}/" || true)"
 if [[ "${code}" == "200" ]]; then check "GET / returns 200"; else bad "GET / returned ${code:-no response}, expected 200"; fi
 
-if grep -qi '<html' /tmp/smoke-home.html 2>/dev/null; then check "home page is HTML"; else bad "home page did not return HTML"; fi
+if grep -qi '<html' "${html_tmp}" 2>/dev/null; then check "home page is HTML"; else bad "home page did not return HTML"; fi
 
 # The admin API must refuse requests without a sign-in token (it answers 401, never data).
 code="$(fetch --output /dev/null --write-out '%{http_code}' "${SITE_URL}/api/admin/cms" || true)"
