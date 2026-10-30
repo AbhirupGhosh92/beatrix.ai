@@ -5,7 +5,7 @@ import NavbarDropdown from './NavbarDropdown.tsx'
 import { ThemeToggle } from './ThemeToggle.tsx'
 import { useProfile } from './ProfileProvider.tsx'
 
-export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
+export default function Navbar({ isLoggedIn, onLogout }: { isLoggedIn: boolean; onLogout: () => void }) {
   const profile = useProfile()
     return (
         <nav className="navbar px-0">
@@ -21,7 +21,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">
                  <ThemeToggle/>    
-               {isLoggedIn && <NavbarDropdown />}
+               {isLoggedIn && <NavbarDropdown onLogout={onLogout} />}
             </div>
         </nav>
     )

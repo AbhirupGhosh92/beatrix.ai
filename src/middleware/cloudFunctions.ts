@@ -31,7 +31,20 @@ function functionUrl(name: string): string {
   return `https://${REGION}-${project}.cloudfunctions.net/${name}`
 }
 
+// Google ID tokens last an hour; reuse one per function until shortly before it expires, since the
+// proxy calls a function on every protected request.
+const TOKEN_REUSE_MS = 50 * 60 * 1000
+const tokenCache = new Map<string, { headers: Record<string, string>; expiresAt: number }>()
+
 async function authHeaders(audience: string): Promise<Record<string, string>> {
+  const cached = tokenCache.get(audience)
+  if (cached && cached.expiresAt > Date.now()) return cached.headers
+  const headers = await mintAuthHeaders(audience)
+  tokenCache.set(audience, { headers, expiresAt: Date.now() + TOKEN_REUSE_MS })
+  return headers
+}
+
+async function mintAuthHeaders(audience: string): Promise<Record<string, string>> {
   const target = process.env.FUNCTIONS_CALLER_SERVICE_ACCOUNT
   if (target) {
     const impersonated = new Impersonated({
