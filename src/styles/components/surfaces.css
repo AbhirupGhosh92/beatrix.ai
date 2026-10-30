@@ -1,0 +1,13 @@
+/* Shared surfaces and dividers. Exact equivalents of the utility lists they
+   replace; add structure (padding, radius, shadow) on the element itself. */
+@layer components {
+  /* panel / card background with the standard 1px edge */
+  .surface {
+    @apply bg-base-200 border border-base-300;
+  }
+
+  /* bottom divider line */
+  .edge-b {
+    @apply border-b border-base-300;
+  }
+}

@@ -1,0 +1,94 @@
+.button-primary {
+  @apply btn btn-primary font-display uppercase tracking-wider;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.button-secondary {
+  @apply btn btn-secondary font-display uppercase tracking-wider;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.button-accent {
+  @apply btn btn-accent font-display uppercase tracking-wider;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+/* Same layering issue for btn-square: the unlayered .button-* padding beats
+   daisyUI's layered btn-square, leaving icon buttons 54px wide. Re-apply the
+   square size so icon buttons are 2.5rem x 2.5rem and the navbar fits phones. */
+.button-primary.btn-square,
+.button-secondary.btn-square,
+.button-accent.btn-square {
+  width: calc(var(--size-field, 0.25rem) * 10);
+  padding-inline: 0;
+}
+
+/* Same layering issue for positioning: the unlayered `position: relative` on
+   .button-* beats Tailwind's layered fixed/absolute/sticky utilities. */
+.button-primary.fixed,
+.button-secondary.fixed,
+.button-accent.fixed {
+  position: fixed;
+}
+
+.button-primary.absolute,
+.button-secondary.absolute,
+.button-accent.absolute {
+  position: absolute;
+}
+
+/* The unlayered .button-* rules set display:inline-flex, which would lay a
+   daisyUI swap's stacked icons side by side; keep swaps as a stacked grid. */
+.button-primary.swap,
+.button-secondary.swap,
+.button-accent.swap {
+  display: inline-grid;
+  place-content: center;
+}
+
+button:hover:not(:disabled) {
+  /* neon glow in the button's own color (daisyUI sets --btn-color) */
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 4px color-mix(in oklab, var(--btn-color, var(--color-accent)) 70%, transparent),
+    0 4px 20px color-mix(in oklab, var(--btn-color, var(--color-accent)) 45%, transparent);
+}
+
+/* hover animation: a neon shine sweeps across the button */
+button,
+.button-primary,
+.button-secondary,
+.button-accent {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after,
+.button-primary::after,
+.button-secondary::after,
+.button-accent::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    color-mix(in oklab, white 55%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+}
+
+button:hover:not(:disabled)::after,
+.button-primary:hover:not(:disabled)::after,
+.button-secondary:hover:not(:disabled)::after,
+.button-accent:hover:not(:disabled)::after {
+  animation: shine-sweep 600ms ease-out;
+}
+
+@keyframes shine-sweep {
+  to {
+    transform: translateX(120%);
+  }
+}

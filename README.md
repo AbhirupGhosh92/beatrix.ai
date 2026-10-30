@@ -133,16 +133,41 @@ src/
 │   └── useInView.ts
 ├── lib/
 │   └── firebase.ts
-└── middleware/
-    ├── adminService.ts
-    ├── cloudFunctions.ts
-    └── profileService.ts
+├── middleware/
+│   ├── adminService.ts
+│   ├── cloudFunctions.ts
+│   └── profileService.ts
+└── styles/
+    ├── base/
+    │   └── elements.css
+    ├── components/
+    │   ├── back-to-top.css
+    │   ├── buttons.css
+    │   ├── google-signin.css
+    │   ├── navigation.css
+    │   ├── skills-tabs.css
+    │   ├── surfaces.css
+    │   ├── text-colors.css
+    │   └── typography.css
+    ├── effects/
+    │   ├── glitch.css
+    │   ├── hover.css
+    │   ├── reduced-motion.css
+    │   └── reveal.css
+    ├── tokens/
+    │   ├── code.css
+    │   ├── fonts.css
+    │   ├── themes.css
+    │   └── variants.css
+    └── vendor/
+        ├── json-view.css
+        └── monaco.ts
 ```
 <!-- structure:end -->
 
 ## Theming
 
-Themes are defined in `src/index.css` with `@plugin "daisyui/theme"`. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
+Themes are defined in `src/styles/tokens/themes.css` with `@plugin "daisyui/theme"`; `src/index.css` imports all style files from `src/styles/` in order. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
 
 ## Infrastructure Automation (Terraform)
 

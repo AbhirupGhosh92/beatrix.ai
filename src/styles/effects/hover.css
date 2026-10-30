@@ -1,0 +1,90 @@
+/* .hover-neon: the primary-button hover animation (lift, neon glow, shine sweep)
+   as a standalone style for any element, e.g. sidebar links or plain text.
+   Color defaults to primary; override per element with Tailwind, e.g.
+   "hover-neon [--hover-color:var(--color-accent)]". */
+.hover-neon {
+  --hover-color: var(--color-primary);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 150ms ease, transform 150ms ease, color 150ms ease;
+}
+
+.hover-neon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    color-mix(in oklab, var(--hover-color) 55%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+}
+
+.hover-neon:hover {
+  transform: translateY(-1px);
+  color: var(--hover-text, var(--hover-color));
+  box-shadow:
+    0 0 4px color-mix(in oklab, var(--hover-color) 70%, transparent),
+    0 4px 20px color-mix(in oklab, var(--hover-color) 45%, transparent);
+}
+
+.hover-neon:hover::after {
+  animation: shine-sweep 600ms ease-out;
+}
+
+/* .hover-subtle: a quieter hover for menus and lists. Faint tint, primary text
+   and a 2px nudge; no glow, lift or shine. Recolor via --hover-color like
+   .hover-neon. */
+.hover-subtle {
+  --hover-color: var(--color-primary);
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.hover-subtle:hover {
+  color: var(--hover-text, var(--hover-color));
+  background-color: color-mix(in oklab, var(--hover-color) 12%, transparent);
+  transform: translateX(2px);
+}
+
+/* Light (cute) theme: the same hover classes play a bouncy jelly wiggle with a
+   soft pink glow instead of the glitch. Light = dark toggle unchecked. */
+:is(.button-glitch:hover:not(:disabled), .glitch-hover:hover) {
+  @variant theme-light {
+    animation: cute-wiggle 650ms ease-in-out;
+  }
+}
+
+@keyframes cute-wiggle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: none;
+  }
+  15% {
+    transform: scale(1.12, 0.88);
+  }
+  30% {
+    transform: translateY(-5px) scale(0.94, 1.1) rotate(-5deg);
+    filter: drop-shadow(0 6px 5px color-mix(in oklab, var(--color-primary) 55%, transparent));
+  }
+  50% {
+    transform: translateY(0) scale(1.06, 0.95) rotate(4deg);
+  }
+  70% {
+    transform: scale(0.98, 1.03) rotate(-2deg);
+  }
+  85% {
+    transform: scale(1.02, 0.99) rotate(1deg);
+  }
+}
+
+/* In the light (pastel) theme the primary color is very pale, so using it as
+   hover *text* color is unreadable on white. Darken it for text only; the
+   glow/tint keep the pale color. Dark theme keeps the neon color as text. */
+:is(.hover-neon, .hover-subtle) {
+  @variant theme-light {
+    --hover-text: color-mix(in oklab, var(--hover-color) 45%, black);
+  }
+}

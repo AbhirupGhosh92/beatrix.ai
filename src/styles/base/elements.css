@@ -1,0 +1,42 @@
+body {
+  @apply bg-base-100 text-base-content flex flex-col min-h-screen font-sans text-base sm:text-lg;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-display uppercase tracking-wide;
+}
+
+button {
+  @apply btn font-display uppercase tracking-wider;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+/* The global `button { @apply btn }` rule is unlayered, so it beats daisyUI's
+   layered .btn-primary etc. and would reset --btn-fg (text color) to the base
+   color. Re-apply the variants on top so `<button class="btn-primary">` works. */
+button.btn-primary {
+  @apply btn-primary;
+}
+
+button.btn-secondary {
+  @apply btn-secondary;
+}
+
+button.btn-accent {
+  @apply btn-accent;
+}
+
+/* lucide icons: slightly heavier strokes */
+.lucide {
+  stroke-width: 2.25;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -254,7 +254,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-base-100 text-base-content flex flex-col">
       {/* Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
+      <header className="sticky top-0 z-30 edge-b bg-base-100/90 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-3 sm:px-8">
           <div className="flex items-center gap-4">
             <Link
@@ -296,7 +296,7 @@ export default function AdminPage() {
         )}
 
         {/* Section Header & File Navigation */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-base-200 border border-base-300 p-4 rounded-xl shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between surface p-4 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
             <FileCode size={24} className="text-brand-2" />
             <span className="font-semibold text-sm uppercase tracking-wide">Selected File:</span>
@@ -375,7 +375,7 @@ export default function AdminPage() {
         {/* Tracking Status Bar */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 bg-base-200/60 border border-base-300 p-3 rounded-lg text-xs font-mono">
           <div className="flex items-center gap-2">
-            <span className="text-base-content/60">JSON Syntax:</span>
+            <span className="text-muted">JSON Syntax:</span>
             {jsonError ? (
               <span className="badge badge-error badge-sm gap-1 text-error-content font-sans font-semibold">
                 <AlertCircle size={12} /> Invalid
@@ -388,7 +388,7 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-base-content/60">Status:</span>
+            <span className="text-muted">Status:</span>
             {isDirty ? (
               <span className="badge badge-warning badge-sm font-sans font-medium">Unsaved Changes</span>
             ) : (
@@ -397,14 +397,14 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-base-content/60">Metrics:</span>
+            <span className="text-muted">Metrics:</span>
             <span>
               {lineCount} lines | {(charCount / 1024).toFixed(2)} KB
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-base-content/60">Last Saved:</span>
+            <span className="text-muted">Last Saved:</span>
             <span>{lastSaved || 'N/A'}</span>
           </div>
         </div>
@@ -412,11 +412,11 @@ export default function AdminPage() {
         {/* Editor Area */}
         <div className="flex-1 flex flex-col border border-base-300 rounded-xl bg-base-200 overflow-hidden shadow-md">
           {/* Editor Header Bar */}
-          <div className="flex items-center justify-between bg-base-300/50 px-4 py-2 text-xs font-mono border-b border-base-300">
+          <div className="flex items-center justify-between bg-base-300/50 px-4 py-2 text-xs font-mono edge-b">
             <span className="font-semibold text-brand-2">
               src/data/{selectedFile}
             </span>
-            <span className="text-base-content/60 flex items-center gap-2">
+            <span className="text-muted flex items-center gap-2">
               {loading && <Loader2 size={12} className="animate-spin text-brand" />}
               {loading ? 'Loading file...' : 'JSON Content Editor'}
             </span>
@@ -453,7 +453,7 @@ export default function AdminPage() {
       {showNewFileModal && (
         <div className="modal modal-open">
           <div className="modal-box bg-base-200 border border-base-300">
-            <h3 className="font-bold text-lg font-display uppercase tracking-wide text-brand">
+            <h3 className="font-bold text-lg heading-display text-brand">
               Add New Managed File
             </h3>
             <p className="py-2 text-sm text-base-content/70">

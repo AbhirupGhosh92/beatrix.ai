@@ -1,0 +1,12 @@
+/* list items that slide in one after another (index in --i) */
+.reveal-item {
+  animation: reveal-item 400ms ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes reveal-item {
+  from {
+    opacity: 0;
+    translate: -1rem 0;
+  }
+}

@@ -1,0 +1,46 @@
+/* glitch: jittery offsets with magenta/cyan color-split, then settles.
+   Opt-in: `.glitch-hover` for any element, `.button-glitch` as a button style
+   (combine with a color class, e.g. "button-secondary button-glitch"). */
+.button-glitch:hover:not(:disabled),
+.glitch-hover:hover {
+  animation: glitch 450ms steps(1, end);
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+  10% {
+    transform: translate(-2px, 1px) skewX(-12deg);
+    filter: drop-shadow(2px 0 var(--color-primary)) drop-shadow(-2px 0 var(--color-accent));
+  }
+  20% {
+    transform: translate(2px, -1px) skewX(8deg);
+    filter: drop-shadow(-3px 0 var(--color-primary)) drop-shadow(3px 0 var(--color-accent));
+    clip-path: inset(0 0 55% 0);
+  }
+  30% {
+    transform: translate(-1px, 0);
+    filter: drop-shadow(2px 0 var(--color-accent));
+    clip-path: inset(45% 0 0 0);
+  }
+  45% {
+    transform: translate(3px, 1px) skewX(-6deg);
+    filter: drop-shadow(-2px 0 var(--color-primary)) drop-shadow(2px 0 var(--color-accent));
+    clip-path: none;
+  }
+  60% {
+    transform: translate(-2px, -1px);
+    filter: drop-shadow(2px 0 var(--color-primary));
+  }
+  75% {
+    transform: translate(1px, 0) skewX(4deg);
+    filter: drop-shadow(-1px 0 var(--color-accent));
+  }
+  100% {
+    transform: translate(0, 0);
+    filter: none;
+    clip-path: none;
+  }
+}

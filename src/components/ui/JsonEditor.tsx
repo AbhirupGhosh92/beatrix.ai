@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import Editor, { type BeforeMount } from '@monaco-editor/react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import Editor, { type BeforeMount, type Monaco } from '@monaco-editor/react'
 import JsonView from '@uiw/react-json-view'
-import { darkTheme } from '@uiw/react-json-view/dark'
-import { lightTheme } from '@uiw/react-json-view/light'
+import { defineMonacoThemes, MONACO_DARK_THEME, MONACO_LIGHT_THEME } from '../../styles/vendor/monaco.ts'
 import { Code, GitFork, Search, MinusSquare, PlusSquare } from 'lucide-react'
 
 interface JsonEditorProps {
@@ -16,6 +15,7 @@ interface JsonEditorProps {
 export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProps) {
   const [viewMode, setViewMode] = useState<'code' | 'tree'>('code')
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(false)
+  const monacoRef = useRef<Monaco | null>(null)
   const [treeSearch, setTreeSearch] = useState<string>('')
   const [collapsedDepth, setCollapsedDepth] = useState<number | boolean>(1)
 
@@ -55,50 +55,20 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
     }
   }, [])
 
-  // Define the custom themes before the editor is created: the `theme` prop is
-  // applied at creation, and an undefined theme name falls back to white `vs`.
+  // Define the themes before the editor is created: the `theme` prop is applied at
+  // creation, and an undefined theme name falls back to white `vs`.
   const handleBeforeMount: BeforeMount = (monaco) => {
-    // Define Cyberpunk Dark Theme
-    monaco.editor.defineTheme('beatrix-dark-theme', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'string.key.json', foreground: '03D8F3', fontStyle: 'bold' }, // Cyan keys
-        { token: 'string.value.json', foreground: 'FCEE0C' }, // Yellow strings
-        { token: 'number', foreground: 'FF1493' }, // Pink numbers
-        { token: 'keyword.json', foreground: 'B026FF' }, // Purple booleans/nulls
-      ],
-      colors: {
-        'editor.background': '#00060e',
-        'editor.foreground': '#f3f4f6',
-        'editor.lineHighlightBackground': '#111827',
-        'editorCursor.foreground': '#03D8F3',
-        'editorWhitespace.foreground': '#374151',
-        'editorLineNumber.foreground': '#4b5563',
-        'editorLineNumber.activeForeground': '#03D8F3',
-      },
-    })
-
-    // Define Light Theme
-    monaco.editor.defineTheme('beatrix-light-theme', {
-      base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'string.key.json', foreground: '9333ea', fontStyle: 'bold' }, // Purple keys
-        { token: 'string.value.json', foreground: '0284c7' }, // Blue strings
-        { token: 'number', foreground: 'e11d48' }, // Red numbers
-        { token: 'keyword.json', foreground: '059669' }, // Green booleans
-      ],
-      colors: {
-        'editor.background': '#ffffff',
-        'editor.foreground': '#1f2937',
-        'editor.lineHighlightBackground': '#f3f4f6',
-        'editorCursor.foreground': '#9333ea',
-        'editorLineNumber.foreground': '#9ca3af',
-        'editorLineNumber.activeForeground': '#9333ea',
-      },
-    })
+    monacoRef.current = monaco
+    defineMonacoThemes(monaco)
   }
+
+  // Re-read the code palette when the theme flips, so token changes reach the editor.
+  useEffect(() => {
+    const monaco = monacoRef.current
+    if (!monaco) return
+    defineMonacoThemes(monaco)
+    monaco.editor.setTheme(isDarkTheme ? MONACO_DARK_THEME : MONACO_LIGHT_THEME)
+  }, [isDarkTheme])
 
   // Parse JSON for tree view
   const parsedJson = useMemo(() => {
@@ -172,7 +142,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
         )}
 
         {/* Info hint */}
-        <div className="text-base-content/60 font-mono hidden sm:block">
+        <div className="text-muted font-mono hidden sm:block">
           {viewMode === 'code' ? 'Press Ctrl+F to Search / Replace' : 'Interactive JSON Tree'}
         </div>
       </div>
@@ -187,7 +157,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
             value={value}
             onChange={(val) => onChange(val ?? '')}
             beforeMount={handleBeforeMount}
-            theme={isDarkTheme ? 'beatrix-dark-theme' : 'beatrix-light-theme'}
+            theme={isDarkTheme ? MONACO_DARK_THEME : MONACO_LIGHT_THEME}
             options={{
               readOnly,
               minimap: { enabled: true },
@@ -210,7 +180,6 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
             {parsedJson !== null ? (
               <JsonView
                 value={parsedJson}
-                style={isDarkTheme ? darkTheme : lightTheme}
                 collapsed={collapsedDepth}
                 shortenTextAfterLength={100}
                 displayDataTypes={true}

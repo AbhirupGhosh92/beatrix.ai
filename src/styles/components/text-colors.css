@@ -1,0 +1,27 @@
+/* Accent text colors. The pastel light theme's primary/secondary/accent are too
+   pale to read as text on white, so there they use the matching *-content
+   (dark) colors; the dark theme keeps the neon colors. Use these instead of
+   text-primary/secondary/accent for text and icons. */
+.text-brand {
+  color: var(--color-primary);
+  @variant theme-light { color: var(--color-primary-content); }
+}
+.text-brand-2 {
+  color: var(--color-secondary);
+  @variant theme-light { color: var(--color-secondary-content); }
+}
+.text-brand-3 {
+  color: var(--color-accent);
+  @variant theme-light { color: var(--color-accent-content); }
+}
+
+/* Pain/solution text and icons in the achievement cards. Like text-brand: the pastel
+   light theme's error/success are too pale as text, so there they use the dark -content colors. */
+.text-pain {
+  color: var(--color-error);
+  @variant theme-light { color: var(--color-error-content); }
+}
+.text-gain {
+  color: var(--color-success);
+  @variant theme-light { color: var(--color-success-content); }
+}

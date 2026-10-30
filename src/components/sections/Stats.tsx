@@ -47,7 +47,7 @@ export default function Stats() {
   const [ref, inView] = useInView<HTMLDivElement>(0.3)
 
   return (
-    <div ref={ref} className="stats stats-vertical w-full border border-base-300 bg-base-200 lg:stats-horizontal">
+    <div ref={ref} className="stats stats-vertical surface w-full lg:stats-horizontal">
       {profile.stats.map((s) => (
         <div className="stat" key={`${s.label}-${s.value}`}>
           <div className="stat-title">{s.label}</div>

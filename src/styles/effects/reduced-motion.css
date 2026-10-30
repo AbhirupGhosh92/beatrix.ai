@@ -1,0 +1,18 @@
+@media (prefers-reduced-motion: reduce) {
+  button,
+  button::after,
+  .hover-neon,
+  .hover-neon::after,
+  .hover-subtle,
+  .dropdown .dropdown-content,
+  .dropdown .dropdown-content li,
+  .button-glitch,
+  .back-to-top,
+  .reveal-item,
+  .tabs-box > .tab-pill,
+  .glitch-hover {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

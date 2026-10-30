@@ -1,0 +1,71 @@
+/* Back-to-top button: bottom center, springy pop in/out, then a periodic wibble.
+   Set via the data-visible attribute from BackToTop.tsx. Written here (not as
+   Tailwind utilities) because the unlayered .button-* rules would override
+   layered utilities for position and transition. */
+.button-accent.back-to-top {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 40;
+  translate: -50% 2rem;
+  scale: 0.4;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 6px 20px color-mix(in oklab, var(--color-accent) 45%, transparent);
+  transition:
+    opacity 400ms ease,
+    translate 550ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 550ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .button-accent.back-to-top {
+    bottom: 2rem;
+  }
+}
+
+.button-accent.back-to-top[data-visible="true"] {
+  translate: -50% 0;
+  scale: 1;
+  opacity: 1;
+  pointer-events: auto;
+  animation: wibble 2.6s ease-in-out 0.9s infinite;
+}
+
+.button-accent.back-to-top[data-visible="true"]:hover {
+  animation-play-state: paused;
+}
+
+@keyframes wibble {
+  0%,
+  55%,
+  100% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  8% {
+    rotate: -16deg;
+    scale: 1.15;
+  }
+  16% {
+    rotate: 14deg;
+    scale: 1.15;
+  }
+  24% {
+    rotate: -10deg;
+    scale: 1.1;
+  }
+  32% {
+    rotate: 7deg;
+    scale: 1.06;
+  }
+  40% {
+    rotate: -4deg;
+    scale: 1.02;
+  }
+  48% {
+    rotate: 2deg;
+    scale: 1;
+  }
+}

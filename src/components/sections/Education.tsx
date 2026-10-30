@@ -19,7 +19,7 @@ export default function Education() {
               <li key={e.degree} className="step step-primary">
                 <div className="text-left">
                   <p className="font-semibold">{e.degree}</p>
-                  <p className="text-sm opacity-70">
+                  <p className="text-meta">
                     {e.school} · {e.period}
                   </p>
                 </div>

@@ -1,0 +1,21 @@
+/* Shared text styles. Colors use theme tokens only; sizes stay with the element. */
+@layer components {
+  /* de-emphasised text */
+  .text-muted {
+    @apply text-base-content/60;
+  }
+
+  /* secondary meta lines: small text at reduced opacity (two strengths) */
+  .text-meta {
+    @apply text-sm opacity-70;
+  }
+
+  .text-meta-strong {
+    @apply text-sm opacity-80;
+  }
+
+  /* display typeface, uppercase (normal case in the light theme, see tokens/fonts.css) */
+  .heading-display {
+    @apply font-display uppercase tracking-wide;
+  }
+}
