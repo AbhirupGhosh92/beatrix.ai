@@ -36,8 +36,10 @@ export function ThemeToggle() {
     const input = inputRef.current
     if (input) input.checked = getInitialTheme() === DARK
     document.documentElement.removeAttribute('data-theme')
-    // Setting `checked` fires no event; tell listeners (e.g. the admin JSON editor).
-    input?.dispatchEvent(new Event('change', { bubbles: true }))
+    if (input) {
+      // Setting `checked` fires no event; tell listeners (e.g. the admin JSON editor).
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    }
   }, [])
 
   return (

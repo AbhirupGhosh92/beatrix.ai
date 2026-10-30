@@ -21,12 +21,16 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
 
   // Detect dark vs light theme based on document attribute or class
   useEffect(() => {
-    const updateTheme = () => {
+    const updateTheme = (e?: Event) => {
+      // The document-level listener sees every input; only theme toggles matter.
+      if (e?.type === 'change' && !(e.target instanceof Element && e.target.matches('.theme-controller'))) {
+        return
+      }
       // beatrix-dark sets `color-scheme: dark`, which daisyUI applies on :root
       // for both data-theme and the :has() theme controller, so it is the most
       // reliable signal.
       const isDark =
-        getComputedStyle(document.documentElement).colorScheme.includes('dark') ||
+        getComputedStyle(document.documentElement).getPropertyValue('color-scheme').includes('dark') ||
         document.documentElement.getAttribute('data-theme') === 'beatrix-dark' ||
         !!document.querySelector('input.theme-controller[value="beatrix-dark"]:checked')
       setIsDarkTheme(isDark)
@@ -34,7 +38,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
 
     updateTheme()
 
-    const observer = new MutationObserver(updateTheme)
+    const observer = new MutationObserver(() => updateTheme())
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class'],
