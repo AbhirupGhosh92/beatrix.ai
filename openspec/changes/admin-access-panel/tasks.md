@@ -9,12 +9,12 @@
 ## 2. Next.js server layer
 
 - [x] 2.1 Keep `src/middleware/userService.ts` (list and update only) and `routeHelpers.ts` with `/api/admin/users`; verify `npm run typecheck` and a curl without a token returns 401 with `no-store`
-- [ ] 2.2 Verify in a browser on a deployed environment that a never-seen Google account signs in on first try as a `reader`, and a revoked account is refused
+- [x] 2.2 Verify in a browser on a deployed environment that a never-seen Google account signs in on first try as a `reader`, and a revoked account is refused
 
 ## 3. Admin UI
 
-- [ ] 3.1 Keep `app/admin/layout.tsx` with the top navbar (CMS, Access, active highlight, theme toggle), the editor at `app/admin/cms/page.tsx` and the `/admin` redirect; verify by browser check in both themes at 320px and desktop
-- [ ] 3.2 Update `app/admin/access/page.tsx` to offer all four roles from `ROLES` and verify each action (add, role change, revoke, restore, blocked self-actions) against a deployed environment as an admin, and that a non-admin is refused
+- [x] 3.1 Keep `app/admin/layout.tsx` with the top navbar (CMS, Access, active highlight, theme toggle), the editor at `app/admin/cms/page.tsx` and the `/admin` redirect; verify by browser check in both themes at 320px and desktop
+- [x] 3.2 Update `app/admin/access/page.tsx` to offer all four roles from `ROLES` and verify each action (add, role change, revoke, restore, blocked self-actions) against a deployed environment as an admin, and that a non-admin is refused
 
 ## 4. Specs and docs
 
