@@ -226,10 +226,10 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
           )}
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto">
           <section className="surface rounded-box flex flex-col gap-3 p-4" aria-labelledby="generate-heading">
             <h2 id="generate-heading" className="heading-display text-lg font-bold text-brand">Generate</h2>
-            <ExportPanel templates={config.templates} valid={issues.length === 0} busy={exporting} onGenerate={(templateId, format) => void generate(templateId, format)} />
+            <ExportPanel templates={config.templates} structure={structure} valid={issues.length === 0} busy={exporting} onGenerate={(templateId, format) => void generate(templateId, format)} />
             {notice && <p role="status" className="text-meta">{notice}</p>}
           </section>
           {issues.length > 0 && (

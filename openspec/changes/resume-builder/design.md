@@ -61,8 +61,14 @@ A template is a closed token set (fonts from a short list, sizes, colors, spacin
 
 **11. Deployment.** Resume functions are part of the existing `functions` component (`components.sh` hashes `functions/`), so they redeploy only when `functions/` changes; the resume config lives in `cms/`, which a deploy never writes. Terraform adds the bucket, its IAM for the App Hosting compute account and the lifecycle rule; `google_storage_bucket` is already in `PROTECTED_TYPES`, and a plan guard test covers the new bucket. `storage.rules` stays deny-all.
 
+**12. Template preview.** The preview is the PDF renderer's own output for the chosen template, generated from sample data and shown in a frame (`TemplatePreview`). Sample data comes from the structure itself (`sampleData(structure)`: the field placeholders with the leading "e.g." removed, typed fields get valid examples, repeatable sections get two entries), so it works for custom structures too. Rendering the real PDF avoids a third, hand-written HTML version of each layout that could drift. The PDF library is imported when the preview mounts, never on page load. Browsers without an inline PDF viewer (`navigator.pdfViewerEnabled === false`, e.g. most mobile browsers) get an "open preview" link instead of an empty frame. DOCX uses the same style tokens but one column, which the caption says.
+*Alternative:* an HTML/CSS mock of each layout. Rejected: it works everywhere but must be kept in step with the PDF and DOCX renderers by hand.
+
+**13. Menu visibility.** `visibleDrawerItems()` and `hasDrawerContent()` (`src/lib/drawer.ts`) are the one place that decides what the drawer lists; `DrawerMenu` renders from it and the page uses it to decide whether the menu button and the drawer exist at all. The top bar is not hidden: it carries the brand, theme toggle and sign-in.
+
 ## Risks / Trade-offs
 
+- [A mobile browser cannot show the inline PDF preview] → The preview falls back to an "open preview" link; the downloads are unaffected.
 - [A hidden item is still a real route] → Both the proxy and the API handlers check the flag, not just the menu.
 - [Client-side generation cannot be trusted or audited] → Acceptable by decision: output is the user's own data; the server only stores JSON and enforces size, shape and ownership.
 - [Index and object can drift if a function fails midway] → Reserve-then-write with release on failure; the orphan list tolerates an index id with no object and the purge removes by prefix.

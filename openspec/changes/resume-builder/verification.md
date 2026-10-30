@@ -50,6 +50,10 @@ plus the `NEXT_PUBLIC_FIREBASE_*` web config. Run `pnpm install && npm run dev`.
 | T1.5 | Set `enabled` to `false`, wait 30-40 s, reload as Base A and as Admin | entry gone; `/resume-builder` shows 404; `/api/resumes` is 404 for both |
 | T1.6 | Replace the item with the old string form (`"Sidebar Item 1"`), reload | no error; nothing shown in the drawer |
 | T1.7 | Set it back to enabled; check the drawer in light and dark theme | entry readable in both; icon aligned |
+| T1.8 | Item **disabled**: sign in as Base A and Reader D | **no menu button and no drawer**; the top bar (brand, theme toggle, account menu) stays |
+| T1.9 | Item disabled: sign in as Admin | menu button still there; the drawer lists only the Admin CMS link |
+| T1.10 | Anonymous visitor | no menu button; brand and theme toggle visible |
+| T1.11 | Item enabled again (wait 40 s) as Base A | the menu button reappears |
 
 ## 2. Resume config (task 2.2)
 
@@ -115,6 +119,12 @@ Use a fully valid resume with a couple of jobs and bullets.
 | T6.6 | Look at all outputs | no watermark anywhere |
 | T6.7 | DevTools Network while loading the builder page | the PDF and DOCX scripts are **not** fetched until Generate |
 | T6.8 | Empty a required field | Generate disabled again |
+| T6.9 | Format PDF or Word: look under the Template select | a preview of the chosen template appears with **sample** content (not your resume) |
+| T6.10 | Switch between Classic, Modern and Sidebar | the preview changes style and layout each time; the Sidebar one has a coloured side column |
+| T6.11 | Switch the format to Markdown | the preview disappears |
+| T6.12 | Adv C with a custom structure (T5.3) | preview still draws, using sample content that fits the custom sections |
+| T6.13 | Open the builder on a phone or a browser without an inline PDF viewer | an "Open preview" link instead of an empty frame; it opens the PDF |
+| T6.14 | DevTools Network: reload the builder, open a resume | the PDF script loads only once the preview appears, not on page load |
 
 ## 7. Privacy (task 3.3)
 

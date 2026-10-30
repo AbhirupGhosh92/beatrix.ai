@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { Circle, FileText, Sliders } from 'lucide-react'
 import type { DrawerIcon } from '../../data/profile.ts'
-import { can, requiredPermission, type Role } from '../../lib/access.ts'
+import { can, type Role } from '../../lib/access.ts'
+import { visibleDrawerItems } from '../../lib/drawer.ts'
 import { useProfile } from './ProfileProvider.tsx'
 
 const ICONS: Record<DrawerIcon, typeof Circle> = { 'file-text': FileText, circle: Circle }
@@ -19,10 +20,7 @@ export default function DrawerMenu({ role }: { role: Role }) {
         <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold edge-b mb-2">
           {nav.drawerTitle}
         </div>
-        {nav.drawerItems
-          // Shown only when switched on in the profile and the role holds the route's permission
-          // (the server enforces both again).
-          .filter((item) => item.enabled && item.href && can(role, requiredPermission(item.href) ?? 'site:view'))
+        {visibleDrawerItems(nav.drawerItems, role)
           .map((item) => {
             const Icon = ICONS[item.icon]
             return (

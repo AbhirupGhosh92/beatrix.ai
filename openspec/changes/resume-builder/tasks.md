@@ -7,6 +7,7 @@
 - [ ] 1.3 Render only enabled items in `DrawerMenu.tsx`, with the icon and `href`, and hide items whose route the role cannot use; verify in the browser as reader, base and admin in both themes
 - [ ] 1.4 Add `FEATURE_ROUTES` and the `/resume-builder` and `/api/resumes` (`features:basic`) entries to `src/lib/access.ts` (`/api/admin/resumes` stays under `/api/admin`, `cms:write`, and is not flag-gated); apply the flag check (404, closed when the profile is unavailable) in `src/proxy.ts`; verify requests return 404 when disabled, 403/redirect for a reader, and pass for a base user when enabled
 - [x] 1.5 Update the `access-control` and `profile-content` notes in `CLAUDE.md` for the structured nav and the feature gate; verify the text matches the code
+- [ ] 1.6 Add `src/lib/drawer.ts` (`visibleDrawerItems`, `hasDrawerContent`), use it in `DrawerMenu` and `app/page.tsx`, and pass `showMenu` to `Navbar` so the menu button and the drawer are not rendered when nothing would be listed; verify with `npm run typecheck`/`lint` and the helper's results for reader, base and admin with items on and off, then a browser check
 
 ## 2. Resume config
 
@@ -37,6 +38,7 @@
 - [x] 5.3 Add the DOCX renderer with heading/paragraph styles, Word-safe fonts, no layout tables; verify the file opens in Word or LibreOffice with selectable text and converts to PDF with the same content and structure
 - [x] 5.4 Add the PDF renderer with embedded standard fonts and the layouts; verify the PDF matches each template's style and contains no watermark
 - [x] 5.5 Load both libraries with dynamic imports; verify they are absent from the landing page bundle in the `npm run build` output and that one Generate click produces exactly one file
+- [x] 5.6 Add `sampleData(structure)` and `TemplatePreview` (real PDF renderer, sample data, "open preview" fallback) to the template picker; verify the sample PDF renders for each template and for a custom structure, that no resume content reaches it, and a browser check that switching templates updates the preview
 
 ## 6. Retention and admin cleanup
 

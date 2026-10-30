@@ -109,6 +109,29 @@ Templates SHALL be defined in the resume config as an id, a label, an `enabled` 
 - **WHEN** a template uses a layout id or style value outside the allowed set
 - **THEN** that template is skipped and the others still work
 
+### Requirement: Template preview with sample data
+When a user picks a template for PDF or DOCX, the builder SHALL show a preview of that template filled with sample data, not the user's own content. The preview SHALL be produced by the same renderer as the PDF download, SHALL update when another template is picked, and SHALL NOT be shown for Markdown. A browser that cannot show PDFs inline SHALL offer to open the preview instead.
+
+#### Scenario: Picking a template
+- **WHEN** a user selects the Modern template
+- **THEN** a preview of the Modern design appears with sample names, jobs and skills
+
+#### Scenario: Switching template
+- **WHEN** the user selects a different template
+- **THEN** the preview changes to that template's style and layout
+
+#### Scenario: Own data untouched
+- **WHEN** the preview is shown
+- **THEN** it contains only sample content and nothing from the open resume
+
+#### Scenario: Markdown
+- **WHEN** the format is Markdown
+- **THEN** no preview is shown
+
+#### Scenario: No inline PDF viewer
+- **WHEN** the browser cannot display PDFs inline
+- **THEN** an "open preview" link is shown instead of an empty frame
+
 ### Requirement: Browser-side export in one template and format
 The user SHALL pick one template and one format (PDF, DOCX or MD) and the browser SHALL generate that single file without sending the resume to a server for rendering. PDF SHALL follow the template's style as closely as possible. DOCX SHALL use real heading and paragraph styles, selectable text and no layout tables, using only fonts available in Word, so that converting it to PDF keeps the content and structure. MD SHALL contain the content without styling. No output SHALL contain a watermark.
 
