@@ -13,15 +13,19 @@ The `/admin` page SHALL call `/api/admin/cms` with `Authorization: Bearer <Fireb
 - **THEN** the response is 401 "Admin sign-in required." with `Cache-Control: no-store`
 
 ### Requirement: Only verified admins may use the admin functions
-The admin functions SHALL verify the forwarded Firebase ID token, require a verified email, and require the `allowed_emails/{email}` document to have `admin: true` and not `allowed: false`.
+The admin functions SHALL verify the forwarded Firebase ID token, require a verified email, and require that the `allowed_emails/{email}` entry resolves to a role holding the `cms:write` permission (the `admin` role) and is not `allowed: false`.
 
 #### Scenario: Signed-in non-admin
-- **WHEN** a valid token belongs to an email without `admin: true`
+- **WHEN** a valid token belongs to an email whose role lacks `cms:write` (for example `reader`, `user-base` or `user-advanced`)
 - **THEN** the function responds 403 and nothing is read or written
 
 #### Scenario: Invalid or expired token
 - **WHEN** the token fails verification
 - **THEN** the function responds 401
+
+#### Scenario: Legacy admin entry
+- **WHEN** an entry has `admin: true` and no `role`
+- **THEN** it resolves to the `admin` role and is allowed
 
 ### Requirement: Restricted file names and size
 Editable files SHALL live under `cms/` in the default bucket, names SHALL match letters, digits, `-` or `_` followed by `.json`, and a file SHALL NOT exceed 5 MB.
@@ -43,3 +47,14 @@ Before overwriting an existing file, the function SHALL copy it to `cms-backups/
 #### Scenario: Direct client read
 - **WHEN** a browser SDK tries to read `cms/profile.json`
 - **THEN** access is denied
+
+### Requirement: Admin panel is gated before it is served
+The `/admin` page SHALL be served only to a session whose role holds `cms:write`; every other request SHALL be denied by the route gate defined in `access-control` before any admin page content is sent.
+
+#### Scenario: Logged-out visitor opens /admin
+- **WHEN** a visitor without a session requests `/admin`
+- **THEN** they are redirected to `/` and no admin page content is served
+
+#### Scenario: Signed-in non-admin opens /admin
+- **WHEN** a signed-in `reader`, `user-base` or `user-advanced` requests `/admin`
+- **THEN** they are redirected to `/` and no admin page content is served
