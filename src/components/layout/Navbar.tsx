@@ -16,7 +16,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                     </label>
                 </div>}
                 <div className="min-w-0 sm:pl-6">
-                    <div className="glitch-hover truncate font-display text-lg tracking-wide uppercase sm:text-2xl">{profile.site.brand}</div>
+                    <div className="glitch-hover truncate heading-display text-lg sm:text-2xl">{profile.site.brand}</div>
                 </div>
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">

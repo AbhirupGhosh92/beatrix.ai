@@ -8,9 +8,11 @@
 }
 
 /* light theme: dark pill with light text (the pastel primary is too pale) */
-:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked)) .tabs-box {
-  --pill-bg: var(--color-primary-content);
-  --pill-fg: var(--color-base-100);
+.tabs-box {
+  @variant theme-light {
+    --pill-bg: var(--color-primary-content);
+    --pill-fg: var(--color-base-100);
+  }
 }
 
 .tabs-box > .tab-pill {

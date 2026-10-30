@@ -42,7 +42,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   return (
     <div>
       <p className="font-semibold">{title}</p>
-      <p className="mb-2 text-sm opacity-80">{context}</p>
+      <p className="mb-2 text-meta-strong">{context}</p>
       <figure ref={figureRef} className="diff aspect-16/7 w-full border border-base-300" tabIndex={0}>
         <div className="diff-item-1" role="img" aria-label={`${title}, ${before.label.toLowerCase()}: ${before.value}`}>
           <div className="grid h-full content-center justify-items-start bg-error px-6 text-left text-error-content sm:px-10">

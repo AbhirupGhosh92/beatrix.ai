@@ -12,7 +12,7 @@ export default function DrawerMenu() {
     <div className="drawer-side z-40">
       <label htmlFor="nav-drawer" aria-label={nav.closeSidebarLabel} className="drawer-overlay" />
       <ul className="menu bg-base-200 text-base-content min-h-full w-72 max-w-[85vw] p-4 sm:w-80">
-        <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold border-b border-base-300 mb-2">
+        <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold edge-b mb-2">
           {nav.drawerTitle}
         </div>
         {nav.drawerItems.map((item) => (
@@ -23,7 +23,7 @@ export default function DrawerMenu() {
 
         {/* Admin CMS Section only visible in Burger Menu */}
         <div className="pt-4 border-t border-base-300 mt-4">
-          <div className="px-3 pb-2 text-xs uppercase tracking-wider text-base-content/60 font-semibold">
+          <div className="px-3 pb-2 text-xs uppercase tracking-wider text-muted font-semibold">
             {nav.adminTitle}
           </div>
           <li>

@@ -51,7 +51,7 @@ export default function Home() {
       <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
       <div className="drawer-content flex flex-col min-h-screen">
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
-        <header className="sticky top-0 z-30 border-b border-base-300 bg-base-100/80 backdrop-blur">
+        <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">
             <Navbar isLoggedIn={isLoggedIn} />
           </div>

@@ -91,7 +91,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
           {/* Shimmer / Skeleton placeholders representing upcoming project cards */}
           <div className="grid gap-6 md:grid-cols-3 select-none pointer-events-none filter blur-[2px] opacity-60">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="card border border-base-300 bg-base-200 p-6 flex flex-col justify-between gap-4">
+              <div key={i} className="card surface p-6 flex flex-col justify-between gap-4">
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="skeleton h-5 w-24 rounded" />
@@ -112,10 +112,10 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
 
           {/* Centered overlay containing the Google Sign In CTA */}
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-base-100/75 backdrop-blur-sm p-4 text-center z-10">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-base-200 border border-base-300 shadow-sm">
+            <div className="surface mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full shadow-sm">
               <Lock className="text-brand" size={22} />
             </div>
-            <h3 className="font-display text-xl sm:text-2xl uppercase tracking-wide mb-2">
+            <h3 className="heading-display text-xl sm:text-2xl mb-2">
               {upcoming.lock.title}
             </h3>
             <p className="max-w-md text-sm text-base-content/80 mb-6">
@@ -150,7 +150,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
           {upcoming.items.map((item, idx) => (
             <Reveal key={item.id} delay={idx * 100} className="flex">
               <div className="hover-3d w-full">
-                <div className="card h-full border border-base-300 bg-base-200 transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
+                <div className="card surface h-full transition-[transform,scale,outline-color,border-color] duration-500 hover:border-primary/50">
                   <div className="card-body flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -160,7 +160,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
                         </span>
                       </div>
                       <h3 className="card-title text-xl mb-2">{item.title}</h3>
-                      <p className="text-sm opacity-80">{item.description}</p>
+                      <p className="text-meta-strong">{item.description}</p>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">

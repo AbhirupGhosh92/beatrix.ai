@@ -24,7 +24,7 @@ export default function Experience() {
 
       <div className="mb-12">
         <h3 className="text-xl">{achievements.title}</h3>
-        <p className="mt-1 mb-4 text-sm opacity-80">{achievements.hint}</p>
+        <p className="mt-1 mb-4 text-meta-strong">{achievements.hint}</p>
         <div className="grid gap-6 md:grid-cols-2">
           {achievements.items.map((a, i) => (
             <Reveal key={a.title} delay={i * 80}>
@@ -43,7 +43,7 @@ export default function Experience() {
               <div className="timeline-start mb-10 self-start md:text-end">
                 <time className="font-display text-sm text-brand-2">{role.period}</time>
                 <div className="text-lg font-bold">{role.company}</div>
-                {role.client && <div className="text-sm opacity-70">{role.client}</div>}
+                {role.client && <div className="text-meta">{role.client}</div>}
                 {role.location && (
                   <div className="inline-flex items-center gap-1 text-xs opacity-60">
                     <MapPin size={12} aria-hidden="true" />
@@ -61,7 +61,7 @@ export default function Experience() {
                   <h3 className="mb-3 text-lg">{role.title}</h3>
                   <div className="flex flex-col gap-2">
                     {role.programs.map((program, pi) => (
-                      <div key={program.name} className="collapse-arrow collapse border border-base-300 bg-base-200">
+                      <div key={program.name} className="collapse-arrow collapse surface">
                         <input
                           type="radio"
                           name={`exp-${i}`}

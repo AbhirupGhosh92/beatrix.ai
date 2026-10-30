@@ -29,7 +29,7 @@ export default function NavbarDropdown() {
       </div>
       <ul
         tabIndex={0}
-        className="dropdown-content menu bg-base-200 border border-base-300 z-10 mt-2 w-52 p-2 shadow-lg"
+        className="dropdown-content menu surface z-10 mt-2 w-52 p-2 shadow-lg"
       >
         {nav.dropdownItems.map(({ label, icon }) => {
           const Icon = ICONS[icon]

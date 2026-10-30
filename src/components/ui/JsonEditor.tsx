@@ -172,7 +172,7 @@ export function JsonEditor({ value, onChange, readOnly = false }: JsonEditorProp
         )}
 
         {/* Info hint */}
-        <div className="text-base-content/60 font-mono hidden sm:block">
+        <div className="text-muted font-mono hidden sm:block">
           {viewMode === 'code' ? 'Press Ctrl+F to Search / Replace' : 'Interactive JSON Tree'}
         </div>
       </div>

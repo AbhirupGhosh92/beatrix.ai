@@ -51,9 +51,10 @@
 
 /* Light (cute) theme: the same hover classes play a bouncy jelly wiggle with a
    soft pink glow instead of the glitch. Light = dark toggle unchecked. */
-:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked))
-  :is(.button-glitch:hover:not(:disabled), .glitch-hover:hover) {
-  animation: cute-wiggle 650ms ease-in-out;
+:is(.button-glitch:hover:not(:disabled), .glitch-hover:hover) {
+  @variant theme-light {
+    animation: cute-wiggle 650ms ease-in-out;
+  }
 }
 
 @keyframes cute-wiggle {
@@ -82,7 +83,8 @@
 /* In the light (pastel) theme the primary color is very pale, so using it as
    hover *text* color is unreadable on white. Darken it for text only; the
    glow/tint keep the pale color. Dark theme keeps the neon color as text. */
-:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked))
-  :is(.hover-neon, .hover-subtle) {
-  --hover-text: color-mix(in oklab, var(--hover-color) 45%, black);
+:is(.hover-neon, .hover-subtle) {
+  @variant theme-light {
+    --hover-text: color-mix(in oklab, var(--hover-color) 45%, black);
+  }
 }

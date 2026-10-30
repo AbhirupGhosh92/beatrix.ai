@@ -11,7 +11,7 @@ function Tilt({ children, delay }: { children: ReactNode; delay: number }) {
   return (
     <Reveal delay={delay} className="flex">
       <div className="hover-3d w-full">
-        <div className="card h-full border border-base-300 bg-base-200">
+        <div className="card surface h-full">
           <div className="card-body">{children}</div>
         </div>
         {Array.from({ length: 8 }, (_, i) => (
@@ -77,7 +77,7 @@ export default function BeyondCode() {
           </div>
           <div className="card-actions items-center gap-2">
             <span className="loading loading-dots text-brand-3" />
-            <span className="text-sm opacity-70">{coding.loading}</span>
+            <span className="text-meta">{coding.loading}</span>
           </div>
         </Tilt>
       </div>
