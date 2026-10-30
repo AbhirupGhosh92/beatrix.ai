@@ -145,6 +145,7 @@ has no cloud access and no token permissions. It exists only to hold the run unt
 | Terraform resources | Plan diff | Terraform only changes resources whose configuration or state differs. A no-op plan applies nothing. |
 | Stateful resources | `prevent_destroy`, delete protection, plan guard | Firestore database, CMS bucket and App Hosting backend cannot be destroyed or replaced by a deploy. |
 | Firestore documents | Not touched by deploys | The only documents Terraform manages are `allowed_emails/<email>` entries listed in `allowed_admin_emails`. Removing an email from the tfvars deletes that document, which the plan guard blocks unless `allow_destructive` is set. |
+| User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (`registerUser`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
 | Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
 | Security rules | Component hash | Skipped when the rule files are unchanged. |

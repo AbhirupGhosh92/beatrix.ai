@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { FolderKanban, Lock, CheckCircle2 } from 'lucide-react'
 import { signInWithPopup, signOut } from 'firebase/auth'
 import { getFirebaseAuth, getGoogleProvider, isEmailAllowed } from '../../lib/firebase.ts'
+import { registerCurrentUser } from '../../lib/register-user.ts'
 import { useProfile } from '../layout/ProfileProvider.tsx'
 import SectionHeading from '../ui/SectionHeading.tsx'
 import Reveal from '../ui/Reveal.tsx'
@@ -60,6 +61,7 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
     try {
       const credential = await signInWithPopup(auth, getGoogleProvider())
       const user = credential.user
+      await registerCurrentUser()
       const allowed = await isEmailAllowed(user.email)
 
       if (!allowed) {

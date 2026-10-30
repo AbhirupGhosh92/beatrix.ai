@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirebaseAuth, isEmailAllowed } from '../lib/firebase.ts'
+import { registerCurrentUser } from '../lib/register-user.ts'
 import Navbar from '../components/layout/Navbar.tsx'
 import DrawerMenu from '../components/layout/DrawerMenu.tsx'
 import Hero from '../components/sections/Hero.tsx'
@@ -27,6 +28,7 @@ export default function Home() {
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        await registerCurrentUser()
         const allowed = await isEmailAllowed(user.email)
         if (allowed) {
           setIsLoggedIn(true)
