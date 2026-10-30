@@ -12,7 +12,7 @@ labels: bug
 bug
 
 ## Background / Context
-<!-- Where it happens (page, component, environment: dev/staging/production), and when it started if known. -->
+<!-- Where it happens (page, component, environment: dev/staging/prod), and when it started if known. -->
 
 ## Steps to reproduce
 1.

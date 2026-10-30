@@ -6,9 +6,9 @@ Beatrix.ai runs in up to three Firebase/GCP projects, all built from this Terraf
 |---|---|---|
 | `dev` | `environments/dev.tfvars` | automatically on every push to `main` |
 | `staging` | `environments/staging.tfvars` | automatically on every push to `main`, after dev succeeds |
-| `production` | `environments/production.tfvars` (add when the project exists) | **only manually**: Actions > Deploy > Run workflow > `production` + ref |
+| `prod` | `environments/prod.tfvars` | **only manually**: Actions > Deploy > Run workflow > `prod` + ref |
 
-`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` runs `terraform apply`, then `scripts/deploy-backend.sh` (Cloud Functions, Firestore/Storage rules and the App Hosting site from source). An environment whose GitHub environment has no variables yet is skipped with a notice, so merging is safe before staging or production exist.
+`.github/workflows/deploy.yml` drives this. Each run of `.github/workflows/deploy-environment.yml` runs `terraform apply`, then `scripts/deploy-backend.sh` (Cloud Functions, Firestore/Storage rules and the App Hosting site from source). An environment whose GitHub environment has no variables yet is skipped with a notice, so merging is safe before staging or prod exist.
 
 ## Runbook: provisioning an environment (agents MUST follow this)
 
@@ -29,7 +29,7 @@ The manual steps, in the order the script asks for them:
 | 4 | Firebase console > Storage > **Get started** (creates `<project>.firebasestorage.app`, which the functions read) | `env-preflight.sh post` |
 | 5 | Firebase console > Authentication > **Get started**, then enable the **Google** provider | `env-preflight.sh post` |
 | 6 | Authentication > Settings > Authorized domains: add the App Hosting domain the script prints | `env-preflight.sh post` |
-| 7 | Production only: in GitHub Settings > Environments > `production`, add yourself as a required reviewer (optional extra gate) | not checked |
+| 7 | Prod only: in GitHub Settings > Environments > `prod`, add yourself as a required reviewer (optional extra gate) | not checked |
 
 Everything else is automated by the script: the Terraform state bucket (`gs://<project>-tfstate`, the one bootstrap resource outside Terraform), `terraform apply`, `.env.local` (dev only), seeding `cms/profile.json` into the default Storage bucket (skipped when it already exists), deploying functions, rules and App Hosting, and writing the GitHub environment variables for CI (`scripts/sync-github-env.sh`).
 
@@ -38,7 +38,7 @@ Run only the checks with `npm run infra:preflight -- <env> [pre|post]`.
 ## What Terraform manages
 
 - **APIs** for Firebase, Firestore, Storage, Cloud Functions v2, Cloud Run, Cloud Build, Artifact Registry, App Hosting, Identity Toolkit, IAM and STS.
-- **Firebase project and web app**, **Firestore** `(default)` (abandoned rather than deleted on destroy in production), the `<project>-cms-<env>` bucket (not used by the code today; the functions use the default Storage bucket), and the **security rules**.
+- **Firebase project and web app**, **Firestore** `(default)` (abandoned rather than deleted on destroy in prod), the `<project>-cms-<env>` bucket (not used by the code today; the functions use the default Storage bucket), and the **security rules**.
 - **CMS admins**: one `allowed_emails/{email}` document with `admin: true` per `allowed_admin_emails` entry.
 - **App Hosting**: backend `beatrix-web` (must match `backendId` in `firebase.json`) with no GitHub connection, running as `firebase-app-hosting-compute@<project>`, the only identity allowed to invoke the Cloud Functions. `developer_members` may impersonate it for local development. The web app config reaches the build as `FIREBASE_WEBAPP_CONFIG`, which `next.config.ts` maps to the `NEXT_PUBLIC_FIREBASE_*` variables.
 - **CI identity**: Workload Identity pool `github` that accepts only this repository's jobs running in the GitHub environment with the same name, and the `github-deployer` service account they act as. No keys.
