@@ -7,6 +7,8 @@ import {
   TEMPLATE_SPACINGS,
   type ResumeConfig,
   type ResumeTemplate,
+  type TrackerConfig,
+  type TrackerStatus,
 } from '../data/resumeConfig.ts'
 import { isObject, type Json } from './jsonDefaults.ts'
 import { FIELD_TYPES, validateStructure, type FieldType, type StructureRules, type Structure } from './resumeValidation.ts'
@@ -53,6 +55,37 @@ export function validTemplate(value: unknown): value is ResumeTemplate {
   )
 }
 
+const STATUS_ID = /^[a-z][a-z0-9_-]{0,31}$/
+
+function validStatus(value: unknown): value is TrackerStatus {
+  return (
+    isObject(value) &&
+    typeof value.id === 'string' &&
+    STATUS_ID.test(value.id) &&
+    typeof value.label === 'string' &&
+    value.label.trim() !== '' &&
+    value.label.length <= 40
+  )
+}
+
+/** A bad statuses list or limit falls back to the example's; one broken value never breaks the page. */
+export function sanitizeTracker(value: unknown, fallback: TrackerConfig, warn: (message: string) => void = () => {}): TrackerConfig {
+  const stored = isObject(value) ? value : {}
+  const ids = new Set<string>()
+  const valid = Array.isArray(stored.statuses) ? stored.statuses.filter((s): s is TrackerStatus => validStatus(s) && !ids.has(s.id) && !!ids.add(s.id)) : []
+  const statuses = valid.length > 0 && valid.length === (stored.statuses as unknown[]).length ? valid : fallback.statuses
+  if (statuses === fallback.statuses && stored.statuses !== fallback.statuses) warn('resume-config: invalid tracker.statuses, using the example.')
+  const num = (key: Exclude<keyof TrackerConfig, 'statuses'>, min: number, max: number) => (isInt(stored[key], min, max) ? stored[key] : fallback[key])
+  return {
+    statuses,
+    maxApplications: num('maxApplications', 1, 100_000),
+    maxNotesLength: num('maxNotesLength', 1, 20_000),
+    maxLabels: num('maxLabels', 1, 50),
+    maxLabelLength: num('maxLabelLength', 1, 100),
+    maxTailorBytes: num('maxTailorBytes', 1_000, 1_000_000),
+  }
+}
+
 /** `merged` is the stored file already merged over the example; `fallback` is the example. */
 export function sanitizeResumeConfig(merged: Json, fallback: ResumeConfig, warn: (message: string) => void = () => {}): ResumeConfig {
   const rules = validRules(merged.structureRules) ? merged.structureRules : fallback.structureRules
@@ -79,5 +112,7 @@ export function sanitizeResumeConfig(merged: Json, fallback: ResumeConfig, warn:
     templates.push(template)
   }
 
-  return { limits: { baseMaxResumes: limits }, structureRules: rules, defaultStructure: structure, templates }
+  const tracker = sanitizeTracker(merged.tracker, fallback.tracker, warn)
+
+  return { limits: { baseMaxResumes: limits }, structureRules: rules, defaultStructure: structure, templates, tracker }
 }

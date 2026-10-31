@@ -33,6 +33,24 @@ export interface ResumeTemplate {
   style: TemplateStyle
 }
 
+export interface TrackerStatus {
+  /** Stored on each application; keep it stable and change only the label. */
+  id: string
+  label: string
+}
+
+/** Job tracker settings; they live in the resume config so the CMS lists one file. */
+export interface TrackerConfig {
+  statuses: TrackerStatus[]
+  /** Safety limit on applications per owner (not a product cap). */
+  maxApplications: number
+  maxNotesLength: number
+  maxLabels: number
+  maxLabelLength: number
+  /** Largest tailor JSON (serialized) an application may hold. */
+  maxTailorBytes: number
+}
+
 export interface ResumeConfig {
   limits: {
     /** Resumes a base user may hold; advanced users have no cap. */
@@ -42,4 +60,5 @@ export interface ResumeConfig {
   /** The structure every base user fills in (the standard resume_structure). */
   defaultStructure: Structure
   templates: ResumeTemplate[]
+  tracker: TrackerConfig
 }

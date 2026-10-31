@@ -21,6 +21,14 @@ export const status = onRequest({ invoker: [SITE_SERVER_ACCOUNT] }, (request, re
 export { getProfile } from "./profile";
 export { getResumeConfig } from "./resumeConfig";
 export { resumeList, resumeGet, resumeCreate, resumeSave, resumeDelete } from "./resumes";
+export {
+  applicationList,
+  applicationGet,
+  applicationCreate,
+  applicationUpdate,
+  applicationDelete,
+  applicationCreateResume,
+} from "./applications";
 export { adminListResumeOwners, adminPurgeResumeOwner } from "./resumeAdmin";
 export { adminListFiles, adminGetFile, adminSaveFile } from "./admin";
 export { sessionCreate, sessionVerify } from "./session";

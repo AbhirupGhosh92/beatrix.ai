@@ -459,6 +459,13 @@
         "href": "/resume-builder",
         "icon": "file-text",
         "enabled": false
+      },
+      {
+        "id": "job-tracker",
+        "label": "Job tracker",
+        "href": "/job-tracker",
+        "icon": "briefcase",
+        "enabled": false
       }
     ],
     "dropdownItems": [

@@ -29,7 +29,7 @@ A deployment changes **only what the release changes**. Specifically:
 |---|---|
 | Firestore data (including `allowed_emails`) | Never deleted or replaced by a deploy. The database has delete protection, `prevent_destroy`, `ABANDON` on destroy and 7-day point-in-time recovery. A plan that would delete or replace it fails before anything is applied. |
 | CMS files (`cms/profile.json`, `cms-backups/`) | Never written by a deploy. They are copied to a timestamped backup first, and both buckets keep old versions. |
-| User resumes (`gs://<project>-resumes`, Firestore `resume_owners`, `resume_audit`) | Never written, deleted or snapshotted by a deploy. The bucket is protected like the other stateful resources and keeps old versions for 30 days (section 10.1b). The pre-deploy snapshot and `harden-buckets.sh` only handle the state and CMS buckets, so personal resume data is never copied into the state bucket. |
+| User resumes and job applications (`gs://<project>-resumes`, Firestore `resume_owners`, `application_owners`, `resume_audit`) | Never written, deleted or snapshotted by a deploy. The bucket is protected like the other stateful resources and keeps old versions for 30 days (section 10.1b). The pre-deploy snapshot and `harden-buckets.sh` only handle the state and CMS buckets, so personal resume data is never copied into the state bucket. Job applications are Firestore documents under `application_owners/<email>/applications`, so they are covered by the database protections above (delete protection, 7-day point-in-time recovery) and are never written by a deploy. |
 | Cloud Functions | Redeployed only when `functions/` (or the `functions` block of `firebase.json`) changed. The Firebase CLI is run **without** `--force`, so it refuses to delete a function that is missing from the source instead of deleting it. |
 | Security rules | Redeployed only when `firestore.rules`, `storage.rules` or their `firebase.json` entries changed. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
@@ -190,7 +190,7 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | Firestore documents | Not touched by deploys | The only documents Terraform manages are `allowed_emails/<email>` entries listed in `allowed_admin_emails`. Removing an email from the tfvars deletes that document, which the plan guard blocks unless `allow_destructive` is set. |
 | User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
-| User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. |
+| User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. Job applications (`application_owners/<email>/applications`, written only by the `application*` functions) follow the Firestore rows above: no new bucket, rule, Terraform resource or deploy component is involved, and they deploy with the `functions` component. |
 | Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
 | Security rules | Component hash | Skipped when the rule files are unchanged. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
@@ -396,13 +396,13 @@ After restoring a deleted resume, correct that owner's `resume_owners/<email>` d
 Firestore so the cap counts it.
 
 **Revoked users keep their data.** Revoking access never deletes resumes; restoring access returns them
-unchanged. `/admin/access` shows a "Resume data without access" table (functions `adminListResumeOwners`
+unchanged. `/admin/access` shows a "Resume and application data without access" table (functions `adminListResumeOwners`
 and `adminPurgeResumeOwner`, `cms:write` only) listing owners whose access is revoked or whose
-`allowed_emails` entry is gone, with email, resume count, size and last change, never any content.
+`allowed_emails` entry is gone, with email, resume count, application count, size and last change, never any content (no titles, companies, notes or tailor JSON).
 Its **Delete data** button is a **hard delete**: after the admin types the owner's email it removes every
-stored version of every resume of that owner, so the 30-day recovery above does not apply to it. The
+stored version of every resume of that owner and all of their job applications (the `application_owners/<email>` document and its `applications` subcollection), so the 30-day recovery above does not apply to it; for the applications only the database's 7-day point-in-time recovery could still help an operator. The
 functions refuse an owner who still has access, delete nothing when the typed email does not match, and
-record each purge (admin, owner, time, number of files) in the Firestore collection `resume_audit`.
+record each purge (admin, owner, time, number of files, number of applications) in the Firestore collection `resume_audit`.
 These routes are not tied to the `resume-builder` menu flag, so orphaned data stays removable while the
 feature is switched off.
 
