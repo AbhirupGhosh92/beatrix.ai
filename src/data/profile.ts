@@ -47,7 +47,7 @@ export interface Achievement {
   solutions: string[]
 }
 
-export type DrawerIcon = 'file-text' | 'circle'
+export type DrawerIcon = 'file-text' | 'briefcase' | 'circle'
 
 /** A drawer menu entry. `enabled` is the on/off switch; the route's permission lives in access.ts. */
 export interface DrawerItem {

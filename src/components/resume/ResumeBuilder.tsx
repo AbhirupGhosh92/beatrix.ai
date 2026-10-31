@@ -28,6 +28,9 @@ export default function ResumeBuilder() {
         if (ignore) return
         setConfig(builderConfig)
         setResumes(list)
+        // Deep link from the job tracker: /resume-builder?open=<id> opens that resume.
+        const wanted = new URLSearchParams(window.location.search).get('open')
+        if (wanted && list.some((resume) => resume.id === wanted)) setOpenId(wanted)
       })
       .catch((err: unknown) => {
         if (!ignore) setError(err instanceof Error ? err.message : 'Could not load the resume builder.')

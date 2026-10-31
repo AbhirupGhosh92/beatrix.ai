@@ -65,6 +65,8 @@ const ROUTE_PERMISSIONS: readonly (readonly [prefix: string, permission: Permiss
   ['/api/admin', 'cms:write'],
   ['/resume-builder', 'features:basic'],
   ['/api/resumes', 'features:basic'],
+  ['/job-tracker', 'features:basic'],
+  ['/api/applications', 'features:basic'],
 ]
 
 /**
@@ -75,6 +77,8 @@ const ROUTE_PERMISSIONS: readonly (readonly [prefix: string, permission: Permiss
 const FEATURE_ROUTES: readonly (readonly [prefix: string, itemId: string])[] = [
   ['/resume-builder', 'resume-builder'],
   ['/api/resumes', 'resume-builder'],
+  ['/job-tracker', 'job-tracker'],
+  ['/api/applications', 'job-tracker'],
 ]
 
 const DEFAULT_PERMISSION: Permission = 'site:view'
