@@ -23,7 +23,7 @@ export const OWNERS = "resume_owners";
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_TITLE = 80;
 
-interface Config {
+export interface Config {
   baseMaxResumes: number;
   rules: StructureRules;
   defaultStructure: Structure;
@@ -43,7 +43,7 @@ const ownerHash = (email: string) => createHash("sha256").update(email).digest("
 export const prefixOf = (email: string) => `owners/${ownerHash(email)}/`;
 export const ownerRef = (email: string) => db().doc(`${OWNERS}/${email}`);
 
-function readConfig(value: unknown): Config {
+export function readConfig(value: unknown): Config {
   const c = value as Partial<Config> | null;
   if (
     !c ||
@@ -57,7 +57,7 @@ function readConfig(value: unknown): Config {
   return c as Config;
 }
 
-function resumeFile(email: string, id: unknown) {
+export function resumeFile(email: string, id: unknown) {
   if (typeof id !== "string" || !ID.test(id)) throw new ApiError(404, "Resume not found.");
   return resumesBucket().file(`${prefixOf(email)}${id}.json`);
 }
@@ -70,7 +70,7 @@ function title(value: unknown): string {
 }
 
 /** Base users use the default structure; roles with features:advanced may keep their own. */
-const canCustomize = (role: Role) => can(role, "features:advanced");
+export const canCustomize = (role: Role) => can(role, "features:advanced");
 
 function problems(list: string[], message: string): never {
   throw new ApiError(400, `${message} ${list.slice(0, 3).join(" ")}`.trim());
@@ -111,23 +111,31 @@ export const resumeGet = privateEndpoint(async (body) => {
   return { resume, generation: String(meta.generation) };
 });
 
-/** Creates a resume. The cap is reserved in a transaction so parallel creates cannot exceed it. */
-export const resumeCreate = privateEndpoint(async (body) => {
-  const { email, role } = await requireSession(body.cookie, "features:basic");
-  const config = readConfig(body.config);
-  const name = title(body.title);
+export interface NewResume {
+  title?: unknown;
+  structure?: unknown;
+  data?: unknown;
+}
+
+/**
+ * Creates a resume for a verified owner. The cap is reserved in a transaction so parallel creates
+ * cannot exceed it. Shared by `resumeCreate` and the job tracker's tailored resumes, so both count
+ * against the same cap.
+ */
+export async function createResumeFor(email: string, role: Role, config: Config, input: NewResume) {
+  const name = title(input.title);
 
   let structure: Structure | null = null;
-  if (body.structure !== undefined && body.structure !== null) {
+  if (input.structure !== undefined && input.structure !== null) {
     if (!canCustomize(role)) throw new ApiError(400, "Your role uses the default structure.");
-    const errors = validateStructure(body.structure, config.rules);
+    const errors = validateStructure(input.structure, config.rules);
     if (errors.length) problems(errors, "Invalid structure.");
-    structure = body.structure as Structure;
+    structure = input.structure as Structure;
   } else if (canCustomize(role)) {
     structure = config.defaultStructure; // advanced users get their own editable copy
   }
   const used = structure ?? config.defaultStructure;
-  const data = (body.data ?? emptyData(used)) as unknown;
+  const data = (input.data ?? emptyData(used)) as unknown;
   const errors = checkDraft(used, data, config.rules);
   if (errors.length) problems(errors, "Invalid resume.");
 
@@ -168,6 +176,11 @@ export const resumeCreate = privateEndpoint(async (body) => {
   }
   const [meta] = await resumeFile(email, id).getMetadata();
   return { resume: stored, generation: String(meta.generation) };
+}
+
+export const resumeCreate = privateEndpoint(async (body) => {
+  const { email, role } = await requireSession(body.cookie, "features:basic");
+  return createResumeFor(email, role, readConfig(body.config), body);
 });
 
 /** Saves a draft. `generation` must match the stored version, so a stale tab cannot overwrite. */

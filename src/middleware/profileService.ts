@@ -28,7 +28,7 @@ function normalizeDrawerItems(items: unknown): DrawerItem[] {
       id: typeof o.id === 'string' ? o.id : `item-${index}`,
       label: typeof o.label === 'string' ? o.label : '',
       href: typeof o.href === 'string' ? o.href : '',
-      icon: o.icon === 'file-text' ? 'file-text' : 'circle',
+      icon: o.icon === 'file-text' || o.icon === 'briefcase' ? o.icon : 'circle',
       enabled: o.enabled === true,
     }
   })

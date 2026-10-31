@@ -97,5 +97,21 @@
       "layout": "sidebar",
       "style": { "font": "sans", "baseSize": 10, "accent": "#7c3aed", "spacing": "compact" }
     }
-  ]
+  ],
+  "tracker": {
+    "statuses": [
+      { "id": "saved", "label": "Saved" },
+      { "id": "applied", "label": "Applied" },
+      { "id": "interview", "label": "Interview" },
+      { "id": "offer", "label": "Offer" },
+      { "id": "rejected", "label": "Rejected" },
+      { "id": "withdrawn", "label": "Withdrawn" }
+    ],
+    "baseMaxApplications": 3,
+    "maxApplications": 500,
+    "maxNotesLength": 2000,
+    "maxLabels": 10,
+    "maxLabelLength": 30,
+    "maxTailorBytes": 100000
+  }
 }

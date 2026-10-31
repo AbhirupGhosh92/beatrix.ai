@@ -109,6 +109,12 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── users/
 │   │   │       └── route.ts
+│   │   ├── applications/
+│   │   │   ├── route.ts
+│   │   │   └── [id]/
+│   │   │       ├── route.ts
+│   │   │       └── resume/
+│   │   │           └── route.ts
 │   │   ├── auth/
 │   │   │   ├── me/
 │   │   │   │   └── route.ts
@@ -120,12 +126,20 @@ src/
 │   │       │   └── route.ts
 │   │       └── config/
 │   │           └── route.ts
+│   ├── job-tracker/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   └── resume-builder/
 │       ├── layout.tsx
 │       └── page.tsx
 ├── components/
 │   ├── admin/
 │   │   └── OrphanedResumes.tsx
+│   ├── jobs/
+│   │   ├── ApplicationForm.tsx
+│   │   ├── ApplicationTable.tsx
+│   │   ├── JobTracker.tsx
+│   │   └── LabelInput.tsx
 │   ├── layout/
 │   │   ├── AdminNav.tsx
 │   │   ├── BackToTop.tsx
@@ -173,6 +187,9 @@ src/
 │   └── useInView.ts
 ├── lib/
 │   ├── access.ts
+│   ├── applicationClient.ts
+│   ├── applicationTypes.ts
+│   ├── applicationView.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── jsonDefaults.ts
@@ -191,6 +208,7 @@ src/
 │       └── toPdf.ts
 ├── middleware/
 │   ├── adminService.ts
+│   ├── applicationService.ts
 │   ├── cloudFunctions.ts
 │   ├── profileService.ts
 │   ├── releaseService.ts

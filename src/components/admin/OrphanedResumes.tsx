@@ -6,7 +6,9 @@ import { getIdToken } from '../../lib/firebase.ts'
 
 interface Owner {
   email: string
+  /** Resumes. */
   count: number
+  applications: number
   bytes: number
   updatedAt: string | null
 }
@@ -16,7 +18,7 @@ interface Props {
 }
 
 // Same pattern as the other admin screens: only this site's /api/admin routes are called, with the
-// Firebase ID token. The list holds no resume content, only who owns data and how much.
+// Firebase ID token. The list holds no resume or application content, only who owns data and how much.
 async function api<T>(init: { method?: string; body?: object } = {}): Promise<T> {
   const token = await getIdToken()
   const res = await fetch('/api/admin/resumes', {
@@ -49,7 +51,7 @@ export default function OrphanedResumes({ notify }: Props) {
       setOwners([...data.owners].sort((a, b) => a.email.localeCompare(b.email)))
       setTruncated(data.truncated)
     } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Could not load resume data owners')
+      notify('error', err instanceof Error ? err.message : 'Could not load data owners')
     } finally {
       setLoading(false)
     }
@@ -64,7 +66,7 @@ export default function OrphanedResumes({ notify }: Props) {
         setTruncated(data.truncated)
       })
       .catch((err: unknown) => {
-        if (!ignore) notify('error', err instanceof Error ? err.message : 'Could not load resume data owners')
+        if (!ignore) notify('error', err instanceof Error ? err.message : 'Could not load data owners')
       })
       .finally(() => {
         if (!ignore) setLoading(false)
@@ -77,8 +79,8 @@ export default function OrphanedResumes({ notify }: Props) {
   async function purge(email: string) {
     setBusy(true)
     try {
-      const result = await api<{ deletedObjects: number }>({ method: 'POST', body: { email, confirmEmail: typed } })
-      notify('success', `Deleted ${result.deletedObjects} stored files for ${email}`)
+      const result = await api<{ deletedObjects: number; deletedApplications: number }>({ method: 'POST', body: { email, confirmEmail: typed } })
+      notify('success', `Deleted ${result.deletedObjects} stored files and ${result.deletedApplications} applications for ${email}`)
       setConfirming(null)
       setTyped('')
       await load()
@@ -94,10 +96,10 @@ export default function OrphanedResumes({ notify }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="orphans-heading" className="heading-display text-lg font-bold text-brand">
-            Resume data without access
+            Resume and application data without access
           </h2>
           <p className="text-meta">
-            Resumes kept for users who were revoked or removed. You can see who owns data and how much, never its content.
+            Resumes and job applications kept for users who were revoked or removed. You can see who owns data and how much, never its content.
           </p>
         </div>
         <button type="button" className="button-secondary btn-sm" onClick={() => void load()} disabled={loading}>
@@ -110,7 +112,7 @@ export default function OrphanedResumes({ notify }: Props) {
           <Loader2 className="animate-spin" size={16} /> Loading...
         </p>
       ) : owners.length === 0 ? (
-        <p className="mt-4 text-muted">No resume data is left behind by users without access.</p>
+        <p className="mt-4 text-muted">No resume or application data is left behind by users without access.</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="table">
@@ -118,6 +120,7 @@ export default function OrphanedResumes({ notify }: Props) {
               <tr>
                 <th>Email</th>
                 <th>Resumes</th>
+                <th>Applications</th>
                 <th>Size</th>
                 <th>Last change</th>
                 <th />
@@ -128,13 +131,14 @@ export default function OrphanedResumes({ notify }: Props) {
                 <tr key={owner.email}>
                   <td className="font-semibold">{owner.email}</td>
                   <td>{owner.count}</td>
+                  <td>{owner.applications}</td>
                   <td>{formatBytes(owner.bytes)}</td>
                   <td>{owner.updatedAt ? new Date(owner.updatedAt).toLocaleString() : '-'}</td>
                   <td className="min-w-72">
                     {confirming === owner.email ? (
                       <div className="flex flex-col gap-2">
                         <p className="text-sm text-error">
-                          This permanently deletes every resume and older version. It cannot be undone.
+                          This permanently deletes every resume, older version and job application. It cannot be undone.
                         </p>
                         <input
                           className="input input-bordered input-sm w-full"
