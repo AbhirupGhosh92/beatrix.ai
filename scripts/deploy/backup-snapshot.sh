@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
+
 # ==============================================================================
 # Copy the CMS files to a timestamped backup before a deployment changes anything.
 #
@@ -18,8 +20,13 @@ STATE_BUCKET="${1:?Usage: backup-snapshot.sh <state_bucket> <cms_bucket> <git_sh
 CMS_BUCKET="${2:?Usage: backup-snapshot.sh <state_bucket> <cms_bucket> <git_sha>}"
 GIT_SHA="${3:?Usage: backup-snapshot.sh <state_bucket> <cms_bucket> <git_sha>}"
 
+step_start "Snapshot the CMS files"
+info "from: gs://${CMS_BUCKET}/cms/ and cms-backups/"
+info "to:   gs://${STATE_BUCKET}/backups/ (adds objects only; nothing is modified or deleted)"
+
 if ! gcloud storage buckets describe "gs://${CMS_BUCKET}" &>/dev/null; then
-  echo "::notice::CMS bucket gs://${CMS_BUCKET} does not exist yet; nothing to back up."
+  decision "snapshot" "CMS bucket gs://${CMS_BUCKET} does not exist yet, nothing to back up"
+  step_end
   exit 0
 fi
 
@@ -27,7 +34,7 @@ DEST="gs://${STATE_BUCKET}/backups/$(date -u +%Y%m%dT%H%M%SZ)-${GIT_SHA:0:7}/sto
 copied=0
 for prefix in cms cms-backups; do
   if [[ -n "$(gcloud storage ls "gs://${CMS_BUCKET}/${prefix}/" 2>/dev/null | head -n 1)" ]]; then
-    echo "==> Backing up gs://${CMS_BUCKET}/${prefix}/ to ${DEST}/${prefix}/"
+    decision "copy ${prefix}/" "files found, copying to ${DEST}/${prefix}/"
     # Explicit destination, so the copy lands in ${DEST}/${prefix}/ whether or not ${DEST} exists yet.
     gcloud storage cp --recursive "gs://${CMS_BUCKET}/${prefix}" "${DEST}/${prefix}"
     copied=1
@@ -35,7 +42,10 @@ for prefix in cms cms-backups; do
 done
 
 if [[ "${copied}" -eq 0 ]]; then
-  echo "::notice::No CMS files in gs://${CMS_BUCKET} yet; nothing to back up."
+  decision "snapshot" "no CMS files in gs://${CMS_BUCKET} yet, nothing to back up"
+  step_end
   exit 0
 fi
+result "snapshot written to ${DEST}"
+step_end
 echo "backup=${DEST}"

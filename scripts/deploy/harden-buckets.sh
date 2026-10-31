@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
+
 # ==============================================================================
 # Make sure the buckets that hold state and CMS data keep old object versions, so an
 # overwritten or deleted file can be restored. Only ever turns protection ON; it never
@@ -37,29 +39,31 @@ apply_lifecycle() { # $1 bucket, $2 json file
   gcloud storage buckets update "gs://$1" --lifecycle-file="$2"
 }
 
-echo "==> Checking bucket protection"
+step_start "Protect buckets (versioning, retention)"
+info "state bucket: gs://${STATE_BUCKET}"
+info "CMS bucket:   gs://${CMS_BUCKET}"
+info "This step only turns protection ON. It never changes or deletes objects."
 
 if ! state_json="$(describe "${STATE_BUCKET}" 2>/dev/null)"; then
-  echo "::error::State bucket gs://${STATE_BUCKET} cannot be read. Run ./scripts/recreate-environment.sh first."
-  exit 1
+  fail "State bucket gs://${STATE_BUCKET} cannot be read." "run ./scripts/recreate-environment.sh <env> first"
 fi
 
 if json_versioning_on <<<"${state_json}"; then
-  echo "    gs://${STATE_BUCKET}: versioning already on"
+  decision "state bucket versioning" "already on, nothing to do"
 else
-  echo "    gs://${STATE_BUCKET}: enabling versioning"
+  decision "state bucket versioning" "off, enabling"
   gcloud storage buckets update "gs://${STATE_BUCKET}" --versioning
 fi
 
 if ! json_pap_enforced <<<"${state_json}"; then
-  echo "    gs://${STATE_BUCKET}: enforcing public access prevention"
+  decision "state bucket public access prevention" "not enforced, enforcing"
   gcloud storage buckets update "gs://${STATE_BUCKET}" --public-access-prevention
 fi
 
 # Saved plans are only needed until the run that made them finishes; backups are kept 90 days.
 # Matches by prefix, so Terraform state objects are never expired.
 if ! json_has_lifecycle <<<"${state_json}"; then
-  echo "    gs://${STATE_BUCKET}: adding retention for deploy/plans/ (7 days) and backups/ (90 days)"
+  decision "state bucket retention" "no lifecycle configured, adding deploy/plans/ 7 days and backups/ 90 days"
   tmp="$(mktemp)"
   cat > "${tmp}" <<'JSON'
 {"rule": [
@@ -76,13 +80,13 @@ fi
 err="$(mktemp)"
 if cms_json="$(describe "${CMS_BUCKET}" 2>"${err}")"; then
   if json_versioning_on <<<"${cms_json}"; then
-    echo "    gs://${CMS_BUCKET}: versioning already on"
+    decision "CMS bucket versioning" "already on, nothing to do"
   else
-    echo "    gs://${CMS_BUCKET}: enabling versioning"
+    decision "CMS bucket versioning" "off, enabling"
     gcloud storage buckets update "gs://${CMS_BUCKET}" --versioning
   fi
   if ! json_has_lifecycle <<<"${cms_json}"; then
-    echo "    gs://${CMS_BUCKET}: adding rule to delete noncurrent versions after 90 days"
+    decision "CMS bucket retention" "no lifecycle configured, adding noncurrent versions deleted after 90 days"
     tmp="$(mktemp)"
     cat > "${tmp}" <<'JSON'
 {"rule": [{"action": {"type": "Delete"}, "condition": {"daysSinceNoncurrentTime": 90}}]}
@@ -91,12 +95,12 @@ JSON
     rm -f "${tmp}"
   fi
 elif grep -qiE '404|not found|does not exist' "${err}"; then
-  echo "    gs://${CMS_BUCKET}: not created yet, skipped"
+  decision "CMS bucket" "not created yet (Firebase Storage Get started), skipped"
 else
-  echo "::error::Cannot read gs://${CMS_BUCKET}:"
-  cat "${err}"
+  cat "${err}" >&2
   rm -f "${err}"
-  exit 1
+  fail "Cannot read gs://${CMS_BUCKET}." "check the deployer service account's Storage permissions"
 fi
 rm -f "${err}"
-echo "==> Bucket protection OK"
+result "bucket protection is in place"
+step_end

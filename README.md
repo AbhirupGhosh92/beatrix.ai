@@ -234,7 +234,7 @@ Themes are defined in `src/styles/tokens/themes.css` with `@plugin "daisyui/them
 
 ## Infrastructure Automation (Terraform)
 
-Infrastructure for lower environments (`dev`, `staging`, etc.) is fully automated using Terraform in the `terraform/` directory:
+Infrastructure for the `dev` and `prod` environments is fully automated using Terraform in the `terraform/` directory:
 
 ```bash
 # Recreate infrastructure for dev environment:

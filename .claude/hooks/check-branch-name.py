@@ -29,10 +29,30 @@ PATTERN = re.compile(
 )
 LONG_LIVED = {"main", "develop"}
 OPERATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
+# Redirections as shlex splits them: ">", ">>", ">&", "<", "<<", "<<<", "&>", "&>>", "|&".
+# `2>&1` arrives as "2", ">&", "1" and `> file` as ">", "file".
+REDIRECTION = re.compile(r"^(&>>?|[<>][<>&|]*)$")
 # git global options that consume a following argument
 GIT_GLOBAL_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 # git push options that consume a following argument
 PUSH_WITH_ARG = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+
+
+def strip_redirections(tokens):
+    """Drop redirections (operator, target and a leading fd number) from one command's tokens.
+
+    Without this, `git push -u origin feature/1-x 2>&1` would offer "2" and "1" as branch names.
+    """
+    out, i = [], 0
+    while i < len(tokens):
+        if REDIRECTION.match(tokens[i]):
+            if out and out[-1].isdigit():
+                out.pop()  # the fd in `2>file` or `2>&1`
+            i += 2  # the operator and its target (file, fd, or heredoc word)
+            continue
+        out.append(tokens[i])
+        i += 1
+    return out
 
 
 def split_commands(command):
@@ -45,12 +65,12 @@ def split_commands(command):
         for tok in lexer:
             if tok in OPERATORS:
                 if current:
-                    commands.append(current)
+                    commands.append(strip_redirections(current))
                 current = []
             else:
                 current.append(tok)
         if current:
-            commands.append(current)
+            commands.append(strip_redirections(current))
     return commands
 
 

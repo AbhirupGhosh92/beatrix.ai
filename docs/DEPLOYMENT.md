@@ -1,6 +1,6 @@
 # Deployment
 
-How Beatrix.ai is deployed to `dev`, `staging` and `prod`, why it is safe, and how to operate it.
+How Beatrix.ai is deployed to `dev` and `prod`, why it is safe, and how to operate it.
 Read this before you deploy, change a workflow, or change anything in `terraform/`.
 
 - [1. What the pipeline guarantees](#1-what-the-pipeline-guarantees)
@@ -18,7 +18,7 @@ Read this before you deploy, change a workflow, or change anything in `terraform
 - [13. Limits and things not yet verified](#13-limits-and-things-not-yet-verified)
 - [14. File map](#14-file-map)
 
-Names: the three environments are called exactly `dev`, `staging` and `prod`, everywhere (workflow
+Names: the two environments are called exactly `dev` and `prod`, everywhere (workflow
 inputs, GitHub environments, `terraform/environments/<env>.tfvars`, Terraform `environment`, scripts, docs).
 
 ## 1. What the pipeline guarantees
@@ -44,10 +44,9 @@ detection, a Firebase CLI without `--force`, backups). Section 13 lists what is 
 | Environment | GCP project | Deployed | Approval |
 |---|---|---|---|
 | `dev` | from `terraform/environments/dev.tfvars` | automatically on every push to `main` | none |
-| `staging` | from `staging.tfvars` | automatically after `dev` succeeds | none |
 | `prod` | `beatrix-ai-prod` (`prod.tfvars`) | **only** by a manual run of the Deploy workflow | typed confirmation + reviewers of the `prod-release` GitHub environment |
 
-Automatic runs (`dev`, `staging`) use the same pipeline as prod, including the plan guard, so a
+Automatic runs (`dev`) use the same pipeline as prod, including the plan guard, so a
 destructive change fails the run instead of being applied. Never add an automatic trigger for prod.
 
 ## 3. The pipeline, stage by stage
@@ -57,83 +56,126 @@ Entry point: `.github/workflows/deploy.yml` (inputs and triggers). The pipeline 
 
 ```mermaid
 flowchart LR
-    A[Verify<br/>no cloud access] --> B[Plan<br/>terraform plan, saved privately]
+    P[Policy<br/>no cloud access] --> G{Gate<br/>environment<br/>provisioned?}
+    G -- no, dev --> S[Skipped with a notice]
+    G -- no, prod --> X0[Run fails]
+    G -- yes --> A[Verify<br/>no cloud access]
+    A --> B[Plan<br/>terraform plan, saved privately<br/>+ decide what to deploy]
     B --> C{Plan guard<br/>protected resource<br/>deleted or replaced?}
     C -- yes --> X[Run fails<br/>nothing applied]
     C -- no --> D{Environment?}
-    D -- prod --> E[Approve<br/>prod-release reviewers]
-    D -- dev / staging --> F
+    D -- prod --> E[Approve<br/>prod-release reviewers<br/>see the decision table]
+    D -- dev --> F
     E --> F[Apply]
     subgraph F[Apply job]
-      F1[Protect buckets] --> F2[Snapshot CMS files] --> F3[Apply SAVED plan] --> F4[Detect changed components] --> F5[Deploy only changed components] --> F6[Record what was deployed] --> F7[Smoke test]
+      F1[Protect buckets] --> F2[Snapshot CMS files<br/>only if something will change] --> F3[Apply SAVED plan] --> F4[Deploy only the components marked changed] --> F5[Record what was deployed] --> F6[Smoke test]
     end
 ```
 
-### Stage 1: Verify (job `verify`)
+**Reading a run.** Every step prints its inputs, what it decided and why, and its result, in four line
+kinds (format in `scripts/deploy/log.sh`):
+
+| Line | Meaning |
+|---|---|
+| `[step]` | the step is starting (also a fold-able group in the Actions log) |
+| `[info]` | an input or a fact the step relies on (project, bucket, hashes) |
+| `[decision]` | what the step decided **and why** (for example `rules: unchanged, will not be touched`) |
+| `[result]` | what actually happened |
+
+A failure names the step and the next action to take. The run summary shows the Terraform changes, a
+table of what this run changes on the environment (infrastructure, functions, rules, App Hosting, each
+with the last deployed hash, the hash of this commit, the action and the reason) and where the CMS
+backup went, if one was taken.
+
+### Stage 0: Policy (job `policy`)
+
+No checkout, no GitHub environment, no credentials. Environment must be `dev` or `prod`; the ref may only
+contain safe characters. For `prod`: the run must be manual, `confirm` must be `prod`, and the ref must
+be a `release/<major.minor[.patch]>` branch or a `v<major.minor.patch>` tag. Anything else stops here.
+It runs before anything reads an environment, so an unknown environment name can never create one.
+
+### Stage 1: Gate (job `gate`)
+
+Reads the GitHub environment variables (`GCP_PROJECT_ID`, `TF_STATE_BUCKET`) and nothing else: no
+checkout, no credentials. An unprovisioned `dev` is skipped with a notice, before any build; an
+unprovisioned `prod` **fails**, so a misconfiguration is never reported as success.
+
+### Stage 2: Verify (job `verify`)
 
 Runs with **no cloud credentials**.
 
-1. **Deployment policy.** Environment must be `dev`, `staging` or `prod`; the ref may only contain safe
-   characters. For `prod`: the run must be manual, `confirm` must be `prod`, and the ref must be a
-   `release/<major.minor[.patch]>` branch or a `v<major.minor.patch>` tag. Anything else stops here.
-2. **Checkout** of the ref and **resolution to a commit SHA.** Every later job checks out that exact
+1. **Checkout** of the ref and **resolution to a commit SHA.** Every later job checks out that exact
    SHA, so what was verified and approved is what is deployed, even if the branch moves meanwhile.
-3. `pnpm install --frozen-lockfile`, `npm run typecheck`, `npm run lint`, `npm run build`, build of the
+2. `pnpm install --frozen-lockfile`, `npm run typecheck`, `npm run lint`, `npm run build`, build of the
    Cloud Functions.
-4. `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`.
-5. Script checks: `bash -n` on the deployment scripts and the plan guard unit tests.
+3. `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`.
+4. Script checks (`scripts/check-scripts.sh`): `bash -n` on every shell script and the plan guard unit
+   tests. The same script runs in pull request checks and in `infra-check.yml`.
 
-### Stage 2: Plan (job `plan`, GitHub environment = the target)
+### Stage 3: Plan (job `plan`, GitHub environment = the target)
 
-1. Reads the GitHub environment variables (`GCP_PROJECT_ID`, `GCP_WORKLOAD_IDENTITY_PROVIDER`,
-   `GCP_DEPLOYER_SERVICE_ACCOUNT`, `TF_STATE_BUCKET`). An unprovisioned `dev`/`staging` is skipped with a
-   notice; an unprovisioned `prod` **fails**, so a misconfiguration is never reported as success.
-2. Signs in to Google Cloud with Workload Identity Federation (no keys).
-3. `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars`. Nothing is
-   changed. The redacted plan is written to the job summary.
-4. **Plan guard** (`scripts/deploy/plan_guard.py`), see section 5.
+1. Signs in to Google Cloud with Workload Identity Federation (no keys).
+2. `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars`. Nothing is
+   changed. The summary lists each resource that would change; the full redacted plan is folded below.
+3. **Plan guard** (`scripts/deploy/plan_guard.py`), see section 5.
+4. **Decide what to deploy** (`scripts/deploy/components.sh status`): hashes the sources of
+   `functions`, `rules` and `apphosting` and compares them with the marker recorded after the last
+   successful deploy (`gs://<project>-tfstate/deploy/markers/<component>.json`). With `redeploy_all`
+   every component is marked changed. The result is the decision table, and Apply deploys exactly the
+   components in it.
 5. The binary plan is stored in the environment's private state bucket at
    `gs://<project>-tfstate/deploy/plans/<run>-<attempt>/tfplan` (not as a GitHub artifact, because a
    plan can contain values Terraform does not redact in JSON).
 
-### Stage 3: Approve (job `approve`, prod only)
+### Stage 4: Approve (job `approve`, prod only)
 
 The job uses the GitHub environment `prod-release`. Its required reviewers are asked to approve. The
-approval screen shows the commit and the ref; the plan is in the job summary of the same run. The job
-has no cloud access and no token permissions. It exists only to hold the run until a person approves.
+approval screen shows the commit and the ref; the plan and the decision table (what will deploy and what
+will not be touched) are in the job summary of the same run, so the reviewer approves a known set of
+changes. The job has no cloud access and no token permissions. It exists only to hold the run until a
+person approves.
 
 > The approval is only a real gate if `prod-release` has **required reviewers**. GitHub creates a missing
 > environment with no protection, which would let the run through. Section 7 shows how to set it up
 > and how to check it.
 
-### Stage 4: Apply (job `apply`, GitHub environment = the target)
+### Stage 5: Apply (job `apply`, GitHub environment = the target)
 
 1. **Protect buckets** (`scripts/deploy/harden-buckets.sh`): turns on object versioning on the state
    bucket and the CMS bucket, and public access prevention on the state bucket, when missing. Adds
    retention for saved plans (7 days) and backups (90 days) and a "delete old versions after 90 days"
-   rule only when the bucket has **no lifecycle configuration at all**. It only ever turns protection on.
+   rule only when the bucket has **no lifecycle configuration at all**. It only ever turns protection on
+   and writes nothing when protection is already in place.
 2. **Snapshot the CMS files** (`scripts/deploy/backup-snapshot.sh`): copies `cms/` and `cms-backups/`
    from the CMS bucket to `gs://<project>-tfstate/backups/<UTC time>-<sha7>/storage/`. Read-only on the
-   source. Skipped with a notice when there are no files yet.
+   source. **Only taken when the plan has changes or a component will deploy**; a run with nothing to
+   change writes no backup. Skipped with a notice when there are no files yet.
 3. **Terraform apply of the saved plan.** Terraform refuses a plan whose state changed since it was
    made, so nothing unreviewed can be applied. Skipped when the plan has no changes.
-4. **Detect changed components** (`scripts/deploy/components.sh`): hashes the sources of `functions`,
-   `rules` and `apphosting` and compares them with the marker recorded after the last successful deploy
-   (`gs://<project>-tfstate/deploy/markers/<component>.json`). Unchanged components are skipped. With
-   `redeploy_all` every component is deployed.
-5. **Deploy only the changed components** (`scripts/deploy-backend.sh --components ...`), with the Firebase
-   CLI pinned to an exact version and without `--force`.
-6. **Record what was deployed.** Markers are written only after a successful deploy, so a failed deploy
+4. **Deploy only the components marked changed** (`scripts/deploy-backend.sh --components ...`), with the
+   Firebase CLI pinned to an exact version and without `--force`. Skipped when none changed.
+5. **Record what was deployed.** Markers are written only after a successful deploy, so a failed deploy
    is retried by the next run.
-7. **Smoke test** (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML; `GET /api/admin/cms`
+6. **Smoke test** (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML; `GET /api/admin/cms`
    without a token returns 401. Read-only.
-8. **Summary:** what was applied, deployed or left untouched, the commit and the backup location.
+7. **Summary:** the decision table, the commit and the backup location, if one was taken.
+
+### Pull request checks (`ci.yml`)
+
+Pull requests to `main` run typecheck, lint, build, the functions build and `scripts/check-scripts.sh`,
+without cloud access, so a failing change is rejected before it reaches `main` and the dev deploy.
+
+### Deploy skills
+
+Two agent skills run the Deploy workflow and narrate it: `dev-deploy` (a pushed branch or commit to dev) and
+`prod-deploy` (the current `release/x.y[.z]` branch to prod; it refuses any other branch, a dirty or
+unpushed tree, asks for an explicit yes in chat, and never approves `prod-release` itself).
 
 ### Deploy inputs (Actions > Deploy > Run workflow)
 
 | Input | Meaning |
 |---|---|
-| `environment` | `dev`, `staging` or `prod` (default `dev`, so a careless click never targets prod) |
+| `environment` | `dev` or `prod` (default `dev`, so a careless click never targets prod) |
 | `ref` | Branch, tag or commit SHA. Prod accepts only `release/x.y[.z]` or `vX.Y.Z` |
 | `confirm` | Type `prod` to deploy prod |
 | `allow_destructive` | **Dangerous.** Lets the plan delete/replace protected resources and lets removed functions be deleted. Section 11 |
@@ -240,7 +282,7 @@ Full runbook: `terraform/README.md`.
 
 > The Terraform changes in this pipeline (Firestore delete protection and point-in-time recovery, bucket
 > versioning, `prevent_destroy`) are in-place updates on existing resources. The first plan after
-> merging shows them for `dev` and `staging`; nothing is deleted. Point-in-time recovery stores 7 days of
+> merging shows them for `dev`; nothing is deleted. Point-in-time recovery stores 7 days of
 > versions and adds a small storage cost.
 
 ### 7.2 GitHub environments **(you)**
@@ -251,7 +293,7 @@ Settings > Environments:
 |---|---|
 | `prod` | Deployment branches and tags: *Selected branches and tags* with `main`, `release/*` and the tag pattern `v*` (this restricts which ref the workflow may be run from). Variables are written by `recreate-environment.sh`, which only creates the environment when it is missing and never resets protection rules you set in the UI. No reviewers needed here (the approval happens in `prod-release`, so you are not asked twice). |
 | `prod-release` | **Required reviewers: add yourself and anyone who may approve prod.** Deployment branches: same as `prod`. No variables or secrets. |
-| `dev`, `staging` | Variables only (written by the script). |
+| `dev` | Variables only (written by the script). |
 
 With one maintainer, leave "Prevent self-review" off or you cannot approve your own deployment; with a
 team, turn it on.
@@ -280,8 +322,8 @@ that must be deployable with this pipeline (for example `release/1.1.0`).
 
 ## 8. Runbook: deploy to prod
 
-1. **Staging first.** The commit you intend to release must already be deployed to staging (every push to
-   `main` does that) and pass the smoke test. Open staging and check the change by hand.
+1. **Dev first.** The commit you intend to release must already be deployed to dev (every push to
+   `main` does that) and pass the smoke test. Open dev and check the change by hand.
 2. **Cut the release branch** from `main`: `release/<major.minor[.patch]>`. Bump `package.json` version.
    Open the release ticket with the standard format and release notes (`.claude/rules/github-workflow.md`).
 3. **Run the workflow:** Actions > Deploy > Run workflow.
@@ -429,7 +471,7 @@ Be aware of these; none of them is hidden by the pipeline:
 
 - **Not exercised end to end.** The pipeline was written and statically checked (YAML, shell syntax, plan
   guard unit tests, hash behaviour, pin and injection checks), but a real run against GCP was not done
-  before it was merged. Run it on `dev`, then `staging`, and read the job summaries before relying on it
+  before it was merged. Run it on `dev` first and read the job summaries before relying on it
   for prod. `terraform validate` runs in CI because the Terraform registry was not reachable where it
   was authored. `actionlint` was not run.
 - **Component granularity.** Change detection is per component, not per function (section 4).
@@ -467,17 +509,21 @@ Be aware of these; none of them is hidden by the pipeline:
 
 | Path | Purpose |
 |---|---|
-| `.github/workflows/deploy.yml` | Triggers and inputs (push to `main` -> dev, staging; manual -> any) |
-| `.github/workflows/deploy-environment.yml` | The pipeline: verify, plan, approve, apply |
+| `.github/workflows/deploy.yml` | Triggers and inputs (push to `main` -> dev; manual -> any) |
+| `.github/workflows/deploy-environment.yml` | The pipeline: policy, gate, verify, plan, approve, apply |
+| `.github/workflows/ci.yml` | Pull request checks: typecheck, lint, build, functions build, script checks |
 | `.github/workflows/infra-check.yml` | PR checks: terraform fmt/validate, script tests, SHA pins, no `-auto-approve`/`--force` |
 | `.github/dependabot.yml` | Weekly proposals to update pinned actions |
 | `scripts/deploy/plan_guard.py`, `test_plan_guard.py` | Blocks destroy/replace of protected resources, with tests |
+| `scripts/deploy/log.sh` | Shared `[step]`/`[info]`/`[decision]`/`[result]` log format |
+| `scripts/check-scripts.sh` | `bash -n` on every script and the plan guard tests (used by all workflows) |
 | `scripts/deploy/components.sh` | Component hashes, changed detection, markers |
 | `scripts/deploy/harden-buckets.sh` | Turns on versioning, public access prevention and retention |
 | `scripts/deploy/backup-snapshot.sh` | Pre-deploy copy of the CMS files |
 | `scripts/deploy/smoke-test.sh` | Post-deploy read-only checks |
 | `scripts/deploy-backend.sh` | Deploys the selected components, no `--force` unless `--allow-destructive` |
 | `scripts/recreate-environment.sh` | Provision or repair an environment (plan, guard, apply) |
+| `.claude/skills/dev-deploy`, `.claude/skills/prod-deploy` | Agent skills that run the Deploy workflow for dev or the current release branch (prod) and narrate each step |
 | `functions/src/resumes.ts`, `resumeAdmin.ts` | Resume storage, cap and ownership; admin list and purge of data left by revoked users |
 | `terraform/` | Infrastructure, including the data protections (CMS bucket, resumes bucket) |
 | `terraform/README.md` | Environment provisioning runbook |
