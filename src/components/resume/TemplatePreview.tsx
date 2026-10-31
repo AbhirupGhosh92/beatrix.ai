@@ -27,14 +27,17 @@ export default function TemplatePreview({ template, structure, data }: Props) {
   const [failed, setFailed] = useState(false)
   const [inline, setInline] = useState(true)
   const urlRef = useRef<string | null>(null)
+  // Set when a draw starts (not when one succeeds), so a failed draw does not turn the debounce off.
+  const attemptedRef = useRef(false)
 
   const shown = useMemo(() => withSampleFallback(structure, data), [structure, data])
 
   useEffect(() => {
     let ignore = false
-    // The first drawing is immediate; later ones wait for the user to pause.
+    // The first drawing is immediate; later ones, even after a failed one, wait for the user to pause.
     const timer = setTimeout(
       async () => {
+        attemptedRef.current = true
         try {
           const { toPdf } = await import('../../lib/resume/toPdf.ts')
           const blob = await toPdf(buildDocument('Resume', structure, shown), template)
@@ -50,7 +53,7 @@ export default function TemplatePreview({ template, structure, data }: Props) {
           if (!ignore) setFailed(true)
         }
       },
-      urlRef.current ? REDRAW_MS : 0,
+      attemptedRef.current ? REDRAW_MS : 0,
     )
     return () => {
       ignore = true
