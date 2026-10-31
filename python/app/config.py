@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 
 
 @dataclass(frozen=True)
@@ -12,6 +13,7 @@ class Settings:
     greeting: str
 
 
+@lru_cache
 def get_settings() -> Settings:
     return Settings(
         model_api_key=os.environ.get("MODEL_API_KEY") or None,

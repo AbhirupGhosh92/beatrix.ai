@@ -4,9 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /srv
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir "fastapi>=0.115,<1" "uvicorn[standard]>=0.30,<1"
-
 COPY app ./app
+RUN pip install --no-cache-dir .
 RUN useradd --system --no-create-home app
 USER app
 

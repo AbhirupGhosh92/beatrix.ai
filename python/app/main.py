@@ -28,3 +28,5 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             await websocket.send_text(f"echo: {text}")
     except WebSocketDisconnect:
         pass
+    except Exception:
+        await websocket.close(code=1011)
