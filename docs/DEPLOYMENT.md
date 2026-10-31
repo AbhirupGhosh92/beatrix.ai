@@ -33,6 +33,7 @@ A deployment changes **only what the release changes**. Specifically:
 | Cloud Functions | Redeployed only when `functions/` (or the `functions` block of `firebase.json`) changed. The Firebase CLI is run **without** `--force`, so it refuses to delete a function that is missing from the source instead of deleting it. |
 | Security rules | Redeployed only when `firestore.rules`, `storage.rules` or their `firebase.json` entries changed. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
+| Python AI service (Cloud Run `beatrix-ai`) | Redeployed only when `python/` changed (component `python`). Private: no unauthenticated access, only `firebase-app-hosting-compute` holds `roles/run.invoker`. The model API key is the Secret Manager secret `model-api-key`; Terraform creates it empty and only the runtime account `python-ai-runtime` can read it. You add the value yourself (`gcloud secrets versions add model-api-key --data-file=-`, see `python/README.md`), so it never reaches state, logs or the pipeline; the deploy mounts it only when a version exists. |
 | Terraform-managed infrastructure (IAM, buckets, service accounts, ...) | Terraform changes only resources whose configuration differs. Stateful resources cannot be destroyed or replaced by a normal deploy. |
 | What gets applied | Exactly the plan that was reviewed (for prod: and approved). The saved plan is applied; nothing is re-planned. |
 
@@ -83,7 +84,7 @@ kinds (format in `scripts/deploy/log.sh`):
 | `[result]` | what actually happened |
 
 A failure names the step and the next action to take. The run summary shows the Terraform changes, a
-table of what this run changes on the environment (infrastructure, functions, rules, App Hosting, each
+table of what this run changes on the environment (infrastructure, functions, rules, App Hosting, Python service, each
 with the last deployed hash, the hash of this commit, the action and the reason) and where the CMS
 backup went, if one was taken.
 
@@ -119,7 +120,7 @@ Runs with **no cloud credentials**.
    changed. The summary lists each resource that would change; the full redacted plan is folded below.
 3. **Plan guard** (`scripts/deploy/plan_guard.py`), see section 5.
 4. **Decide what to deploy** (`scripts/deploy/components.sh status`): hashes the sources of
-   `functions`, `rules` and `apphosting` and compares them with the marker recorded after the last
+   `functions`, `rules`, `apphosting` and `python` and compares them with the marker recorded after the last
    successful deploy (`gs://<project>-tfstate/deploy/markers/<component>.json`). With `redeploy_all`
    every component is marked changed. The result is the decision table, and Apply deploys exactly the
    components in it.
@@ -194,9 +195,10 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
 | Security rules | Component hash | Skipped when the rule files are unchanged. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
+| Python AI service | Component hash + protected secret | No new Cloud Run revision when `python/` did not change. The secret `model-api-key` is a `PROTECTED_TYPES` resource (`prevent_destroy`), so a plan cannot delete it. |
 | Configuration | Source of truth in git | `apphosting.yaml`, `firebase.json`, `terraform/` are changed only through reviewed PRs. Manual console changes show up as drift in the plan and are reverted, so make changes in git. |
 
-Granularity: change detection is per **component** (functions, rules, App Hosting), not per individual
+Granularity: change detection is per **component** (functions, rules, App Hosting, Python service), not per individual
 function. Changing one function redeploys the functions component; the Firebase CLI then decides per
 function what to update.
 

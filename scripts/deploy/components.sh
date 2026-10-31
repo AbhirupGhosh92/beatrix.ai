@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# Change detection for the three deployable components. A component is deployed only when
+# Change detection for the four deployable components. A component is deployed only when
 # the hash of its sources differs from the hash recorded after its last successful deploy,
 # so a release that does not touch it leaves it exactly as it is.
 #
@@ -16,7 +16,7 @@ set -euo pipefail
 #   components.sh record <component> <state_bucket> <git_sha> <run_id>
 #       Record the current hash after the component was deployed successfully.
 #
-# Components: functions | rules | apphosting
+# Components: functions | rules | apphosting | python
 # Markers live at gs://<state_bucket>/deploy/markers/<component>.json (the per-environment
 # Terraform state bucket, versioned, private).
 # Run from the repository root.
@@ -49,7 +49,9 @@ component_hash() {
     apphosting)
       { hash_paths src public package.json pnpm-lock.yaml pnpm-workspace.yaml next.config.ts postcss.config.mjs tsconfig.json apphosting.yaml; \
         hash_firebase_section apphosting; } | sha256sum | cut -d' ' -f1 ;;
-    *) echo "Unknown component '$1' (functions | rules | apphosting)" >&2; exit 2 ;;
+    python)
+      hash_paths python ;;
+    *) echo "Unknown component '$1' (functions | rules | apphosting | python)" >&2; exit 2 ;;
   esac
 }
 

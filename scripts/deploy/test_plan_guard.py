@@ -66,6 +66,12 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["delete", "create"]))), 1)
         self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["update"]))), 0)
 
+    def test_secret_is_protected(self):
+        # The Python service's model API key secret holds a value set by hand.
+        self.assertEqual(run_guard(plan(("google_secret_manager_secret", "model_api_key", ["delete"]))), 1)
+        self.assertEqual(run_guard(plan(("google_secret_manager_secret", "model_api_key", ["delete", "create"]))), 1)
+        self.assertEqual(run_guard(plan(("google_secret_manager_secret", "model_api_key", ["update"]))), 0)
+
     def test_deleting_unprotected_resource_passes(self):
         p = plan(
             ("google_project_iam_member", "deployer", ["delete"]),

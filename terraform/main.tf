@@ -50,7 +50,8 @@ locals {
     "apikeys.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
-    "sts.googleapis.com"
+    "sts.googleapis.com",
+    "secretmanager.googleapis.com"
   ]
 
   # Roles of the GitHub Actions deployer: it runs `terraform apply` (which manages IAM, service
@@ -336,6 +337,41 @@ resource "google_firebase_app_hosting_backend" "web" {
   }
 
   depends_on = [google_project_iam_member.apphosting_compute_runner]
+}
+
+# ------------------------------------------------------------------------------
+# Python AI service (Cloud Run, deployed from python/ by CI)
+# ------------------------------------------------------------------------------
+# Terraform owns the identity and the secret shell; the pipeline owns the Cloud Run revision.
+# The secret has no version here: the value is added by hand (`gcloud secrets versions add`),
+# so it never reaches Terraform state. See python/README.md.
+resource "google_service_account" "python_runtime" {
+  project      = var.project_id
+  account_id   = "python-ai-runtime"
+  display_name = "Python AI service runtime (${var.environment})"
+}
+
+resource "google_secret_manager_secret" "model_api_key" {
+  project   = var.project_id
+  secret_id = "model-api-key"
+
+  replication {
+    auto {}
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.enabled_services]
+}
+
+# Only the service's own runtime account can read the secret.
+resource "google_secret_manager_secret_iam_member" "python_runtime_model_api_key" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.model_api_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.python_runtime.email}"
 }
 
 # ------------------------------------------------------------------------------

@@ -1,0 +1,35 @@
+# python/ — Beatrix AI service
+
+Private FastAPI service on Cloud Run, the home for LangChain and other AI code (`app/`).
+Hello world only for now: `GET /health`, `GET /hello`, and a `/ws` WebSocket that greets and echoes.
+
+## Run locally
+
+```bash
+cd python
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e .
+uvicorn app.main:app --port 8080
+```
+
+Check it: `curl localhost:8080/health`, then connect to `ws://localhost:8080/ws` (for example
+`npx wscat -c ws://localhost:8080/ws`).
+
+## Configuration
+
+Environment variables only (see `.env.example`): `MODEL_API_KEY` (optional) and `GREETING`.
+
+## Model API key (Secret Manager)
+
+Terraform creates the empty secret `model-api-key`; set its value yourself so it never reaches Terraform state:
+
+```bash
+printf '%s' "$KEY" | gcloud secrets versions add model-api-key --project <project-id> --data-file=-
+```
+
+The next deploy of this component mounts the latest version as `MODEL_API_KEY`.
+
+## Deployment
+
+Part of the `python` deploy component (`scripts/deploy/components.sh`): deployed to Cloud Run from this
+folder only when it changes. The service is private; only the App Hosting service account may invoke it.
