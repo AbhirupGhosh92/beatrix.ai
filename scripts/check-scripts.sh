@@ -3,7 +3,8 @@ set -euo pipefail
 
 # ==============================================================================
 # The one script check used by every workflow (ci.yml, deploy-environment.yml, infra-check.yml):
-# every shell script under scripts/ must parse, and the plan guard tests must pass.
+# every shell script under scripts/ must parse, and the plan guard and branch-name hook tests
+# must pass.
 # Run from anywhere: bash scripts/check-scripts.sh
 # ==============================================================================
 
@@ -21,4 +22,6 @@ echo "[result]   ${count} shell scripts parse"
 
 echo "[step]     Plan guard unit tests"
 python3 -I -m unittest discover -s scripts/deploy -p 'test_*.py'
+echo "[step]     Branch-name hook tests"
+python3 -I -m unittest discover -s .claude/hooks -p 'test_*.py'
 echo "[result]   deployment script checks passed"
