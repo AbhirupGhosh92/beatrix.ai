@@ -4,13 +4,15 @@ import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import type { ResumeTemplate } from '../../data/resumeConfig.ts'
 import { FORMATS, type ExportFormat } from '../../lib/resume/export.ts'
-import type { Structure } from '../../lib/resumeValidation.ts'
+import type { ResumeData, Structure } from '../../lib/resumeValidation.ts'
 import TemplatePreview from './TemplatePreview.tsx'
 
 interface Props {
   templates: ResumeTemplate[]
-  /** The resume's structure, so the preview's sample data fits it. */
+  /** The resume's structure, so the preview fits it. */
   structure: Structure
+  /** The open resume's data, drawn live in the preview. */
+  data: ResumeData
   /** False while any field is invalid or a required one is empty. */
   valid: boolean
   /** True while a file is being generated. */
@@ -19,7 +21,7 @@ interface Props {
 }
 
 // Picks one template and one format; generating is blocked until the resume is valid.
-export default function ExportPanel({ templates, structure, valid, busy, onGenerate }: Props) {
+export default function ExportPanel({ templates, structure, data, valid, busy, onGenerate }: Props) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
   const [format, setFormat] = useState<ExportFormat>('pdf')
   const noTemplates = templates.length === 0
@@ -54,7 +56,7 @@ export default function ExportPanel({ templates, structure, valid, busy, onGener
         {format === 'md' && <span className="text-meta">Markdown has no styling, so the template does not apply.</span>}
         {noTemplates && <span className="text-meta">No templates are available right now.</span>}
       </label>
-      {template && format !== 'md' && <TemplatePreview key={template.id} template={template} structure={structure} />}
+      {template && format !== 'md' && <TemplatePreview key={template.id} template={template} structure={structure} data={data} />}
       <button
         type="button"
         className="button-primary"
