@@ -108,29 +108,6 @@ Templates SHALL be defined in the resume config as an id, a label, an `enabled` 
 - **WHEN** a template uses a layout id or style value outside the allowed set
 - **THEN** that template is skipped and the others still work
 
-### Requirement: Template preview with sample data
-When a user picks a template for PDF or DOCX, the builder SHALL show a preview of that template filled with sample data, not the user's own content. The preview SHALL be produced by the same renderer as the PDF download, SHALL update when another template is picked, and SHALL NOT be shown for Markdown. A browser that cannot show PDFs inline SHALL offer to open the preview instead.
-
-#### Scenario: Picking a template
-- **WHEN** a user selects the Modern template
-- **THEN** a preview of the Modern design appears with sample names, jobs and skills
-
-#### Scenario: Switching template
-- **WHEN** the user selects a different template
-- **THEN** the preview changes to that template's style and layout
-
-#### Scenario: Own data untouched
-- **WHEN** the preview is shown
-- **THEN** it contains only sample content and nothing from the open resume
-
-#### Scenario: Markdown
-- **WHEN** the format is Markdown
-- **THEN** no preview is shown
-
-#### Scenario: No inline PDF viewer
-- **WHEN** the browser cannot display PDFs inline
-- **THEN** an "open preview" link is shown instead of an empty frame
-
 ### Requirement: Browser-side export in one template and format
 The user SHALL pick one template and one format (PDF, DOCX or MD) and the browser SHALL generate that single file without sending the resume to a server for rendering. PDF SHALL follow the template's style as closely as possible. DOCX SHALL use real heading and paragraph styles, selectable text and no layout tables, using only fonts available in Word, so that converting it to PDF keeps the content and structure. MD SHALL contain the content without styling. No output SHALL contain a watermark.
 
@@ -175,3 +152,45 @@ Templates, role limits, the default structure and the structure rules SHALL come
 #### Scenario: Key missing
 - **WHEN** the stored resume config lacks a key present in the example
 - **THEN** the example value is used
+
+### Requirement: Live template preview
+When a user picks a template for PDF or DOCX, the builder SHALL show a preview filled with the open resume's own content, taken from the same data the form edits and autosave stores, and SHALL update it shortly after each edit. A field or repeatable section the user has not filled in SHALL show its sample value, and the preview SHALL say that sample text is shown for fields not yet filled in.
+
+#### Scenario: Picking a template
+- **WHEN** a user selects the Modern template on a new, empty resume
+- **THEN** a preview of the Modern design appears with sample names, jobs and skills
+
+#### Scenario: Typing updates the preview
+- **WHEN** the user types their name into the name field
+- **THEN** within about a second the preview shows that name in place of the sample name, without saving or reloading
+
+#### Scenario: Partly filled resume
+- **WHEN** the user has filled the contact section but not the experience section
+- **THEN** the preview shows their contact details and the sample experience entries
+
+#### Scenario: Clearing a field
+- **WHEN** the user empties a field they had filled
+- **THEN** the preview shows the sample value for that field again
+
+#### Scenario: Same data as the form
+- **WHEN** an advanced user's edit is autosaved
+- **THEN** the preview shows exactly the data that was saved, and a base user's unsaved edit also appears in the preview
+
+#### Scenario: Sample text never generated
+- **WHEN** the user leaves a required field empty and presses Generate
+- **THEN** generation is refused as before and no file contains sample text
+
+### Requirement: Preview rendering
+The preview SHALL be produced by the same renderer as the PDF download, SHALL update when another template is picked and SHALL NOT be shown for Markdown. A browser that cannot show PDFs inline SHALL offer to open the preview instead.
+
+#### Scenario: Switching template
+- **WHEN** the user selects a different template
+- **THEN** the preview changes to that template's style and layout
+
+#### Scenario: Markdown
+- **WHEN** the format is Markdown
+- **THEN** no preview is shown
+
+#### Scenario: No inline PDF viewer
+- **WHEN** the browser cannot display PDFs inline
+- **THEN** an "open preview" link is shown instead of an empty frame
