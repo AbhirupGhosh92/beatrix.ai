@@ -20,6 +20,21 @@ The job tracker page and its API SHALL be available only to users holding `featu
 - **WHEN** the item's `enabled` flag is false and any user requests the page or API
 - **THEN** the response is 404 and the entry is not shown, even for an admin
 
+### Requirement: Quick navigation between the tracker and the resume builder
+The job tracker's top bar SHALL have a button that opens the resume builder, and the resume builder's top bar SHALL have a button that opens the job tracker. Each button SHALL be shown only while the other feature's menu item is enabled in the main config, and both SHALL stay usable on phone widths.
+
+#### Scenario: Both features enabled
+- **WHEN** a user with feature access opens the job tracker while the `resume-builder` item is enabled
+- **THEN** the top bar shows a Resume builder button that opens `/resume-builder`, and the builder's top bar shows a Job tracker button back
+
+#### Scenario: Other feature disabled
+- **WHEN** the `resume-builder` item is disabled
+- **THEN** the job tracker's top bar shows no Resume builder button
+
+#### Scenario: Phone width
+- **WHEN** the page is 320px wide
+- **THEN** the button is still reachable, showing at least its icon with an accessible name, and the top bar does not scroll horizontally
+
 ### Requirement: Application records
 A user SHALL be able to add, view, edit and delete applications. An application SHALL have a company, a role, a status and an applied date, and MAY have a link to the direct job posting, notes, labels and a tailor JSON. Company and role SHALL be required and text lengths SHALL be limited.
 

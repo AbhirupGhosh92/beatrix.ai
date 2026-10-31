@@ -28,6 +28,8 @@
 - [x] 4.2 Add the Create tailored resume button (open the linked resume when it exists, show the cap message on 409 and disable it with no tailor JSON); verify in the browser that the new resume appears in `/resume-builder` with the tailor content and that deleting it makes the button return.
 - [x] 4.3 Check the page from 320px to 1920px in both themes, using only semantic classes from `src/styles/` and `text-brand*` for text; verify no horizontal scroll and readable contrast.
 
+- [x] 4.4 Add the quick navigation buttons: `switchTo` on `ResumeNav`, passed from the tracker and builder layouts (shown only while the other item is enabled, icon-only below `sm`); verify in a browser that each button appears and navigates when the other item is enabled, is absent when it is disabled, and fits at 320px without horizontal scroll.
+
 ## 5. Admin and final checks
 
 - [x] 5.1 Show the application count in the orphaned data table in `/admin/access`; verify a revoked user with applications appears with the count and the purge removes them.

@@ -11,6 +11,7 @@ Users build resumes in the resume builder but have nowhere to record which jobs 
 - New **Job tracker** page for users holding `features:basic`, reachable from the drawer menu while its own menu item (`job-tracker`) is enabled.
 - Users add, edit and delete applications. An application has a company, a role, a link to the direct job posting that opens in a new tab, a status, an applied date, notes, labels, an optional tailor JSON and an optional link to a tailored resume.
 - The list is a table with a notes column, free-text labels (several per application, with suggestions from the user's own labels), and search, sorting and filtering by status and labels.
+- A quick navigation button in each top bar: the tracker links to the resume builder and the builder links back, each shown only while the other feature is enabled.
 - Statuses come from a fixed set in the resume config (Saved, Applied, Interview, Offer, Rejected, Withdrawn), with a fallback so a config typo never breaks the page.
 - The tailor JSON has the same shape as a resume builder resume's data object. A button on an application creates a new resume from it in the resume builder and links the two. Invalid JSON is rejected with the reasons; a partial one is accepted as a draft, as for any resume.
 - Applications are unlimited for every role. The tailored resume is an ordinary resume and counts against the existing resume cap (3 for base users, none for roles with `features:advanced`), so the user chooses which applications get one and deleting a tailored resume frees the slot.
