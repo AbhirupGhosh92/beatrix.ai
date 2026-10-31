@@ -1,9 +1,11 @@
 // Sample content for template previews, built from the structure so it fits custom structures
-// too. It never touches the user's own resume. The example text of a field (its placeholder
+// too. `withSampleFallback` lays the user's own data over it so the preview is never blank; the
+// export never uses either, so sample text cannot reach a generated file. The example text of a field (its placeholder
 // without the leading "e.g.") is reused when there is one, so the default structure previews as a
 // believable resume.
 import {
   blankEntry,
+  isBlank,
   type FieldDef,
   type FieldValue,
   type ResumeData,
@@ -59,4 +61,29 @@ export function sampleData(structure: Structure): ResumeData {
     data[section.id] = section.repeatable ? [sampleEntry(section, 0), sampleEntry(section, 1)] : sampleEntry(section, 0)
   }
   return data
+}
+
+/**
+ * The data a preview draws: the user's own content, with the sample value wherever they have not
+ * filled something in. A single section is filled field by field; a repeatable section keeps the
+ * user's filled entries as they are and only shows the sample entries when none is filled, so a
+ * half-filled job is never topped up with unrelated sample text. `data` is not changed.
+ */
+export function withSampleFallback(structure: Structure, data: ResumeData): ResumeData {
+  const sample = sampleData(structure)
+  const out: ResumeData = {}
+  for (const section of structure.sections) {
+    const own = data[section.id]
+    if (section.repeatable) {
+      const filled = (Array.isArray(own) ? own : []).filter((entry) => !isBlank(Object.values(entry)))
+      out[section.id] = filled.length > 0 ? filled : sample[section.id]
+      continue
+    }
+    const entry = (own && !Array.isArray(own) ? own : {}) as SectionData
+    const base = sample[section.id] as SectionData
+    const merged: SectionData = {}
+    for (const field of section.fields) merged[field.id] = isBlank(entry[field.id]) ? base[field.id] : entry[field.id]
+    out[section.id] = merged
+  }
+  return out
 }
