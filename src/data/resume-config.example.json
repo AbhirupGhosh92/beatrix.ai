@@ -107,6 +107,7 @@
       { "id": "rejected", "label": "Rejected" },
       { "id": "withdrawn", "label": "Withdrawn" }
     ],
+    "baseMaxApplications": 3,
     "maxApplications": 500,
     "maxNotesLength": 2000,
     "maxLabels": 10,

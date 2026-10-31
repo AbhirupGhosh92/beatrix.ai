@@ -6,6 +6,9 @@ import { checkDraft, type ResumeData, type Structure, type StructureRules } from
 
 export interface TrackerLimits {
   statuses: { id: string; label: string }[];
+  /** Applications a base user may hold. */
+  baseMaxApplications: number;
+  /** Safety limit for roles that may customize (no product cap). */
   maxApplications: number;
   maxNotesLength: number;
   maxLabels: number;
@@ -146,7 +149,7 @@ export function readLimits(value: unknown): TrackerLimits {
     typeof t !== "object" ||
     !Array.isArray(t.statuses) ||
     t.statuses.length === 0 ||
-    ![t.maxApplications, t.maxNotesLength, t.maxLabels, t.maxLabelLength, t.maxTailorBytes].every(Number.isInteger)
+    ![t.baseMaxApplications, t.maxApplications, t.maxNotesLength, t.maxLabels, t.maxLabelLength, t.maxTailorBytes].every(Number.isInteger)
   ) {
     throw new ApiError(500, "Job tracker configuration is unavailable.");
   }

@@ -14,7 +14,7 @@ Users build resumes in the resume builder but have nowhere to record which jobs 
 - A quick navigation button in each top bar: the tracker links to the resume builder and the builder links back, each shown only while the other feature is enabled.
 - Statuses come from a fixed set in the resume config (Saved, Applied, Interview, Offer, Rejected, Withdrawn), with a fallback so a config typo never breaks the page.
 - The tailor JSON has the same shape as a resume builder resume's data object. A button on an application creates a new resume from it in the resume builder and links the two. Invalid JSON is rejected with the reasons; a partial one is accepted as a draft, as for any resume.
-- Applications are unlimited for every role. The tailored resume is an ordinary resume and counts against the existing resume cap (3 for base users, none for roles with `features:advanced`), so the user chooses which applications get one and deleting a tailored resume frees the slot.
+- A base user holds at most 3 applications; roles with `features:advanced` have no cap (only a safety limit of 500). The tailored resume is an ordinary resume and also counts against the existing resume cap (3 for base users, none for roles with `features:advanced`), so a base user chooses which applications get one and deleting a tailored resume frees the slot.
 - Applications and tailor JSON are stored privately per user in Firestore, keyed by the verified email. Another user's id is a 404.
 - The orphaned-data list and the admin hard delete cover applications as well as resumes.
 - `nav.drawerItems` gains a disabled `job-tracker` entry in `profile.example.json` (no breaking change; the structured item format already exists).

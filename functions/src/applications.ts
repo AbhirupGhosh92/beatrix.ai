@@ -12,7 +12,8 @@ import {
 } from "./applicationValidation";
 import { db, resumesBucket } from "./firebase";
 import { ApiError, privateEndpoint } from "./http";
-import { createResumeFor, prefixOf, readConfig, resumeFile } from "./resumes";
+import type { Role } from "./policy";
+import { canCustomize, createResumeFor, prefixOf, readConfig, resumeFile } from "./resumes";
 
 // Job applications. Like the resumes, every handler verifies the caller's session cookie here and
 // works only under that owner's path (`application_owners/{email}/applications/{id}`), so another
@@ -81,9 +82,13 @@ async function liveResumeIds(email: string): Promise<Set<string>> {
   );
 }
 
+/** What a role may hold: the base cap, or only the safety limit for roles that may customize. */
+const capFor = (role: Role, limits: TrackerLimits) =>
+  canCustomize(role) ? limits.maxApplications : Math.min(limits.baseMaxApplications, limits.maxApplications);
+
 /** The caller's applications. A link to a resume that was deleted is reported (and cleared) as none. */
 export const applicationList = privateEndpoint(async (body) => {
-  const { email } = await requireSession(body.cookie, "features:basic");
+  const { email, role } = await requireSession(body.cookie, "features:basic");
   const { limits } = tracker(body);
   const snap = await items(email).limit(limits.maxApplications + 1).get();
   const all = snap.docs.map((d) => d.data() as StoredApplication);
@@ -99,7 +104,13 @@ export const applicationList = privateEndpoint(async (body) => {
   const applications = all
     .map((a) => summary(a, a.resumeId && live?.has(a.resumeId) ? a.resumeId : null))
     .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt) || b.createdAt.localeCompare(a.createdAt));
-  return { applications, statuses: limits.statuses, limits: { ...limits, statuses: undefined } };
+  return {
+    applications,
+    statuses: limits.statuses,
+    limits: { ...limits, statuses: undefined },
+    // The cap shown to the user: a number for base users, null when only the safety limit applies.
+    cap: canCustomize(role) ? null : capFor(role, limits),
+  };
 });
 
 /** One application including its tailor JSON. */
@@ -109,9 +120,9 @@ export const applicationGet = privateEndpoint(async (body) => {
   return { application: withoutClaim(application) };
 });
 
-/** Creates an application. The safety limit is reserved in a transaction so parallel creates cannot pass it. */
+/** Creates an application. The cap is checked in a transaction so parallel creates cannot pass it. */
 export const applicationCreate = privateEndpoint(async (body) => {
-  const { email } = await requireSession(body.cookie, "features:basic");
+  const { email, role } = await requireSession(body.cookie, "features:basic");
   const { limits, tailor: ctx } = tracker(body);
   const fields = checkNew(body, limits);
   const tailor = body.tailor === undefined || body.tailor === null ? null : checkTailor(body.tailor, limits, ctx);
@@ -123,8 +134,9 @@ export const applicationCreate = privateEndpoint(async (body) => {
   await db().runTransaction(async (tx) => {
     const owner = ownerDoc(email);
     const count = Number((await tx.get(owner)).data()?.count ?? 0);
-    if (count >= limits.maxApplications) {
-      throw new ApiError(409, `You can keep at most ${limits.maxApplications} applications. Delete one to add another.`);
+    const cap = capFor(role, limits);
+    if (count >= cap) {
+      throw new ApiError(409, `You can keep at most ${cap} applications. Delete one to add another.`);
     }
     tx.set(owner, { email, count: count + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(items(email).doc(id), stored);

@@ -2,7 +2,7 @@
 
 ## 1. Config and shared resume creation
 
-- [x] 1.1 Add a `tracker` block (`statuses` as `{ id, label }`, `maxApplications`, `maxNotesLength`, `maxLabels`, `maxLabelLength`, `maxTailorBytes`) to `src/data/resumeConfig.ts` and `resume-config.example.json`, and make `sanitizeResumeConfig` fall back to the example's block when it is invalid; verify `npm run typecheck` passes and a config with an empty `statuses` list loads the default statuses.
+- [x] 1.1 Add a `tracker` block (`statuses` as `{ id, label }`, `baseMaxApplications`, `maxApplications`, `maxNotesLength`, `maxLabels`, `maxLabelLength`, `maxTailorBytes`) to `src/data/resumeConfig.ts` and `resume-config.example.json`, and make `sanitizeResumeConfig` fall back to the example's block when it is invalid; verify `npm run typecheck` passes and a config with an empty `statuses` list loads the default statuses.
 - [x] 1.2 Extract the body of `resumeCreate` in `functions/src/resumes.ts` into an exported `createResumeFor(email, role, config, input)` that keeps the cap transaction and object write unchanged, and make `resumeCreate` call it; verify `pnpm --prefix functions build` passes and, in the emulator or dev, the builder still creates, hits the cap of 3 and refuses the fourth.
 - [x] 1.3 Document the new config block and the extraction in the file's own comments and in `CLAUDE.md`'s resume builder config paragraph; verify the paragraph matches the code.
 
@@ -13,6 +13,8 @@
 - [x] 2.3 Add `applicationCreateResume`: require a tailor JSON, open the existing resume when the link is live, otherwise call `createResumeFor` (title from company and role) and store `resumeId`; verify a base user with 3 resumes gets 409 and an advanced user does not, and two parallel calls with 2 resumes create exactly one.
 - [x] 2.4 Export the new functions from `functions/src/index.ts`; verify the function names appear in the build output.
 - [x] 2.5 Extend `adminListResumeOwners` and `adminPurgeResumeOwner` in `functions/src/resumeAdmin.ts` to include and delete `application_owners`, and record the application count in `resume_audit`; verify an owner with only applications is listed with `applications` > 0 and `count` 0, and no row field contains application text.
+
+- [x] 2.6 Enforce the base-user cap: add `tracker.baseMaxApplications` (default 3) to the config type, example, sanitiser and `readLimits`; check the caller's cap in the `applicationCreate` transaction (base: `baseMaxApplications`, advanced: the safety limit) and return `cap` from `applicationList`; verify against the emulators that a fourth application for a base user gets 409, two parallel adds at 2 of 3 create exactly one, deleting frees a slot, an advanced user adds a fourth and a downgraded user cannot add.
 
 ## 3. Server layer
 
@@ -29,6 +31,8 @@
 - [x] 4.3 Check the page from 320px to 1920px in both themes, using only semantic classes from `src/styles/` and `text-brand*` for text; verify no horizontal scroll and readable contrast.
 
 - [x] 4.4 Add the quick navigation buttons: `switchTo` on `ResumeNav`, passed from the tracker and builder layouts (shown only while the other item is enabled, icon-only below `sm`); verify in a browser that each button appears and navigates when the other item is enabled, is absent when it is disabled, and fits at 320px without horizontal scroll.
+
+- [x] 4.5 Show the cap in the tracker: "n of 3 used" for base users, a disabled Add application button with the delete-one message at the cap, and the server's 409 message if it still arrives; verify in a browser at 3 of 3 and below, in both themes at 320px and 1440px.
 
 ## 5. Admin and final checks
 

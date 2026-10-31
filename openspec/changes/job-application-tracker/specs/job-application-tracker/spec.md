@@ -130,16 +130,36 @@ Applications SHALL be readable and changeable only by the user who owns them, wh
 - **WHEN** an admin lists applications
 - **THEN** they see only their own
 
-### Requirement: Applications are not capped
-Every role SHALL be able to hold any number of applications up to a generous safety limit set in the resume config, and the limit SHALL hold when requests arrive in parallel.
+### Requirement: Application cap by role
+A base user SHALL hold at most the number of applications set in the resume config (3). A role with `features:advanced` SHALL have no cap, only a generous safety limit set in the same config. The cap and the safety limit SHALL hold when requests arrive in parallel, and the page SHALL show how many applications are used of the cap.
 
-#### Scenario: Base user adds many
-- **WHEN** a base user holding more than 3 applications adds another
+#### Scenario: Fourth application for a base user
+- **WHEN** a base user with 3 applications adds another
+- **THEN** the request is rejected with a clear message to delete one first, and no application is added
+
+#### Scenario: Add button at the cap
+- **WHEN** a base user holds 3 applications
+- **THEN** the page shows "3 of 3 used", the Add application button is disabled and says to delete one to add another
+
+#### Scenario: Deleting frees a slot
+- **WHEN** that user deletes an application
+- **THEN** they can add another
+
+#### Scenario: Parallel adds
+- **WHEN** a base user with 2 applications sends two add requests at the same time
+- **THEN** exactly one succeeds
+
+#### Scenario: Advanced user
+- **WHEN** an advanced user with more than 3 applications adds another
 - **THEN** it is accepted
 
 #### Scenario: Safety limit
-- **WHEN** a user at the safety limit adds another application
+- **WHEN** an advanced user at the safety limit adds another application
 - **THEN** it is rejected with a clear message and nothing is added
+
+#### Scenario: Downgrade
+- **WHEN** an advanced user with more than 3 applications becomes a base user
+- **THEN** they can still open, edit and delete their applications but cannot add new ones until they hold fewer than 3
 
 ### Requirement: Tailor JSON
 An application MAY hold a tailor JSON, which SHALL have the shape of a resume's data under the default structure. It SHALL be validated as a draft on save: unknown sections or fields, wrong types and over-long values are rejected, and empty or missing fields are accepted.

@@ -72,6 +72,7 @@ export default function JobTracker() {
   return (
     <ApplicationTable
       total={applications.length}
+      cap={data.cap}
       rows={rows}
       statuses={data.statuses}
       labels={labels}

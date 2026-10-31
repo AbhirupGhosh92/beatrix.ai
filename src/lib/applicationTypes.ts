@@ -31,6 +31,7 @@ export interface ApplicationDetail extends Application {
 }
 
 export interface TrackerLimits {
+  baseMaxApplications: number
   maxApplications: number
   maxNotesLength: number
   maxLabels: number
@@ -42,6 +43,8 @@ export interface ApplicationList {
   applications: ApplicationSummary[]
   statuses: TrackerStatus[]
   limits: TrackerLimits
+  /** Applications the caller may hold, or null when only the safety limit applies. */
+  cap: number | null
 }
 
 /** The editable fields; on update only the fields present change and `tailor: null` removes it. */

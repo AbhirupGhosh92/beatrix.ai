@@ -8,6 +8,8 @@ import { nextSort, type SortKey, type ViewState } from '../../lib/applicationVie
 interface Props {
   /** Everything loaded, used for the totals. */
   total: number
+  /** Applications the user may hold, or null for no cap. */
+  cap: number | null
   /** After search, filters and sort. */
   rows: ApplicationSummary[]
   statuses: TrackerStatus[]
@@ -25,9 +27,10 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'appliedAt', label: 'Applied' },
 ]
 
-export default function ApplicationTable({ total, rows, statuses, labels, view, onView, onOpen, onAdd }: Props) {
+export default function ApplicationTable({ total, cap, rows, statuses, labels, view, onView, onOpen, onAdd }: Props) {
   const statusLabel = (id: string) => statuses.find((s) => s.id === id)?.label ?? id
   const filtered = view.search !== '' || view.status !== '' || view.labels.length > 0
+  const atCap = cap !== null && total >= cap
 
   function sortHeader({ key, label }: { key: SortKey; label: string }) {
     const active = view.sort.key === key
@@ -65,7 +68,7 @@ export default function ApplicationTable({ total, rows, statuses, labels, view, 
               {statuses.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>
-          <button type="button" className="button-primary" onClick={onAdd}>
+          <button type="button" className="button-primary" onClick={onAdd} disabled={atCap}>
             <Plus size={16} /> Add application
           </button>
         </div>
@@ -91,7 +94,11 @@ export default function ApplicationTable({ total, rows, statuses, labels, view, 
         )}
 
         <p className="text-meta flex flex-wrap items-center gap-3" aria-live="polite">
-          <span>{filtered ? `${rows.length} of ${total} applications match` : `${total} applications`}</span>
+          <span>
+            {cap !== null ? `${total} of ${cap} applications used` : filtered ? `${rows.length} of ${total} applications match` : `${total} applications`}
+            {atCap && ' - delete one to add another'}
+          </span>
+          {filtered && cap !== null && <span>{rows.length} match</span>}
           {filtered && (
             <button type="button" className="btn-ghost btn-xs" onClick={() => onView({ ...view, search: '', status: '', labels: [] })}>
               Clear filters

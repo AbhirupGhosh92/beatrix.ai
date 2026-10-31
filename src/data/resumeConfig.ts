@@ -42,7 +42,9 @@ export interface TrackerStatus {
 /** Job tracker settings; they live in the resume config so the CMS lists one file. */
 export interface TrackerConfig {
   statuses: TrackerStatus[]
-  /** Safety limit on applications per owner (not a product cap). */
+  /** Applications a base user may hold; roles with features:advanced have no cap. */
+  baseMaxApplications: number
+  /** Safety limit on applications per owner for everyone else (not a product cap). */
   maxApplications: number
   maxNotesLength: number
   maxLabels: number

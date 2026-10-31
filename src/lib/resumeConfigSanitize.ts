@@ -78,6 +78,7 @@ export function sanitizeTracker(value: unknown, fallback: TrackerConfig, warn: (
   const num = (key: Exclude<keyof TrackerConfig, 'statuses'>, min: number, max: number) => (isInt(stored[key], min, max) ? stored[key] : fallback[key])
   return {
     statuses,
+    baseMaxApplications: num('baseMaxApplications', 1, 100_000),
     maxApplications: num('maxApplications', 1, 100_000),
     maxNotesLength: num('maxNotesLength', 1, 20_000),
     maxLabels: num('maxLabels', 1, 50),
