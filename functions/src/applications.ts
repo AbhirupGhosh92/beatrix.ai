@@ -25,6 +25,8 @@ const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** A tailored-resume creation older than this is treated as abandoned and can be retried. */
 const CLAIM_MS = 30_000;
 const MAX_TITLE = 80;
+/** Most writes one Firestore batch may hold. */
+const BATCH_LIMIT = 500;
 
 interface StoredApplication extends ApplicationFields {
   id: string;
@@ -96,9 +98,10 @@ export const applicationList = privateEndpoint(async (body) => {
   let live: Set<string> | undefined;
   if (all.some((a) => a.resumeId)) live = await liveResumeIds(email);
   const stale = all.filter((a) => a.resumeId && !live?.has(a.resumeId));
-  if (stale.length > 0) {
+  // A Firestore batch holds at most 500 writes, so clear the links in chunks.
+  for (let i = 0; i < stale.length; i += BATCH_LIMIT) {
     const batch = db().batch();
-    for (const a of stale) batch.update(items(email).doc(a.id), { resumeId: null });
+    for (const a of stale.slice(i, i + BATCH_LIMIT)) batch.update(items(email).doc(a.id), { resumeId: null });
     await batch.commit();
   }
   const applications = all
