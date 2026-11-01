@@ -366,12 +366,19 @@ resource "google_secret_manager_secret" "model_api_key" {
   depends_on = [google_project_service.enabled_services]
 }
 
-# Only the service's own runtime account can read the secret.
-resource "google_secret_manager_secret_iam_member" "python_runtime_model_api_key" {
-  project   = var.project_id
-  secret_id = google_secret_manager_secret.model_api_key.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.python_runtime.email}"
+# Only the service's own runtime account can read the secret. Granted on the project (the
+# deployer can set project IAM but not a secret's policy) and limited by a condition to this
+# one secret, so the account cannot read any other secret.
+resource "google_project_iam_member" "python_runtime_model_api_key" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.python_runtime.email}"
+
+  condition {
+    title       = "only-model-api-key"
+    description = "Read access to the model-api-key secret only"
+    expression  = "resource.name.endsWith(\"/secrets/${google_secret_manager_secret.model_api_key.secret_id}\")"
+  }
 }
 
 # ------------------------------------------------------------------------------
