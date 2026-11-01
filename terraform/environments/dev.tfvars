@@ -3,8 +3,8 @@ environment           = "dev"
 region                = "us-central1"
 firestore_location_id = "nam5"
 allowed_admin_emails = [
-  "joshmcgrath123@gmail.com"
+  "dev-email@example.com"
 ]
 developer_members = [
-  "user:joshmcgrath123@gmail.com"
+  "user:dev-email@example.com"
 ]

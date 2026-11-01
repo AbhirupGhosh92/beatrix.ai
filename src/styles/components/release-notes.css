@@ -1,0 +1,44 @@
+/* Release version button and its notes modal. Written as plain CSS because the
+   unlayered global `button { @apply btn }` rule beats daisyUI's layered size,
+   ghost and positioning utilities (see buttons.css). */
+.release-version {
+  height: 1.5rem;
+  min-height: 0;
+  padding-inline: 0.5rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+.release-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+/* The backdrop button only needs to catch clicks; keep it invisible. */
+.modal-backdrop button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: transparent;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.modal-backdrop button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
