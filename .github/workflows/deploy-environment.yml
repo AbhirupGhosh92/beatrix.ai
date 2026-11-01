@@ -344,7 +344,7 @@ jobs:
           info "redeploy_all: ${REDEPLOY_ALL}"
           list=()
           rows=""
-          for c in functions rules apphosting; do
+          for c in functions rules apphosting python; do
             IFS=$'\t' read -r changed current previous reason < <(bash scripts/deploy/components.sh status "$c" "$STATE_BUCKET")
             if [[ "$REDEPLOY_ALL" == "true" ]]; then changed=true; reason="redeploy_all is set"; fi
             info "$c: source ${current:0:12}, last deployed ${previous:0:12}"
@@ -530,7 +530,7 @@ jobs:
           source scripts/deploy/log.sh
           if [[ -z "$COMPONENTS" ]]; then
             step_start "Deploy changed components"
-            decision "deploy" "skipped: functions, rules and App Hosting are all unchanged"
+            decision "deploy" "skipped: functions, rules, App Hosting and the Python service are all unchanged"
             result "nothing deployed"
             step_end
             exit 0
@@ -539,7 +539,7 @@ jobs:
           info "firebase-tools@${FIREBASE_TOOLS_VERSION}"
           npm install --global "firebase-tools@${FIREBASE_TOOLS_VERSION}"
           step_end
-          args=(--components "$COMPONENTS")
+          args=(--components "$COMPONENTS" --region "$(awk -F'"' '/^region[[:space:]]*=/{print $2}' "terraform/environments/${ENVIRONMENT}.tfvars")")
           if [[ "$ALLOW_DESTRUCTIVE" == "true" ]]; then args+=(--allow-destructive); fi
           bash scripts/deploy-backend.sh "$PROJECT_ID" "${args[@]}"
 

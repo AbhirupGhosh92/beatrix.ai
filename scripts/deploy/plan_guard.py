@@ -30,6 +30,7 @@ PROTECTED_TYPES = frozenset(
         "google_iam_workload_identity_pool",  # CI login
         "google_iam_workload_identity_pool_provider",
         "google_firebaserules_release",  # live security rules
+        "google_secret_manager_secret",  # model API key (its versions are set by hand)
     }
 )
 

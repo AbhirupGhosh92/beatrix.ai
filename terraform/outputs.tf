@@ -78,3 +78,13 @@ output "resumes_bucket" {
   value       = google_storage_bucket.resumes_storage.name
   description = "Cloud Storage bucket name for user resumes."
 }
+
+output "python_service_account" {
+  value       = google_service_account.python_runtime.email
+  description = "Runtime service account of the Python AI service (Cloud Run)."
+}
+
+output "python_secret_id" {
+  value       = google_secret_manager_secret.model_api_key.secret_id
+  description = "Secret Manager secret holding the model API key (value set outside Terraform)."
+}
