@@ -1,0 +1,4 @@
+- New Job Tracker: keep track of your job applications with status, labels, notes and a link to each posting.
+- Create a tailored resume straight from an application.
+- The Resume Builder now shows a live preview of your resume as you type.
+- Quick links to switch between the Job Tracker and the Resume Builder.
