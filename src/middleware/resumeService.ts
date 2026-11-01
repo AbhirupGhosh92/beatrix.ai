@@ -27,7 +27,7 @@ export const createResume = async (cookie: string, input: { title: unknown; stru
 export const saveResume = async (
   cookie: string,
   id: string,
-  input: { title?: unknown; data: unknown; structure?: unknown; generation: unknown },
+  input: { title?: unknown; data: unknown; structure?: unknown; view?: unknown; generation: unknown },
 ) => callCloudFunction<ResumeEnvelope>('resumeSave', { cookie, id, ...input, config: await limits() })
 
 export const deleteResume = (cookie: string, id: string) =>

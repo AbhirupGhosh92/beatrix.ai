@@ -22,8 +22,8 @@ export async function PUT(request: NextRequest, { params }: Context) {
   const cookie = sessionCookie(request)
   if (!cookie) return unauthorized('Sign-in required.')
   try {
-    const { title, data, structure, generation } = await request.json()
-    return NextResponse.json(await saveResume(cookie, (await params).id, { title, data, structure, generation }), {
+    const { title, data, structure, view, generation } = await request.json()
+    return NextResponse.json(await saveResume(cookie, (await params).id, { title, data, structure, view, generation }), {
       headers: NO_STORE,
     })
   } catch (err) {

@@ -31,6 +31,8 @@
       {
         "id": "summary",
         "title": "Summary",
+        "repeatable": true,
+        "variants": true,
         "fields": [
           {
             "id": "text",

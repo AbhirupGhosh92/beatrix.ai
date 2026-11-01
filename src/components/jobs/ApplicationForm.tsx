@@ -1,12 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ExternalLink, FilePlus, FileText, Loader2, Save, Trash2, X } from 'lucide-react'
 import type { TrackerStatus } from '../../data/resumeConfig.ts'
 import { applicationApi } from '../../lib/applicationClient.ts'
 import type { ApplicationSummary, TrackerLimits } from '../../lib/applicationTypes.ts'
 import LabelInput from './LabelInput.tsx'
+
+// The CMS editor component (Monaco), loaded only when an application is being edited.
+const JsonEditor = dynamic(() => import('../ui/JsonEditor.tsx').then((module) => module.JsonEditor), {
+  ssr: false,
+  loading: () => <p className="text-meta">Loading editor...</p>,
+})
 
 interface Props {
   /** The application being edited, or null for a new one. */
@@ -195,18 +202,15 @@ export default function ApplicationForm({ application, statuses, limits, suggest
           <span className="text-meta-strong font-semibold">Notes</span>
           <textarea className="textarea textarea-bordered min-h-24 w-full" maxLength={limits.maxNotesLength} value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
         </label>
-        <label className="flex flex-col gap-1 sm:col-span-2">
+        <div className="flex flex-col gap-1 sm:col-span-2">
           <span className="text-meta-strong font-semibold">Tailor JSON</span>
           <span className="text-meta">Resume data for this job, in the same shape as a resume. Leave empty if you have none.</span>
-          <textarea
-            className="textarea textarea-bordered min-h-40 w-full font-mono text-sm"
-            spellCheck={false}
-            disabled={loadingTailor}
-            placeholder='{ "contact": { "name": "..." } }'
-            value={loadingTailor ? 'Loading...' : draft.tailor}
-            onChange={(e) => set('tailor', e.target.value)}
-          />
-        </label>
+          {loadingTailor ? (
+            <p className="text-meta">Loading...</p>
+          ) : (
+            <JsonEditor label="Tailor JSON" height={280} value={draft.tailor} onChange={(value) => set('tailor', value)} />
+          )}
+        </div>
       </div>
 
       {error && <p role="alert" className="text-error">{error}</p>}
