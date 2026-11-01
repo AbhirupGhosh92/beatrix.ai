@@ -21,7 +21,7 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `npm run check`, `openspec validate --all`, and a dev deploy; confirm a second deploy without `python/` changes leaves the service untouched and anonymous calls are rejected
+- [x] 4.1 Run `npm run check`, `openspec validate --all`, and a dev deploy; confirm a second deploy without `python/` changes leaves the service untouched and anonymous calls are rejected
 
 ## 5. Docs
 
