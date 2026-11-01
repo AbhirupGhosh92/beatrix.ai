@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
 import { X } from 'lucide-react'
 import type { LatestRelease } from '../../middleware/releaseService.ts'
@@ -14,7 +15,9 @@ function noteLines(notes: string): string[] {
 
 export default function ReleaseNotes({ release }: { release: LatestRelease | null }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  if (!release) return null
+  const pathname = usePathname()
+  // The root layout renders this on every page; the version belongs on the home page only.
+  if (!release || pathname !== '/') return null
   const lines = noteLines(release.notes)
 
   return (

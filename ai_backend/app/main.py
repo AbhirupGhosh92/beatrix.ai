@@ -3,8 +3,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from .config import get_settings
+from .stubs import router as stub_router
 
 app = FastAPI(title="Beatrix AI service")
+app.include_router(stub_router)
 
 
 @app.get("/health")

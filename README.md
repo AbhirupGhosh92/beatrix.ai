@@ -109,6 +109,9 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── users/
 │   │   │       └── route.ts
+│   │   ├── ai/
+│   │   │   └── [action]/
+│   │   │       └── route.ts
 │   │   ├── applications/
 │   │   │   ├── route.ts
 │   │   │   └── [id]/
@@ -153,14 +156,18 @@ src/
 │   │   ├── ResumeNav.tsx
 │   │   └── ThemeToggle.tsx
 │   ├── resume/
-│   │   ├── ExportPanel.tsx
+│   │   ├── AiPanel.tsx
 │   │   ├── FieldInput.tsx
+│   │   ├── QuickActions.tsx
 │   │   ├── ResumeBuilder.tsx
 │   │   ├── ResumeEditor.tsx
 │   │   ├── ResumeList.tsx
+│   │   ├── SidePanel.tsx
 │   │   ├── StructureEditor.tsx
 │   │   ├── StructureForm.tsx
-│   │   └── TemplatePreview.tsx
+│   │   ├── TemplateGallery.tsx
+│   │   ├── TemplatePreview.tsx
+│   │   └── WorkspaceHeader.tsx
 │   ├── sections/
 │   │   ├── About.tsx
 │   │   ├── BeyondCode.tsx
@@ -184,9 +191,12 @@ src/
 │   ├── resume-config.example.json
 │   └── resumeConfig.ts
 ├── hooks/
+│   ├── useAiActions.ts
+│   ├── useHistory.ts
 │   └── useInView.ts
 ├── lib/
 │   ├── access.ts
+│   ├── aiClient.ts
 │   ├── applicationClient.ts
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
@@ -203,11 +213,14 @@ src/
 │       ├── markdown.ts
 │       ├── model.ts
 │       ├── sample.ts
+│       ├── score.ts
 │       ├── style.ts
 │       ├── toDocx.ts
-│       └── toPdf.ts
+│       ├── toPdf.ts
+│       └── view.ts
 ├── middleware/
 │   ├── adminService.ts
+│   ├── aiService.ts
 │   ├── applicationService.ts
 │   ├── cloudFunctions.ts
 │   ├── profileService.ts

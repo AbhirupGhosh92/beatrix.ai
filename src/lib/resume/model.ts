@@ -9,7 +9,19 @@
 //    textarea/bullets fields give the paragraph and the bullet points;
 //  - a non-repeatable section whose only field is a bullets field is a compact inline list.
 // Blank values and completely empty entries are left out.
-import { isBlank, type FieldDef, type FieldType, type ResumeData, type SectionData, type SectionDef, type Structure } from '../resumeValidation.ts'
+import {
+  activeVariant,
+  entriesOf,
+  isBlank,
+  type FieldDef,
+  type FieldType,
+  type ResumeData,
+  type ResumeView,
+  type SectionData,
+  type SectionDef,
+  type Structure,
+} from '../resumeValidation.ts'
+import { orderSections } from './view.ts'
 
 export type Block =
   | { kind: 'paragraph'; text: string }
@@ -98,10 +110,12 @@ function plainBlocks(section: SectionDef, entry: SectionData): Block[] {
   return blocks
 }
 
-export function buildDocument(title: string, structure: Structure, data: ResumeData): ResumeDocument {
+// The first section of the structure is the header and stays on top; the view orders the rest, and
+// a `variants` section contributes only its active entry.
+export function buildDocument(title: string, structure: Structure, data: ResumeData, view?: ResumeView | null): ResumeDocument {
   const doc: ResumeDocument = { name: title, headline: '', contact: [], sections: [] }
   const [first, ...rest] = structure.sections
-  const sectionsToRender = [...rest]
+  const sectionsToRender = orderSections(rest, view)
 
   if (first && !first.repeatable) {
     const entry = (Array.isArray(data[first.id]) || !data[first.id] ? {} : data[first.id]) as SectionData
@@ -124,10 +138,11 @@ export function buildDocument(title: string, structure: Structure, data: ResumeD
     const value = data[section.id]
     let blocks: Block[]
     if (section.repeatable) {
-      const entries = Array.isArray(value) ? value : []
-      blocks = entries
-        .filter((entry) => !isBlank(Object.values(entry)))
-        .map((entry) => buildEntry(section, entry))
+      const all = entriesOf(section, value)
+      const entries = section.variants ? all.filter((_, index) => index === activeVariant(section, data, view)) : all
+      const filled = entries.filter((entry) => !isBlank(Object.values(entry)))
+      // A variant is prose (a summary), not a job-like entry, so it prints as plain blocks.
+      blocks = section.variants ? filled.flatMap((entry) => plainBlocks(section, entry)) : filled.map((entry) => buildEntry(section, entry))
     } else {
       blocks = Array.isArray(value) || !value ? [] : plainBlocks(section, value)
     }
@@ -135,7 +150,7 @@ export function buildDocument(title: string, structure: Structure, data: ResumeD
     doc.sections.push({
       title: section.title,
       blocks,
-      compact: !section.repeatable && blocks.every((block) => block.kind !== 'paragraph'),
+      compact: (!section.repeatable || section.variants === true) && blocks.every((block) => block.kind !== 'paragraph'),
     })
   }
   return doc

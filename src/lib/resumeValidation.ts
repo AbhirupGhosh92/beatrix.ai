@@ -19,6 +19,11 @@ export interface SectionDef {
   title: string
   /** A list of entries (jobs, schools, ...) instead of a single set of fields. */
   repeatable?: boolean
+  /**
+   * A repeatable section whose entries are alternatives (for example several summaries): the
+   * resume's view names the one that is exported, and the others are only stored.
+   */
+  variants?: boolean
   fields: FieldDef[]
 }
 
@@ -47,6 +52,14 @@ export interface StructureRules {
 export type FieldValue = string | string[]
 export type SectionData = Record<string, FieldValue>
 export type ResumeData = Record<string, SectionData | SectionData[]>
+
+/** How a resume is laid out, stored beside its data. It never changes the structure. */
+export interface ResumeView {
+  /** Every section id of the resume's structure exactly once, in display order. */
+  sectionOrder?: string[]
+  /** For `variants` sections: the index of the entry that is exported. */
+  activeVariants?: Record<string, number>
+}
 
 export interface FieldIssue {
   /** `section.field` or `section.<index>.field` for entries of a repeatable section. */
@@ -106,7 +119,7 @@ export function validateStructure(value: unknown, rules: StructureRules): string
   sections.slice(0, rules.maxSections).forEach((section: unknown, s) => {
     const at = `sections[${s}]`
     if (!isObject(section)) return add(`${at} must be an object.`)
-    for (const key of unknownKeys(section, ['id', 'title', 'repeatable', 'fields'])) add(`${at}: unknown key "${key}".`)
+    for (const key of unknownKeys(section, ['id', 'title', 'repeatable', 'variants', 'fields'])) add(`${at}: unknown key "${key}".`)
 
     if (typeof section.id !== 'string' || !ID.test(section.id)) add(`${at}: id must be lowercase letters, digits or _ (start with a letter).`)
     else if (sectionIds.has(section.id)) add(`${at}: duplicate id "${section.id}".`)
@@ -116,6 +129,10 @@ export function validateStructure(value: unknown, rules: StructureRules): string
       add(`${at}: title must be 1-${rules.maxLabelLength} characters.`)
     }
     if (section.repeatable !== undefined && typeof section.repeatable !== 'boolean') add(`${at}: repeatable must be true or false.`)
+    if (section.variants !== undefined) {
+      if (typeof section.variants !== 'boolean') add(`${at}: variants must be true or false.`)
+      else if (section.variants && section.repeatable !== true) add(`${at}: variants needs repeatable to be true.`)
+    }
 
     const fields = section.fields
     if (!Array.isArray(fields) || fields.length === 0) return add(`${at}: needs at least one field.`)
@@ -163,6 +180,20 @@ export function blankEntry(section: SectionDef): SectionData {
   const entry: SectionData = {}
   for (const field of section.fields) entry[field.id] = blankValue(field.type)
   return entry
+}
+
+/** The entries of a repeatable section. A variants section saved as one object (the older summary shape) counts as one entry. */
+export function entriesOf(section: SectionDef, value: unknown): SectionData[] {
+  if (Array.isArray(value)) return value as SectionData[]
+  if (section.variants && isObject(value)) return [value as SectionData]
+  return []
+}
+
+/** The index of the exported entry of a variants section, kept inside the entries that exist. */
+export function activeVariant(section: SectionDef, data: ResumeData, view: ResumeView | null | undefined): number {
+  const count = entriesOf(section, data[section.id]).length
+  const wanted = view?.activeVariants?.[section.id]
+  return typeof wanted === 'number' && Number.isInteger(wanted) && wanted >= 0 && wanted < count ? wanted : 0
 }
 
 /** A fresh resume: every field empty, repeatable sections start with one blank entry. */
@@ -217,13 +248,16 @@ export function validateField(field: FieldDef, value: unknown, rules: StructureR
  * Everything wrong with `data` for generating a file. Entries of a repeatable section that are
  * completely empty are ignored, so a user without (say) work experience is not blocked.
  */
-export function validateForGenerate(structure: Structure, data: ResumeData, rules: StructureRules): FieldIssue[] {
+export function validateForGenerate(structure: Structure, data: ResumeData, rules: StructureRules, view?: ResumeView | null): FieldIssue[] {
   const issues: FieldIssue[] = []
   for (const section of structure.sections) {
     const value = data[section.id]
-    const entries = section.repeatable ? (Array.isArray(value) ? value : []) : [value]
+    const entries = section.repeatable ? entriesOf(section, value) : [value]
+    // Only the exported variant is checked; the others are never written to a file.
+    const active = section.variants ? activeVariant(section, data, view) : -1
     entries.forEach((entry, index) => {
       if (section.repeatable && isBlankEntry(entry)) return
+      if (section.variants && index !== active) return
       const values = isObject(entry) ? entry : {}
       for (const field of section.fields) {
         const message = validateField(field, values[field.id], rules)
@@ -257,12 +291,13 @@ export function checkDraft(structure: Structure, data: unknown, rules: Structure
     if (value === undefined) continue
     let entries: unknown[]
     if (section.repeatable) {
-      if (!Array.isArray(value)) {
+      const list = entriesOf(section, value)
+      if (!Array.isArray(value) && list.length === 0) {
         add(`${section.id}: must be a list of entries.`)
         continue
       }
-      if (value.length > rules.maxEntries) add(`${section.id}: at most ${rules.maxEntries} entries.`)
-      entries = value.slice(0, rules.maxEntries)
+      if (list.length > rules.maxEntries) add(`${section.id}: at most ${rules.maxEntries} entries.`)
+      entries = list.slice(0, rules.maxEntries)
     } else {
       entries = [value]
     }
@@ -285,4 +320,36 @@ export function checkDraft(structure: Structure, data: unknown, rules: Structure
     })
   }
   return errors
+}
+
+/** Problems with a resume's view for a structure and data, empty when it is acceptable. */
+export function checkView(structure: Structure, view: unknown, data: ResumeData): string[] {
+  if (view === undefined || view === null) return []
+  if (!isObject(view)) return ['The view must be an object.']
+  const errors: string[] = []
+  for (const key of unknownKeys(view, ['sectionOrder', 'activeVariants'])) errors.push(`Unknown view key "${key}".`)
+
+  const ids = structure.sections.map((section) => section.id)
+  const order = view.sectionOrder
+  if (order !== undefined) {
+    if (!Array.isArray(order) || order.some((id) => typeof id !== 'string')) errors.push('The section order must be a list of section ids.')
+    else if (order.length !== ids.length || new Set(order).size !== order.length || order.some((id) => !ids.includes(id as string))) {
+      errors.push('The section order must list every section exactly once.')
+    }
+  }
+
+  const active = view.activeVariants
+  if (active !== undefined) {
+    if (!isObject(active)) errors.push('The active variants must be an object.')
+    else {
+      for (const [id, index] of Object.entries(active)) {
+        const section = structure.sections.find((candidate) => candidate.id === id)
+        if (!section || !section.variants) errors.push(`"${id}" is not a section with variants.`)
+        else if (!Number.isInteger(index) || (index as number) < 0 || (index as number) >= entriesOf(section, data[id]).length) {
+          errors.push(`The active variant of "${id}" is out of range.`)
+        }
+      }
+    }
+  }
+  return errors.slice(0, MAX_ERRORS)
 }

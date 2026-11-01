@@ -1,25 +1,36 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Loader2, Save } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { useAiActions } from '../../hooks/useAiActions.ts'
 import { reconcileData } from '../../lib/resumeForm.ts'
 import { ResumeApiError, resumeApi } from '../../lib/resumeClient.ts'
+import { scoreResume } from '../../lib/resume/score.ts'
+import { fitView, reorder, shift } from '../../lib/resume/view.ts'
 import type { BuilderConfig } from '../../lib/resumeTypes.ts'
-import { validateForGenerate, type ResumeData, type Structure } from '../../lib/resumeValidation.ts'
+import { validateForGenerate, type ResumeData, type ResumeView, type Structure } from '../../lib/resumeValidation.ts'
 import { exportResume, saveBlob, type ExportFormat } from '../../lib/resume/export.ts'
-import ExportPanel from './ExportPanel.tsx'
+import AiPanel from './AiPanel.tsx'
+import QuickActions from './QuickActions.tsx'
+import SidePanel, { type PanelTab } from './SidePanel.tsx'
 import StructureEditor from './StructureEditor.tsx'
 import StructureForm from './StructureForm.tsx'
+import TemplateGallery from './TemplateGallery.tsx'
+import TemplatePreview from './TemplatePreview.tsx'
+import WorkspaceHeader, { type SyncState } from './WorkspaceHeader.tsx'
 
 const AUTOSAVE_MS = 1500
 
 type Status = 'idle' | 'saving' | 'saved' | 'error' | 'conflict'
+type Pane = 'edit' | 'preview' | 'actions'
 
 interface Doc {
   title: string
   data: ResumeData
   /** The resume's own structure (advanced users), or null to use the default one. */
   structure: Structure | null
+  /** Section order and exported variants; part of the resume, never of the structure. */
+  view?: ResumeView
 }
 
 interface Props {
@@ -32,6 +43,24 @@ interface Props {
 
 const snapshotOf = (doc: Doc) => JSON.stringify(doc)
 
+/** The label of the field an issue path (`section.field` or `section.<index>.field`) points at. */
+function fieldName(structure: Structure, path: string): string {
+  const parts = path.split('.')
+  const section = structure.sections.find((candidate) => candidate.id === parts[0])
+  const field = section?.fields.find((candidate) => candidate.id === parts[parts.length - 1])
+  return field?.label ?? path
+}
+const collapsedKey = (id: string) => `resume-collapsed:${id}`
+
+const PANES: { id: Pane; label: string }[] = [
+  { id: 'edit', label: 'Edit' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'actions', label: 'Actions' },
+]
+
+// The workspace for one resume: header, side panel (Content / AI / Design), live canvas and the
+// quick-actions rail. `doc` is the only copy of the resume; the canvas, the score and the AI
+// actions are all derived from it.
 export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
   const [doc, setDoc] = useState<Doc | null>(null)
   const [generation, setGeneration] = useState('')
@@ -43,6 +72,22 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
   const [showAll, setShowAll] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [tab, setTab] = useState<PanelTab>('content')
+  const [pane, setPane] = useState<Pane>('edit')
+  const [templateId, setTemplateId] = useState(config.templates[0]?.id ?? '')
+  const [format, setFormat] = useState<ExportFormat>('pdf')
+  // Folded sections are a per-browser convenience; this component only mounts after the resume
+  // loaded in the browser, so reading storage here cannot disagree with server HTML. Storage may be
+  // blocked, so every access is guarded.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(collapsedKey(id)) ?? '[]')
+      return new Set(Array.isArray(stored) ? stored.filter((item): item is string => typeof item === 'string') : [])
+    } catch {
+      return new Set()
+    }
+  })
+  const ai = useAiActions()
 
   const autosave = config.canCustomize
 
@@ -57,6 +102,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
           title: resume.title,
           structure,
           data: reconcileData(structure ?? config.defaultStructure, resume.data),
+          ...(resume.view ? { view: resume.view } : {}),
         }
         setDoc(loaded)
         setSaved(snapshotOf(loaded))
@@ -70,11 +116,31 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
     }
   }, [id, config.defaultStructure])
 
+  const toggleSection = useCallback(
+    (sectionId: string) => {
+      setCollapsed((prev) => {
+        const next = new Set(prev)
+        if (!next.delete(sectionId)) next.add(sectionId)
+        try {
+          window.localStorage.setItem(collapsedKey(id), JSON.stringify([...next]))
+        } catch {
+          /* not remembered, still works */
+        }
+        return next
+      })
+    },
+    [id],
+  )
+
   const structure = doc ? (doc.structure ?? config.defaultStructure) : config.defaultStructure
   const dirty = doc !== null && snapshotOf(doc) !== saved
 
-  const issues = useMemo(() => (doc ? validateForGenerate(structure, doc.data, config.structureRules) : []), [doc, structure, config.structureRules])
+  const issues = useMemo(
+    () => (doc ? validateForGenerate(structure, doc.data, config.structureRules, doc.view) : []),
+    [doc, structure, config.structureRules],
+  )
   const errors = useMemo(() => new Map(issues.map((issue) => [issue.path, issue.message])), [issues])
+  const score = useMemo(() => scoreResume(structure, doc?.data ?? {}, doc?.view), [structure, doc])
 
   const save = useCallback(async () => {
     if (!doc || status === 'saving') return
@@ -86,6 +152,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
         data: doc.data,
         // Only roles that may customize send a structure; base users never do.
         ...(config.canCustomize && doc.structure ? { structure: doc.structure } : {}),
+        view: doc.view ?? null,
         generation,
       })
       setGeneration(result.generation)
@@ -126,17 +193,22 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
     onClose()
   }
 
-  async function generate(templateId: string, format: ExportFormat) {
+  async function download() {
     if (!doc) return
     setShowAll(true)
-    if (issues.length > 0 || exporting) return
-    setExporting(true)
     setNotice(null)
+    if (issues.length > 0) {
+      setNotice(`${issues.length} ${issues.length === 1 ? 'field needs' : 'fields need'} attention before you can download.`)
+      return
+    }
+    if (exporting) return
+    setExporting(true)
     try {
       const { blob, filename, warnings } = await exportResume({
         title: doc.title,
         structure,
         data: doc.data,
+        view: doc.view,
         format,
         template: config.templates.find((template) => template.id === templateId),
       })
@@ -163,24 +235,28 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
     )
   }
 
-  const statusText =
+  const edit = (next: Doc) => setDoc(next)
+  const sync: SyncState = status === 'saving' ? 'saving' : status === 'error' || status === 'conflict' ? 'error' : dirty ? 'dirty' : 'saved'
+  const syncText =
     status === 'saving' ? 'Saving...' : status === 'conflict' ? 'Changed elsewhere' : status === 'error' ? 'Not saved' : dirty ? 'Unsaved changes' : 'All changes saved'
+  const template = config.templates.find((candidate) => candidate.id === templateId)
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button type="button" className="button-secondary" onClick={leave}>
-          <ArrowLeft size={16} /> My resumes
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="text-meta" role="status">{statusText}</span>
-          {!autosave && (
-            <button type="button" className="button-primary" disabled={!dirty || status === 'saving'} onClick={() => void save()}>
-              {status === 'saving' ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Save
-            </button>
-          )}
-        </div>
-      </div>
+      <WorkspaceHeader
+        title={doc.title}
+        onTitleChange={(title) => edit({ ...doc, title })}
+        sync={sync}
+        syncText={syncText}
+        showSave={!autosave}
+        onSave={() => void save()}
+        format={format}
+        onFormatChange={setFormat}
+        downloading={exporting}
+        downloadDisabled={format !== 'md' && config.templates.length === 0}
+        onDownload={() => void download()}
+        onLeave={leave}
+      />
 
       {message && (
         <div role="alert" className="alert alert-error flex flex-wrap items-center justify-between gap-2">
@@ -190,51 +266,86 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
           )}
         </div>
       )}
+      {notice && <p role="status" className="text-meta">{notice}</p>}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex flex-col gap-6">
-          <label className="flex flex-col gap-1">
-            <span className="text-meta-strong font-semibold">Resume name</span>
-            <input
-              className="input input-bordered w-full"
-              maxLength={80}
-              value={doc.title}
-              onChange={(event) => setDoc({ ...doc, title: event.target.value })}
-            />
-          </label>
+      {/* Below lg the three columns become one pane at a time. */}
+      <div role="tablist" aria-label="Workspace view" className="flex gap-2 lg:hidden">
+        {PANES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={pane === item.id}
+            className={`btn-sm flex-1 ${pane === item.id ? 'button-primary' : 'button-secondary'}`}
+            onClick={() => setPane(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
-          <StructureForm
-            structure={structure}
-            data={doc.data}
-            rules={config.structureRules}
-            errors={errors}
-            touched={touched}
-            showAll={showAll}
-            onChange={(data) => setDoc({ ...doc, data })}
-            onTouch={(path) => setTouched((prev) => new Set(prev).add(path))}
-          />
-
-          {config.canCustomize && (
-            <details className="surface rounded-box p-4">
-              <summary className="heading-display cursor-pointer font-bold text-brand">Edit structure</summary>
-              <div className="pt-4">
-                <StructureEditor
-                  key={JSON.stringify(structure)}
+      <div className="grid gap-4 lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)_16rem]">
+        <aside className={`${pane === 'edit' ? '' : 'hidden'} min-w-0 lg:block lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:pr-1`}>
+          <SidePanel
+            tab={tab}
+            onTab={setTab}
+            content={
+              <div className="flex flex-col gap-4">
+                <StructureForm
                   structure={structure}
+                  data={doc.data}
+                  view={doc.view}
                   rules={config.structureRules}
-                  onApply={(next) => setDoc({ ...doc, structure: next, data: reconcileData(next, doc.data) })}
+                  errors={errors}
+                  touched={touched}
+                  showAll={showAll}
+                  collapsed={collapsed}
+                  onToggle={toggleSection}
+                  onChange={(data, view) => edit({ ...doc, data, ...(view ? { view } : {}) })}
+                  onViewChange={(view) => edit({ ...doc, view })}
+                  onMove={(sectionId, delta) => edit({ ...doc, view: shift(structure, doc.view, sectionId, delta) })}
+                  onReorder={(fromId, toId) => edit({ ...doc, view: reorder(structure, doc.view, fromId, toId) })}
+                  onTouch={(path) => setTouched((prev) => new Set(prev).add(path))}
                 />
+                {config.canCustomize && (
+                  <details className="surface rounded-box p-4">
+                    <summary className="heading-display cursor-pointer font-bold text-brand">Edit structure</summary>
+                    <div className="pt-4">
+                      <StructureEditor
+                        key={JSON.stringify(structure)}
+                        structure={structure}
+                        rules={config.structureRules}
+                        onApply={(next) => {
+                          const data = reconcileData(next, doc.data)
+                          edit({ ...doc, structure: next, data, view: fitView(next, data, doc.view) })
+                        }}
+                      />
+                    </div>
+                  </details>
+                )}
               </div>
-            </details>
-          )}
-        </div>
+            }
+            ai={<AiPanel ai={ai} structure={structure} data={doc.data} score={score.score} onApply={(data) => edit({ ...doc, data })} />}
+            design={
+              <div className="flex flex-col gap-3">
+                <p className="text-meta">The template styles the preview and the PDF and Word downloads. Markdown has no styling.</p>
+                <TemplateGallery templates={config.templates} selected={templateId} onSelect={setTemplateId} />
+              </div>
+            }
+          />
+        </aside>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto">
-          <section className="surface rounded-box flex flex-col gap-3 p-4" aria-labelledby="generate-heading">
-            <h2 id="generate-heading" className="heading-display text-lg font-bold text-brand">Generate</h2>
-            <ExportPanel templates={config.templates} structure={structure} data={doc.data} valid={issues.length === 0} busy={exporting} onGenerate={(templateId, format) => void generate(templateId, format)} />
-            {notice && <p role="status" className="text-meta">{notice}</p>}
-          </section>
+        <section className={`${pane === 'preview' ? '' : 'hidden'} min-w-0 lg:block lg:sticky lg:top-24 lg:self-start`} aria-label="Preview">
+          {template ? (
+            <TemplatePreview key={template.id} template={template} structure={structure} data={doc.data} view={doc.view} />
+          ) : (
+            <p className="text-meta">No templates are available, so there is no preview. Markdown download still works.</p>
+          )}
+          {format === 'md' && template && <p className="text-meta pt-2">The preview shows the template; a Markdown download has no styling.</p>}
+        </section>
+
+        <aside className={`${pane === 'actions' ? '' : 'hidden'} flex min-w-0 flex-col gap-4 lg:flex`}>
+          <QuickActions score={score} />
           {issues.length > 0 && (
             <section className="surface rounded-box p-4" aria-labelledby="missing-heading">
               <h2 id="missing-heading" className="text-meta-strong font-semibold">
@@ -242,7 +353,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
               </h2>
               <ul className="mt-2 list-disc pl-5 text-sm text-muted">
                 {issues.slice(0, 8).map((issue) => (
-                  <li key={issue.path}>{issue.message}</li>
+                  <li key={issue.path}>{fieldName(structure, issue.path)}</li>
                 ))}
               </ul>
             </section>

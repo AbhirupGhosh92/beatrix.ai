@@ -17,7 +17,7 @@ Pushing a branch named `release/<major.minor[.patch]>` SHALL create the tag `v<v
 - **THEN** the workflow fails and no release is created
 
 ### Requirement: Latest version shown at the bottom of the page
-The page SHALL show the latest GitHub release version in the very last element on the page, to every visitor including anonymous ones.
+The home page SHALL show the latest GitHub release version in the very last element on the page, to every visitor including anonymous ones. No other page SHALL show the version button.
 
 #### Scenario: Release exists
 - **WHEN** a visitor scrolls to the bottom of the page
@@ -26,6 +26,10 @@ The page SHALL show the latest GitHub release version in the very last element o
 #### Scenario: No release or GitHub unreachable
 - **WHEN** no release exists or it cannot be read
 - **THEN** the version button is not rendered and the rest of the page is unchanged
+
+#### Scenario: Other pages
+- **WHEN** a visitor opens any page other than the home page, such as the resume builder, the job tracker or the admin pages
+- **THEN** no version button is shown
 
 ### Requirement: Release notes modal
 Clicking the version SHALL open a modal with the release name and its notes as plain text, closable by a button, the backdrop or Escape.

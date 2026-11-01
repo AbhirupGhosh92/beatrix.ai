@@ -5,6 +5,7 @@
 // believable resume.
 import {
   blankEntry,
+  entriesOf,
   isBlank,
   type FieldDef,
   type FieldValue,
@@ -58,7 +59,8 @@ function sampleEntry(section: SectionDef, entry: number): SectionData {
 export function sampleData(structure: Structure): ResumeData {
   const data: ResumeData = {}
   for (const section of structure.sections) {
-    data[section.id] = section.repeatable ? [sampleEntry(section, 0), sampleEntry(section, 1)] : sampleEntry(section, 0)
+    // Variants are alternatives, and only one is drawn, so one sample is enough.
+    data[section.id] = section.repeatable ? (section.variants ? [sampleEntry(section, 0)] : [sampleEntry(section, 0), sampleEntry(section, 1)]) : sampleEntry(section, 0)
   }
   return data
 }
@@ -75,8 +77,10 @@ export function withSampleFallback(structure: Structure, data: ResumeData): Resu
   for (const section of structure.sections) {
     const own = data[section.id]
     if (section.repeatable) {
-      const filled = (Array.isArray(own) ? own : []).filter((entry) => !isBlank(Object.values(entry)))
-      out[section.id] = filled.length > 0 ? filled : sample[section.id]
+      const entries = entriesOf(section, own)
+      const filled = entries.filter((entry) => !isBlank(Object.values(entry)))
+      // Variants keep every entry, blank ones too, so the view's active index still points at the same one.
+      out[section.id] = filled.length > 0 ? (section.variants ? entries : filled) : sample[section.id]
       continue
     }
     const entry = (own && !Array.isArray(own) ? own : {}) as SectionData

@@ -5,7 +5,7 @@ import { ExternalLink, Loader2 } from 'lucide-react'
 import type { ResumeTemplate } from '../../data/resumeConfig.ts'
 import { buildDocument } from '../../lib/resume/model.ts'
 import { withSampleFallback } from '../../lib/resume/sample.ts'
-import type { ResumeData, Structure } from '../../lib/resumeValidation.ts'
+import type { ResumeData, ResumeView, Structure } from '../../lib/resumeValidation.ts'
 
 /** Wait this long after the last edit before redrawing, so typing is not slowed by the renderer. */
 const REDRAW_MS = 500
@@ -15,6 +15,8 @@ interface Props {
   structure: Structure
   /** The open resume's data, the same state the form edits and autosave stores. */
   data: ResumeData
+  /** Section order and exported variants, so the canvas matches what a download contains. */
+  view?: ResumeView
 }
 
 // A preview of the chosen template filled with the open resume's own content, with sample text
@@ -22,7 +24,7 @@ interface Props {
 // PDF renderer so it matches the download, and the PDF library loads here, when the preview
 // appears, and not with the page. A redraw keeps the previous page on screen until the new one is
 // ready, and a redraw that was overtaken by a newer edit is dropped.
-export default function TemplatePreview({ template, structure, data }: Props) {
+export default function TemplatePreview({ template, structure, data, view }: Props) {
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [inline, setInline] = useState(true)
@@ -40,7 +42,7 @@ export default function TemplatePreview({ template, structure, data }: Props) {
         attemptedRef.current = true
         try {
           const { toPdf } = await import('../../lib/resume/toPdf.ts')
-          const blob = await toPdf(buildDocument('Resume', structure, shown), template)
+          const blob = await toPdf(buildDocument('Resume', structure, shown, view), template)
           if (ignore) return
           const next = URL.createObjectURL(blob)
           const previous = urlRef.current
@@ -59,7 +61,7 @@ export default function TemplatePreview({ template, structure, data }: Props) {
       ignore = true
       clearTimeout(timer)
     }
-  }, [template, structure, shown])
+  }, [template, structure, shown, view])
 
   useEffect(
     () => () => {
@@ -70,7 +72,7 @@ export default function TemplatePreview({ template, structure, data }: Props) {
 
   return (
     <figure className="flex flex-col gap-2">
-      <div className="aspect-[1/1.414] w-full overflow-hidden rounded-lg border border-base-300 bg-white">
+      <div className="mx-auto aspect-[1/1.414] w-full max-w-[52rem] overflow-hidden rounded-lg border border-base-300 bg-white shadow-lg">
         {failed && !url ? (
           <p className="p-4 text-meta">The preview could not be drawn. You can still generate the file.</p>
         ) : !url ? (

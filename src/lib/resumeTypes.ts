@@ -1,6 +1,6 @@
 // Shapes shared by the resume API routes and the builder UI.
 import type { ResumeTemplate } from '../data/resumeConfig.ts'
-import type { ResumeData, Structure, StructureRules } from './resumeValidation.ts'
+import type { ResumeData, ResumeView, Structure, StructureRules } from './resumeValidation.ts'
 
 export interface ResumeSummary {
   id: string
@@ -15,6 +15,8 @@ export interface Resume {
   /** null = the current default structure (base users); advanced users keep their own. */
   structure: Structure | null
   data: ResumeData
+  /** Section order and exported variants; absent on resumes saved before the workspace. */
+  view?: ResumeView
   createdAt: string
   updatedAt: string
 }

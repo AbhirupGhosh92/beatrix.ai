@@ -6,9 +6,11 @@ import { ApiError, privateEndpoint } from "./http";
 import { can, type Role } from "./policy";
 import {
   checkDraft,
+  checkView,
   emptyData,
   validateStructure,
   type ResumeData,
+  type ResumeView,
   type Structure,
   type StructureRules,
 } from "./resumeValidation";
@@ -35,6 +37,8 @@ interface StoredResume {
   /** null = the current default structure (base users); advanced users keep their own. */
   structure: Structure | null;
   data: ResumeData;
+  /** Section order and the exported variants; never part of the structure, so base users may set it. */
+  view?: ResumeView;
   createdAt: string;
   updatedAt: string;
 }
@@ -204,6 +208,11 @@ export const resumeSave = privateEndpoint(async (body) => {
   const used = structure ?? config.defaultStructure;
   const errors = checkDraft(used, body.data, config.rules);
   if (errors.length) problems(errors, "Invalid resume.");
+  // `view` omitted keeps the stored one; null clears it. A structure change that drops a section
+  // makes the old order invalid, so the client sends the new order with it.
+  const view = body.view === undefined ? resume.view : (body.view as ResumeView | null);
+  const viewErrors = checkView(used, view, body.data as ResumeData);
+  if (viewErrors.length) problems(viewErrors, "Invalid view.");
 
   const next: StoredResume = {
     ...resume,
@@ -212,6 +221,8 @@ export const resumeSave = privateEndpoint(async (body) => {
     data: body.data as ResumeData,
     updatedAt: new Date().toISOString(),
   };
+  if (view) next.view = view;
+  else delete next.view;
   const content = JSON.stringify(next);
   try {
     await file.save(content, {

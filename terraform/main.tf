@@ -340,11 +340,11 @@ resource "google_firebase_app_hosting_backend" "web" {
 }
 
 # ------------------------------------------------------------------------------
-# Python AI service (Cloud Run, deployed from python/ by CI)
+# Python AI service (Cloud Run, deployed from ai_backend/ by CI)
 # ------------------------------------------------------------------------------
 # Terraform owns the identity and the secret shell; the pipeline owns the Cloud Run revision.
 # The secret has no version here: the value is added by hand (`gcloud secrets versions add`),
-# so it never reaches Terraform state. See python/README.md.
+# so it never reaches Terraform state. See ai_backend/README.md.
 resource "google_service_account" "python_runtime" {
   project      = var.project_id
   account_id   = "python-ai-runtime"

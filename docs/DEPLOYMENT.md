@@ -33,7 +33,7 @@ A deployment changes **only what the release changes**. Specifically:
 | Cloud Functions | Redeployed only when `functions/` (or the `functions` block of `firebase.json`) changed. The Firebase CLI is run **without** `--force`, so it refuses to delete a function that is missing from the source instead of deleting it. |
 | Security rules | Redeployed only when `firestore.rules`, `storage.rules` or their `firebase.json` entries changed. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
-| Python AI service (Cloud Run `beatrix-ai`) | Redeployed only when `python/` changed (component `python`). Private: no unauthenticated access, only `firebase-app-hosting-compute` holds `roles/run.invoker`. The model API key is the Secret Manager secret `model-api-key`; Terraform creates it empty and only the runtime account `python-ai-runtime` can read it. You add the value yourself (`gcloud secrets versions add model-api-key --data-file=-`, see `python/README.md`), so it never reaches state, logs or the pipeline; the deploy mounts it only when a version exists. |
+| Python AI service (Cloud Run `beatrix-ai`) | Redeployed only when `ai_backend/` changed (component `python`). Private: no unauthenticated access, only `firebase-app-hosting-compute` holds `roles/run.invoker`. The model API key is the Secret Manager secret `model-api-key`; Terraform creates it empty and only the runtime account `python-ai-runtime` can read it. You add the value yourself (`gcloud secrets versions add model-api-key --data-file=-`, see `ai_backend/README.md`), so it never reaches state, logs or the pipeline; the deploy mounts it only when a version exists. |
 | Terraform-managed infrastructure (IAM, buckets, service accounts, ...) | Terraform changes only resources whose configuration differs. Stateful resources cannot be destroyed or replaced by a normal deploy. |
 | What gets applied | Exactly the plan that was reviewed (for prod: and approved). The saved plan is applied; nothing is re-planned. |
 
@@ -195,7 +195,7 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
 | Security rules | Component hash | Skipped when the rule files are unchanged. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
-| Python AI service | Component hash + protected secret | No new Cloud Run revision when `python/` did not change. The secret `model-api-key` is a `PROTECTED_TYPES` resource (`prevent_destroy`), so a plan cannot delete it. |
+| Python AI service | Component hash + protected secret | No new Cloud Run revision when `ai_backend/` did not change. The secret `model-api-key` is a `PROTECTED_TYPES` resource (`prevent_destroy`), so a plan cannot delete it. |
 | Configuration | Source of truth in git | `apphosting.yaml`, `firebase.json`, `terraform/` are changed only through reviewed PRs. Manual console changes show up as drift in the plan and are reverted, so make changes in git. |
 
 Granularity: change detection is per **component** (functions, rules, App Hosting, Python service), not per individual
@@ -265,6 +265,14 @@ description is in `CLAUDE.md` (Access control) and the spec `openspec/specs/acce
   still holds.
 - **Local development** uses the real functions through `FUNCTIONS_CALLER_SERVICE_ACCOUNT`; with no
   reachable functions the gate denies instead of letting everyone in.
+- **AI service URL.** The site's server reaches the private `beatrix-ai` Cloud Run service (source:
+  `ai_backend/`) through `src/middleware/aiService.ts`, which reads `AI_BACKEND_URL`. Its value per
+  environment is that service's URL (`gcloud run services describe beatrix-ai --project <project> --region
+  us-central1 --format 'value(status.url)'`), set as an environment variable on the App Hosting backend.
+  It is not a secret and it is not yet set by the pipeline. While it is unset, the resume workspace's AI
+  actions answer 503 ("not configured") and the rest of the site is unaffected. Locally, run the service
+  (`ai_backend/README.md`) and point `AI_BACKEND_URL` at it with `FUNCTIONS_CALLER_SERVICE_ACCOUNT` set,
+  or deploy to dev and use its URL.
 
 ## 7. One-time setup
 

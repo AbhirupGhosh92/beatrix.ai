@@ -3,6 +3,7 @@
 import {
   blankEntry,
   blankValue,
+  entriesOf,
   type FieldDef,
   type FieldValue,
   type ResumeData,
@@ -36,7 +37,8 @@ export function reconcileData(structure: Structure, data: unknown): ResumeData {
   for (const section of structure.sections) {
     const value = source[section.id]
     if (section.repeatable) {
-      const entries = Array.isArray(value) ? value.map((entry) => reconcileEntry(section, entry)) : []
+      // entriesOf also wraps the older single-object summary as one variant.
+      const entries = entriesOf(section, value).map((entry) => reconcileEntry(section, entry))
       out[section.id] = entries.length > 0 ? entries : [blankEntry(section)]
     } else {
       out[section.id] = reconcileEntry(section, value)

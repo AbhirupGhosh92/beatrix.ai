@@ -1,7 +1,14 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { validateStructure, type Structure, type StructureRules } from '../../lib/resumeValidation.ts'
+
+// The CMS editor component (Monaco), loaded only when the structure editor is shown.
+const JsonEditor = dynamic(() => import('../ui/JsonEditor.tsx').then((module) => module.JsonEditor), {
+  ssr: false,
+  loading: () => <p className="text-meta">Loading editor...</p>,
+})
 
 interface Props {
   structure: Structure
@@ -35,14 +42,7 @@ export default function StructureEditor({ structure, rules, onApply }: Props) {
         Sections, fields and types of this resume. Field types: {rules.fieldTypes.join(', ')}. Up to {rules.maxSections} sections
         and {rules.maxFieldsPerSection} fields each. Values you already entered are kept for fields that stay.
       </p>
-      <textarea
-        aria-label="Resume structure (JSON)"
-        className="textarea textarea-bordered w-full font-mono text-sm"
-        rows={16}
-        spellCheck={false}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <JsonEditor label="Resume structure (JSON)" height={360} value={text} onChange={setText} />
       {errors.length > 0 && (
         <ul role="alert" className="list-disc pl-5 text-sm text-error">
           {errors.map((message) => (

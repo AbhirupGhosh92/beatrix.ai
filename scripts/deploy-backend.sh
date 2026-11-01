@@ -98,7 +98,7 @@ if [[ "${DEPLOY_PYTHON}" -eq 1 ]]; then
   SERVICE="beatrix-ai"
   RUNTIME_SA="python-ai-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
   CALLER_SA="firebase-app-hosting-compute@${PROJECT_ID}.iam.gserviceaccount.com"
-  RUN_ARGS=(--project "${PROJECT_ID}" --region "${REGION}" --source python --no-allow-unauthenticated
+  RUN_ARGS=(--project "${PROJECT_ID}" --region "${REGION}" --source ai_backend --no-allow-unauthenticated
             --service-account "${RUNTIME_SA}" --min-instances 0 --max-instances 2 --timeout 3600 --quiet)
   if [[ -n "$(gcloud secrets versions list model-api-key --project "${PROJECT_ID}" --filter='state=ENABLED' --limit=1 --format='value(name)' 2>/dev/null)" ]]; then
     decision "model API key" "secret model-api-key has a version, mounting it as MODEL_API_KEY"

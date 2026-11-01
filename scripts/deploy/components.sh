@@ -50,7 +50,7 @@ component_hash() {
       { hash_paths src public package.json pnpm-lock.yaml pnpm-workspace.yaml next.config.ts postcss.config.mjs tsconfig.json apphosting.yaml; \
         hash_firebase_section apphosting; } | sha256sum | cut -d' ' -f1 ;;
     python)
-      hash_paths python ;;
+      hash_paths ai_backend ;;
     *) echo "Unknown component '$1' (functions | rules | apphosting | python)" >&2; exit 2 ;;
   esac
 }

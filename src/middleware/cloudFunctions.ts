@@ -38,7 +38,7 @@ const tokenCache = new Map<string, { headers: Record<string, string>; expiresAt:
 // Concurrent requests that find the token expired share one mint instead of each minting their own.
 const pendingTokens = new Map<string, Promise<Record<string, string>>>()
 
-async function authHeaders(audience: string): Promise<Record<string, string>> {
+export async function authHeaders(audience: string): Promise<Record<string, string>> {
   const cached = tokenCache.get(audience)
   if (cached && cached.expiresAt > Date.now()) return cached.headers
 

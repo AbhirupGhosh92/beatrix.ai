@@ -1,7 +1,7 @@
 // Turns the open resume into one downloadable file. The PDF and DOCX libraries are large, so they
 // are imported only when the user presses Generate, and never on the landing page.
 import type { ResumeTemplate } from '../../data/resumeConfig.ts'
-import type { ResumeData, Structure } from '../resumeValidation.ts'
+import type { ResumeData, ResumeView, Structure } from '../resumeValidation.ts'
 import { buildDocument, pdfUnsupportedChars } from './model.ts'
 import { slug } from './style.ts'
 
@@ -16,6 +16,7 @@ export interface ExportInput {
   title: string
   structure: Structure
   data: ResumeData
+  view?: ResumeView | null
   format: ExportFormat
   /** Required for PDF and DOCX; Markdown has no styling. */
   template?: ResumeTemplate
@@ -28,8 +29,8 @@ export interface ExportResult {
   warnings: string[]
 }
 
-export async function exportResume({ title, structure, data, format, template }: ExportInput): Promise<ExportResult> {
-  const doc = buildDocument(title, structure, data)
+export async function exportResume({ title, structure, data, view, format, template }: ExportInput): Promise<ExportResult> {
+  const doc = buildDocument(title, structure, data, view)
   const base = slug(doc.name)
 
   if (format === 'md') {
