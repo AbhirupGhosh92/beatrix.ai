@@ -192,7 +192,6 @@ src/
 │   └── resumeConfig.ts
 ├── hooks/
 │   ├── useAiActions.ts
-│   ├── useHistory.ts
 │   └── useInView.ts
 ├── lib/
 │   ├── access.ts
