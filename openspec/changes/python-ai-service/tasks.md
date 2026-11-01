@@ -4,7 +4,7 @@
 
 - [x] 1.1 Create `python/` with `pyproject.toml`, `app/__init__.py`, `app/config.py` (env settings, optional `MODEL_API_KEY`) and `app/main.py` (`/health`, `/hello`, `/ws` greeting and echo)
 - [x] 1.2 Add `Dockerfile` (non-root, `$PORT`), `.dockerignore`, `.env.example` (empty key) and a README (run locally, set the secret)
-- [ ] 1.3 Run it locally and check `/health` and a WebSocket client against `/ws`; build the container image
+- [x] 1.3 Run it locally and check `/health` and a WebSocket client against `/ws`; build the container image
 
 ## 2. Terraform
 
