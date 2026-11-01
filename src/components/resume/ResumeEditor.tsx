@@ -80,6 +80,7 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
   // loaded in the browser, so reading storage here cannot disagree with server HTML. Storage may be
   // blocked, so every access is guarded.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
     try {
       const stored = JSON.parse(window.localStorage.getItem(collapsedKey(id)) ?? '[]')
       return new Set(Array.isArray(stored) ? stored.filter((item): item is string => typeof item === 'string') : [])

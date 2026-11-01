@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ChevronDown, Cloud, CloudOff, CloudUpload, Download, Loader2, Pencil, Save } from 'lucide-react'
 import { FORMATS, type ExportFormat } from '../../lib/resume/export.ts'
 
@@ -47,6 +47,14 @@ export default function WorkspaceHeader({
   const [menu, setMenu] = useState(false)
   const label = FORMATS.find((f) => f.id === format)?.label ?? format
 
+  // A click anywhere else closes the format menu. The toggle stops its own click from reaching here.
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [menu])
+
   return (
     <header className="flex flex-wrap items-center gap-2 sm:gap-3">
       <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-2">
@@ -75,7 +83,7 @@ export default function WorkspaceHeader({
             <Save size={14} /> Save
           </button>
         )}
-        <div className="relative flex">
+        <div className="relative flex" onKeyDown={(event) => event.key === 'Escape' && setMenu(false)}>
           <button type="button" className="btn-sm button-primary" disabled={downloadDisabled || downloading} onClick={onDownload}>
             {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download {label}
           </button>
@@ -85,8 +93,10 @@ export default function WorkspaceHeader({
             aria-label="Choose download format"
             aria-expanded={menu}
             aria-haspopup="listbox"
-            onClick={() => setMenu((open) => !open)}
-            onKeyDown={(event) => event.key === 'Escape' && setMenu(false)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setMenu((open) => !open)
+            }}
           >
             <ChevronDown size={14} />
           </button>

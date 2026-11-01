@@ -39,7 +39,11 @@ export default function AiPanel({ ai, structure, data, score, onApply }: Props) 
   function fillFromApplication(id: string) {
     const app = apps?.find((candidate) => candidate.id === id)
     if (!app) return
-    ai.setJobDescription([`${app.role} at ${app.company}`, app.notes, app.jobUrl].filter((part) => part.trim() !== '').join('\n\n'))
+    ai.setJobDescription(
+      [`${app.role} at ${app.company}`, app.notes, app.jobUrl]
+        .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+        .join('\n\n'),
+    )
   }
 
   const suggestion = ai.tailor ? reconcileData(structure, ai.tailor.data) : null
