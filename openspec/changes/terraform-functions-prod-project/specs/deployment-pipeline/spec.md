@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Unchanged components are untouched
-Cloud Functions, security rules and infrastructure SHALL be changed only when the Terraform plan shows a difference, and App Hosting SHALL be redeployed only when its component source hash changed. A deploy SHALL NOT write `cms/`.
+Cloud Functions, security rules and infrastructure SHALL be changed only when the Terraform plan shows a difference, and App Hosting and the Python service SHALL be redeployed only when their component source hashes changed. A deploy SHALL NOT write `cms/`.
 
 #### Scenario: Docs-only change
 - **WHEN** only documentation changed
@@ -63,11 +63,15 @@ The function source archive SHALL be built deterministically and named by its co
 - **THEN** the second plan shows no changes to any function
 
 ### Requirement: Prod deploys only through the reviewed plan
-A prod deploy SHALL consist of exactly one reviewed `terraform apply` of the saved plan, and SHALL NOT deploy a component with the Firebase CLI. The App Hosting rollout for prod SHALL be created manually from the release branch.
+A prod deploy SHALL consist of exactly one reviewed `terraform apply` of the saved plan, and SHALL NOT deploy a component with the Firebase CLI. The App Hosting rollout for prod SHALL be created manually from the release branch. The Python service SHALL be deployed after that apply, in the same run and under the same approval, only when its component source hash changed.
 
 #### Scenario: Prod run
-- **WHEN** a prod run is approved
-- **THEN** only the saved plan is applied and no App Hosting rollout is created by the pipeline
+- **WHEN** a prod run is approved and `ai_backend/` did not change
+- **THEN** only the saved plan is applied and no App Hosting rollout or Cloud Run revision is created by the pipeline
+
+#### Scenario: Prod run with a Python change
+- **WHEN** a prod run is approved and `ai_backend/` changed
+- **THEN** the saved plan is applied first and then one new revision of the Python service is deployed, and nothing is deployed with the Firebase CLI
 
 ### Requirement: Prod targets the production project
 The `prod` environment SHALL target the GCP project `asterion-453905`, and no document, script or skill SHALL name a different prod project.

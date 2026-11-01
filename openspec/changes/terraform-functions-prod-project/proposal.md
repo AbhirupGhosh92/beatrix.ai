@@ -1,8 +1,8 @@
 # Proposal
 
-Fixes #80
+Fixes #92 (replaces the earlier issue #80, which was closed).
 
-Builds on #79 (PR #81): this branch is stacked on `feature/79-remove-staging-split-deploys` and is rebased onto `main` once that merges.
+Builds on #79 (PR #81), which is merged; this change is refreshed against `main` after the resume workspace (#90 / PR #91), the job tracker functions and the `ai_backend/` Python service landed.
 
 ## Why
 
@@ -10,9 +10,9 @@ Cloud Functions are deployed with the Firebase CLI and tracked by hash markers, 
 
 ## What Changes
 
-- **BREAKING (process):** the 17 Cloud Functions become Terraform resources in both environments (`google_cloudfunctions2_function`, one per exported function, same names, runtime `nodejs22`, 256Mi, 60s, max 5 instances, `us-central1`, as deployed today). The source zip is named by a content hash, so unchanged code produces no Terraform diff and no new revision. Each function is invokable only by `firebase-app-hosting-compute@<project>` (authoritative IAM binding, no public access).
+- **BREAKING (process):** every Cloud Function exported by `functions/src/index.ts` (23 at the time of writing, including the job tracker's) becomes Terraform resources in both environments (`google_cloudfunctions2_function`, one per exported function, same names, runtime `nodejs22`, 256Mi, 60s, max 5 instances, `us-central1`, as deployed today). The source zip is named by a content hash, so unchanged code produces no Terraform diff and no new revision. Each function is invokable only by `firebase-app-hosting-compute@<project>` (authoritative IAM binding, no public access).
 - Existing dev functions are adopted in place with committed Terraform `import` blocks. A plan that would replace or delete a function stops the run for review.
-- **BREAKING (process):** the Firebase CLI no longer deploys functions or rules. The `functions` and `rules` components, their hash markers and their `firebase.json` predeploy are removed. The only CLI component left is `apphosting`, for dev. Prod never deploys a component with the CLI: prod is one reviewed `terraform apply`, and the App Hosting rollout is created by hand in the Firebase console from the release branch.
+- **BREAKING (process):** the Firebase CLI no longer deploys functions or rules. The `functions` and `rules` components, their hash markers and their `firebase.json` predeploy are removed. The only Firebase CLI component left is `apphosting`, for dev. The Python AI service (`python` component, source `ai_backend/`) is not a Firebase CLI component and stays as it is (see design decision 10). Prod never deploys a component with the CLI: prod is one reviewed `terraform apply`, and the App Hosting rollout is created by hand in the Firebase console from the release branch.
 - The prod project becomes `asterion-453905` (`prod.tfvars`, docs, skills read it from the file).
 - The GitHub release (`vX.Y.Z` and its notes from `RELEASE_NOTES.md`) is created or updated by a job that runs only after a successful prod deploy and smoke test. The branch-push trigger of `release.yml` is removed.
 - New `scripts/deploy-functions-dev.sh` deploys the function resources alone on dev with `terraform plan`/`apply -target` and the plan guard. It refuses any other environment. Manual deploys of prod stay available only through the guarded workflow.
@@ -39,4 +39,4 @@ None.
 - `scripts/deploy/components.sh`, `scripts/deploy-backend.sh`, `scripts/check-scripts.sh`, new `scripts/deploy-functions-dev.sh`, new function-list check, `scripts/deploy/plan_guard.py` and its tests.
 - `.github/workflows/deploy-environment.yml`, `deploy.yml`, `release.yml`, `infra-check.yml`, `ci.yml`.
 - `.claude/skills/dev-deploy`, `prod-deploy`, `.claude/rules/environments.md`, `CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/DEPLOYMENT.md`, `terraform/README.md`, `openspec/specs/deployment-pipeline`, `openspec/specs/release-notes`.
-- One-time effect on dev: the first apply adopts 17 functions in place (labels and source move from the CLI's to Terraform's), and the Firebase-CLI-built source objects in `gcf-v2-sources-*` are no longer used.
+- One-time effect on dev: the first apply adopts every function that is already deployed in place (functions not yet deployed there are created) (labels and source move from the CLI's to Terraform's), and the Firebase-CLI-built source objects in `gcf-v2-sources-*` are no longer used.
