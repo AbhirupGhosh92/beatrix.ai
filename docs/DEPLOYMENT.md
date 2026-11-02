@@ -30,22 +30,22 @@ A deployment changes **only what the release changes**. Specifically:
 | Firestore data (including `allowed_emails`) | Never deleted or replaced by a deploy. The database has delete protection, `prevent_destroy`, `ABANDON` on destroy and 7-day point-in-time recovery. A plan that would delete or replace it fails before anything is applied. |
 | CMS files (`cms/profile.json`, `cms-backups/`) | Never written by a deploy. They are copied to a timestamped backup first, and both buckets keep old versions. |
 | User resumes and job applications (`gs://<project>-resumes`, Firestore `resume_owners`, `application_owners`, `resume_audit`) | Never written, deleted or snapshotted by a deploy. The bucket is protected like the other stateful resources and keeps old versions for 30 days (section 10.1b). The pre-deploy snapshot and `harden-buckets.sh` only handle the state and CMS buckets, so personal resume data is never copied into the state bucket. Job applications are Firestore documents under `application_owners/<email>/applications`, so they are covered by the database protections above (delete protection, 7-day point-in-time recovery) and are never written by a deploy. |
-| Cloud Functions | Redeployed only when `functions/` (or the `functions` block of `firebase.json`) changed. The Firebase CLI is run **without** `--force`, so it refuses to delete a function that is missing from the source instead of deleting it. |
-| Security rules | Redeployed only when `firestore.rules`, `storage.rules` or their `firebase.json` entries changed. |
+| Cloud Functions | Terraform resources (`terraform/functions.tf`), changed only when the reviewed plan shows a difference. The source zip is named by its content hash, so unchanged code gives no diff and no new revision. A delete or replace of a function fails the plan guard. Each function is invokable only by `firebase-app-hosting-compute` (authoritative binding). The Firebase CLI never deploys them. |
+| Security rules | Terraform resources (`google_firebaserules_*`), changed only when the plan shows a difference. The Firebase CLI never deploys them. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
 | Python AI service (Cloud Run `beatrix-ai`) | Redeployed only when `ai_backend/` changed (component `python`). Private: no unauthenticated access, only `firebase-app-hosting-compute` holds `roles/run.invoker`. The model API key is the Secret Manager secret `model-api-key`; Terraform creates it empty and only the runtime account `python-ai-runtime` can read it. You add the value yourself (`gcloud secrets versions add model-api-key --data-file=-`, see `ai_backend/README.md`), so it never reaches state, logs or the pipeline; the deploy mounts it only when a version exists. |
 | Terraform-managed infrastructure (IAM, buckets, service accounts, ...) | Terraform changes only resources whose configuration differs. Stateful resources cannot be destroyed or replaced by a normal deploy. |
 | What gets applied | Exactly the plan that was reviewed (for prod: and approved). The saved plan is applied; nothing is re-planned. |
 
 The guarantees come from several independent layers (Terraform settings, the plan guard, change
-detection, a Firebase CLI without `--force`, backups). Section 13 lists what is **not** covered.
+detection, the Terraform plan for functions and rules, backups). Section 13 lists what is **not** covered.
 
 ## 2. Environments and triggers
 
 | Environment | GCP project | Deployed | Approval |
 |---|---|---|---|
 | `dev` | from `terraform/environments/dev.tfvars` | automatically on every push to `main` | none |
-| `prod` | `beatrix-ai-prod` (`prod.tfvars`) | **only** by a manual run of the Deploy workflow | typed confirmation + reviewers of the `prod-release` GitHub environment |
+| `prod` | `asterion-453905` (`prod.tfvars`) | **only** by a manual run of the Deploy workflow | typed confirmation + reviewers of the `prod-release` GitHub environment |
 
 Automatic runs (`dev`) use the same pipeline as prod, including the plan guard, so a
 destructive change fails the run instead of being applied. Never add an automatic trigger for prod.
@@ -69,7 +69,7 @@ flowchart LR
     D -- dev --> F
     E --> F[Apply]
     subgraph F[Apply job]
-      F1[Protect buckets] --> F2[Snapshot CMS files<br/>only if something will change] --> F3[Apply SAVED plan] --> F4[Deploy only the components marked changed] --> F5[Record what was deployed] --> F6[Smoke test]
+      F1[Protect buckets] --> F2[Snapshot CMS files<br/>only if something will change] --> F3[Apply SAVED plan<br/>functions, rules, infrastructure] --> F4[Deploy only the components marked changed<br/>App Hosting on dev, Python service] --> F5[Record what was deployed] --> F6[Smoke test]
     end
 ```
 
@@ -84,7 +84,7 @@ kinds (format in `scripts/deploy/log.sh`):
 | `[result]` | what actually happened |
 
 A failure names the step and the next action to take. The run summary shows the Terraform changes, a
-table of what this run changes on the environment (infrastructure, functions, rules, App Hosting, Python service, each
+table of what this run changes on the environment (infrastructure, functions and rules read from the plan; App Hosting and the Python service each
 with the last deployed hash, the hash of this commit, the action and the reason) and where the CMS
 backup went, if one was taken.
 
@@ -108,24 +108,31 @@ Runs with **no cloud credentials**.
 1. **Checkout** of the ref and **resolution to a commit SHA.** Every later job checks out that exact
    SHA, so what was verified and approved is what is deployed, even if the branch moves meanwhile.
 2. `pnpm install --frozen-lockfile`, `npm run typecheck`, `npm run lint`, `npm run build`, build of the
-   Cloud Functions.
+   Cloud Functions. For `prod` only, `RELEASE_NOTES.md` must exist and be non-empty on the ref (it is the
+   body of the GitHub release published after a successful deploy).
 3. `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`.
-4. Script checks (`scripts/check-scripts.sh`): `bash -n` on every shell script and the plan guard unit
+4. Script checks (`scripts/check-scripts.sh`): `bash -n` on every shell script, the check that the function
+   list in `terraform/functions.tf` equals the exports of `functions/src/index.ts`, and the plan guard unit
    tests. The same script runs in pull request checks and in `infra-check.yml`.
 
 ### Stage 3: Plan (job `plan`, GitHub environment = the target)
 
 1. Signs in to Google Cloud with Workload Identity Federation (no keys).
-2. `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars`. Nothing is
+2. Builds the function source (`scripts/build-functions.sh`: compiled `lib/`, `package.json` and the pnpm
+   files in `terraform/.build/functions-src`, with fixed file times), then
+   `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars`. Nothing is
    changed. The summary lists each resource that would change; the full redacted plan is folded below.
 3. **Plan guard** (`scripts/deploy/plan_guard.py`), see section 5.
-4. **Decide what to deploy** (`scripts/deploy/components.sh status`): hashes the sources of
-   `functions`, `rules`, `apphosting` and `python` and compares them with the marker recorded after the last
-   successful deploy (`gs://<project>-tfstate/deploy/markers/<component>.json`). With `redeploy_all`
-   every component is marked changed. The result is the decision table, and Apply deploys exactly the
-   components in it.
-5. The binary plan is stored in the environment's private state bucket at
-   `gs://<project>-tfstate/deploy/plans/<run>-<attempt>/tfplan` (not as a GitHub artifact, because a
+4. **Decide what to deploy.** Functions and rules rows come from the plan (resources that change, or
+   "not touched"). `scripts/deploy/components.sh status` hashes the sources of `apphosting` and `python`
+   and compares them with the marker recorded after the last successful deploy
+   (`gs://<project>-tfstate/deploy/markers/<component>.json`). With `redeploy_all` every component is
+   marked changed. On `prod` App Hosting is never deployed by the pipeline (the table says to create the
+   rollout by hand from the release branch). The result is the decision table, and Apply deploys exactly
+   the components in it.
+5. The binary plan and the function source zip it was made with are stored in the environment's private
+   state bucket at `gs://<project>-tfstate/deploy/plans/<run>-<attempt>/tfplan` and `.../functions.zip`
+   (Apply downloads both and never rebuilds the zip; not a GitHub artifact, because a
    plan can contain values Terraform does not redact in JSON).
 
 ### Stage 4: Approve (job `approve`, prod only)
@@ -151,10 +158,13 @@ person approves.
    from the CMS bucket to `gs://<project>-tfstate/backups/<UTC time>-<sha7>/storage/`. Read-only on the
    source. **Only taken when the plan has changes or a component will deploy**; a run with nothing to
    change writes no backup. Skipped with a notice when there are no files yet.
-3. **Terraform apply of the saved plan.** Terraform refuses a plan whose state changed since it was
-   made, so nothing unreviewed can be applied. Skipped when the plan has no changes.
-4. **Deploy only the components marked changed** (`scripts/deploy-backend.sh --components ...`), with the
-   Firebase CLI pinned to an exact version and without `--force`. Skipped when none changed.
+3. **Terraform apply of the saved plan** (infrastructure, Cloud Functions and rules). Terraform refuses a
+   plan whose state changed since it was made, so nothing unreviewed can be applied. Skipped when the plan
+   has no changes.
+4. **Deploy only the components marked changed** (`scripts/deploy-backend.sh --components ...`): App Hosting
+   on dev (Firebase CLI pinned to an exact version) and the Python service (`gcloud run deploy`). On prod
+   the Python service is deployed after the apply, under the same approval, only when `ai_backend/`
+   changed. Skipped when none changed.
 5. **Record what was deployed.** Markers are written only after a successful deploy, so a failed deploy
    is retried by the next run.
 6. **Smoke test** (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML; `GET /api/admin/cms`
@@ -179,7 +189,7 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | `environment` | `dev` or `prod` (default `dev`, so a careless click never targets prod) |
 | `ref` | Branch, tag or commit SHA. Prod accepts only `release/x.y[.z]` or `vX.Y.Z` |
 | `confirm` | Type `prod` to deploy prod |
-| `allow_destructive` | **Dangerous.** Lets the plan delete/replace protected resources and lets removed functions be deleted. Section 11 |
+| `allow_destructive` | **Dangerous.** Lets the plan delete/replace protected resources, functions included. Section 11 |
 | `redeploy_all` | Redeploy every component even if unchanged (for example to repair a component) |
 
 ## 4. How unchanged things stay untouched
@@ -192,15 +202,16 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
 | User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. Job applications (`application_owners/<email>/applications`, written only by the `application*` functions) follow the Firestore rows above: no new bucket, rule, Terraform resource or deploy component is involved, and they deploy with the `functions` component. |
-| Cloud Functions | Component hash + no `--force` | Skipped when `functions/` is unchanged. When it did change, the Firebase CLI deploys the codebase; it refuses (instead of deleting) functions that disappeared from the source. |
-| Security rules | Component hash | Skipped when the rule files are unchanged. |
+| Cloud Functions | Terraform plan + content-hashed source | A function whose code did not change has the same source object, so the plan shows nothing for it. A function removed from the source and `terraform/functions.tf` is a delete that the plan guard blocks. |
+| Security rules | Terraform plan | Changed only when the rules files change the Terraform resources. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
 | Python AI service | Component hash + protected secret | No new Cloud Run revision when `ai_backend/` did not change. The secret `model-api-key` is a `PROTECTED_TYPES` resource (`prevent_destroy`), so a plan cannot delete it. |
 | Configuration | Source of truth in git | `apphosting.yaml`, `firebase.json`, `terraform/` are changed only through reviewed PRs. Manual console changes show up as drift in the plan and are reverted, so make changes in git. |
 
-Granularity: change detection is per **component** (functions, rules, App Hosting, Python service), not per individual
-function. Changing one function redeploys the functions component; the Firebase CLI then decides per
-function what to update.
+Granularity: change detection for App Hosting and the Python service is per **component**. Functions and rules
+are Terraform resources, so the plan shows exactly which function changes; changing one function changes
+the shared source object, and with it every function's build source, so every function builds a new
+revision when any function's code changes.
 
 ## 5. What the plan guard blocks
 
@@ -210,7 +221,8 @@ resource of a protected type would be **deleted** or **replaced** (a replace del
 `google_firestore_database`, `google_firestore_document`, `google_storage_bucket`,
 `google_firebase_app_hosting_backend`, `google_firebase_project`, `google_firebase_web_app`,
 `google_service_account`, `google_iam_workload_identity_pool`,
-`google_iam_workload_identity_pool_provider`, `google_firebaserules_release`.
+`google_iam_workload_identity_pool_provider`, `google_firebaserules_release`,
+`google_secret_manager_secret`, `google_cloudfunctions2_function`.
 
 Creates and in-place updates are allowed, as are deletes of other resource types (for example an IAM
 binding or a rules ruleset version). The guard runs **before** approval and before apply. In addition,
@@ -258,8 +270,8 @@ description is in `CLAUDE.md` (Access control) and the spec `openspec/specs/acce
   `role` on those by hand, since Terraform rewrites them on the next apply.
 - **Emergency lock-out of one user:** set `allowed: false`, and optionally revoke their refresh tokens
   (`getAuth().revokeRefreshTokens(uid)` with the Admin SDK, or the console) so the session cookie dies too.
-- **Deploy order:** the functions and App Hosting components are deployed by one `firebase deploy`, so
-  their order is not guaranteed. This is safe: a new site without `sessionVerify` fails closed (protected
+- **Deploy order:** the functions are applied by Terraform before App Hosting is deployed (dev), so the
+  functions are ready first. Either order is safe: a new site without `sessionVerify` fails closed (protected
   routes redirect or return 503, `/` still works), and new functions with the old site change nothing
   visible. The smoke test's "`/api/admin/cms` without a token returns 401" now comes from the proxy and
   still holds.
@@ -284,7 +296,7 @@ Do this once before the first prod deploy. Steps marked **(you)** are manual by 
 ./scripts/recreate-environment.sh prod
 ```
 
-It stops with an `ACTION REQUIRED` list for the manual steps (GCP project `beatrix-ai-prod`, billing,
+It stops with an `ACTION REQUIRED` list for the manual steps (GCP project `asterion-453905`, billing,
 Storage "Get started", Google sign-in provider, authorized domain). Do them in order, re-run until it
 finishes. It creates the state bucket, plans and applies Terraform (with the plan guard), seeds
 `cms/profile.json` only if absent, deploys, and writes the variables of the GitHub environment `prod`.
@@ -386,7 +398,7 @@ gcloud storage cp --recursive gs://<project>-tfstate/backups/<time>-<sha>/storag
                   gs://<project>.firebasestorage.app/
 ```
 
-Replace `<project>` with the GCP project id (for example `beatrix-ai-prod`).
+Replace `<project>` with the GCP project id (for example `asterion-453905`).
 
 ### 10.1b User resumes (deleted or overwritten in the last 30 days)
 
@@ -444,7 +456,7 @@ generation back. Do this only when the state is corrupted, and never while a dep
 ## 11. Break-glass: intentionally destructive changes
 
 Some changes are legitimately destructive: deleting a function you removed from the source, removing an
-admin email, or replacing a bucket. The plan guard and the Firebase CLI refuse them by default. To do one:
+admin email, or replacing a bucket. The plan guard refuses them by default. To do one:
 
 1. Write down what will be removed and why in the ticket; confirm a restore path exists (section 10).
 2. Take a manual backup if the data matters (`gcloud firestore export`, `gcloud storage cp --recursive`).
@@ -467,8 +479,9 @@ Never use `allow_destructive` to "make a failing run pass". Read the guard messa
 | `Instance cannot be destroyed` from Terraform | `prevent_destroy` caught it. Same as above. |
 | `Saved plan is stale` | State changed between plan and apply (another apply, or manual change). Re-run; a new plan is made. |
 | `Error acquiring the state lock` | Another run or a crashed run holds the lock. Wait; if no deploy is running, `terraform force-unlock <id>` from a trusted machine. |
-| Firebase CLI refuses: functions would be deleted | A function exists in the project but not in the source (renamed or removed). Restore it in the source, or follow section 11 if the removal is intended. |
-| Firebase CLI stops asking for confirmation in non-interactive mode | Run the failing command locally to see the prompt; if it is the artifact cleanup policy, `firebase functions:artifacts:setpolicy --project <project>` once. |
+| Plan guard: a function would be deleted or replaced | A function is in the project but no longer in `terraform/functions.tf` (renamed or removed), or a setting changed in a way the API cannot update in place. Restore it, or follow section 11 if the removal is intended. |
+| `check-functions.sh` fails | `function_names` in `terraform/functions.tf` and the exports of `functions/src/index.ts` differ. Make them equal. |
+| Old function container images pile up | The pipeline no longer sets the Artifact Registry cleanup policy (it did with `firebase functions:artifacts:setpolicy`). Set it once per project with that command, or manage the repository's cleanup in Terraform. |
 | `approve` never appears or passes instantly | `prod-release` has no required reviewers. Fix section 7.2 and re-run. |
 | Smoke test fails right after deploy | The new rollout may still be starting (it retries for about a minute). If it persists, roll back (section 9) and check the App Hosting logs. |
 | Components are redeployed that did not change | The marker is missing (first deploy of that environment) or `redeploy_all` was set. Markers live in `gs://<project>-tfstate/deploy/markers/`. |
@@ -489,14 +502,11 @@ Be aware of these; none of them is hidden by the pipeline:
   both spellings gcloud and the API use; a failed read stops the run instead of being treated as
   "unset", and an existing lifecycle configuration is never replaced. The exact field names were not
   exercised against a real bucket.
-- **Firebase CLI prompts.** Without `--force`, a non-interactive deploy relies on the CLI failing safely
-  instead of prompting. The behaviour of the artifact cleanup prompt on a first functions deploy was not
-  tested; see the troubleshooting row.
+- **Functions in Terraform: first apply.** Dev adopts the existing functions by `import` (`adopt_existing_functions = true` in `dev.tfvars`); the first plan was checked read-only (23 imports, 23 in-place updates, 23 bindings, 1 bucket, 1 source object, no delete or replace), but the first apply and the build of the functions with pnpm by Cloud Build have to be confirmed on dev. Set the flag back to `false` afterwards.
 - **Firestore backups.** Point-in-time recovery covers 7 days. Longer-term exports are manual.
 - **Drift is reverted.** Terraform reverts manual console changes to managed resources. Admin documents
   `allowed_emails/<email>` managed by Terraform are rewritten with `admin: true, allowed: true`.
-- **Rules have two writers.** Terraform manages rulesets/releases and `firebase deploy` also publishes
-  rules. Both come from the same files in git, so they agree.
+- **Rules have one writer.** Terraform manages rulesets and releases; the Firebase CLI no longer publishes rules.
 - **Bucket naming.** The CMS files live in the default Firebase Storage bucket
   (`<project>.firebasestorage.app`), which Firebase creates; the Terraform-managed `<project>-cms-<env>`
   bucket is currently unused by the code but protected the same way. The Terraform-managed
@@ -531,13 +541,27 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/deploy/harden-buckets.sh` | Turns on versioning, public access prevention and retention |
 | `scripts/deploy/backup-snapshot.sh` | Pre-deploy copy of the CMS files |
 | `scripts/deploy/smoke-test.sh` | Post-deploy read-only checks |
-| `scripts/deploy-backend.sh` | Deploys the selected components, no `--force` unless `--allow-destructive` |
+| `scripts/deploy-backend.sh` | Deploys App Hosting (dev) and the Python service; refuses `functions` and `rules` (Terraform owns them) |
+| `scripts/build-functions.sh` | Builds the function source that Terraform zips (deterministic) |
+| `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions.tf` and the exports of `functions/src/index.ts` differ |
+| `scripts/deploy-functions-dev.sh` | Deploys only the function resources to dev through Terraform; refuses any other project |
+| `terraform/functions.tf` | The Cloud Functions, their source bucket and object, and the invoker bindings |
 | `scripts/recreate-environment.sh` | Provision or repair an environment (plan, guard, apply) |
 | `.claude/skills/dev-deploy`, `.claude/skills/prod-deploy` | Agent skills that run the Deploy workflow for dev or the current release branch (prod) and narrate each step |
 | `functions/src/resumes.ts`, `resumeAdmin.ts` | Resume storage, cap and ownership; admin list and purge of data left by revoked users |
 | `terraform/` | Infrastructure, including the data protections (CMS bucket, resumes bucket) |
 | `terraform/README.md` | Environment provisioning runbook |
 
+## Functions owned by Terraform
+
+Every function exported by `functions/src/index.ts` is a `google_cloudfunctions2_function` in `terraform/functions.tf` (same names, `nodejs22`, 256Mi, 60s, up to 5 instances, `us-central1`). Adding a function means exporting it and adding its name to `function_names`; `scripts/check-functions.sh` fails CI otherwise.
+
+- **Source.** `scripts/build-functions.sh` compiles `functions/` and stages `lib/`, `package.json` and the pnpm files with fixed file times. Terraform zips them and names the object by the zip's hash, so the same code gives the same plan. A local `terraform plan` therefore needs that script run first.
+- **Invoker.** Each function has an authoritative `roles/run.invoker` binding for `firebase-app-hosting-compute@<project>` only. An invoker added by hand shows up as a removal in the next plan.
+- **Adoption.** Where the Firebase CLI already deployed the functions (dev), `adopt_existing_functions = true` imports them on the first apply, as in-place updates (labels and source). Where none exist (a new environment, prod), leave it `false`. After the first apply on dev, set it back to `false`.
+- **Dev only, alone.** `./scripts/deploy-functions-dev.sh` builds, plans only the function resources with `-target`, runs the plan guard, asks for confirmation and applies that saved plan. It refuses any project other than the one in `dev.tfvars`. The pipeline never uses `-target`.
+- **Prod.** A prod run is one reviewed `terraform apply` of the saved plan (functions and rules included), then the Python service revision when `ai_backend/` changed. No Firebase CLI component is deployed; create the prod App Hosting rollout by hand from the release branch.
+
 ## GitHub releases
 
-Pushing a `release/<major.minor[.patch]>` branch runs `.github/workflows/release.yml`, which tags `vX.Y.Z` and publishes a GitHub release marked Latest using `RELEASE_NOTES.md` from that branch. It does not deploy anything; deployment stays as described above. The site shows the latest release version and notes in a modal at the bottom of the page.
+A GitHub release is published only by a **successful prod deploy**. After `apply` and the smoke test pass, the `release` job in `deploy.yml` calls `.github/workflows/release.yml`, which creates or updates the tag `vX.Y[.Z]` (from `release/X.Y[.Z]` or `vX.Y.Z`) and a release marked Latest using `RELEASE_NOTES.md` at the deployed commit. Pushing a release branch publishes nothing, and a prod run that fails before or at the smoke test publishes nothing. The prod run's Verify stage fails early when `RELEASE_NOTES.md` is missing or empty. The site shows the latest release version and notes in a modal at the bottom of the home page.

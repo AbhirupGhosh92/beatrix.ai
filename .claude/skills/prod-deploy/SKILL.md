@@ -22,7 +22,7 @@ If the branch is not a release branch (for example `main` or `feature/*`), stop 
 
 ## 2. Show what is about to happen and ask
 
-Show: the branch, the commit (`git log -1 --format='%h %s'`), the prod project id from the tfvars, and that the run will: verify, plan with the plan guard, wait for a `prod-release` reviewer, then apply the reviewed plan and deploy only what changed. Ask one yes/no question: "Deploy `<branch>` (`<sha7>`) to prod project `<project_id>`?" Wait for the answer. A yes covers only this run.
+Show: the branch, the commit (`git log -1 --format='%h %s'`), the prod project id from the tfvars, and that the run will: verify (it needs `RELEASE_NOTES.md`), plan with the plan guard, wait for a `prod-release` reviewer, then apply the one reviewed, saved Terraform plan (infrastructure, Cloud Functions and rules) and deploy the Python service only if `ai_backend/` changed. No Firebase CLI component is deployed on prod: say that the App Hosting rollout is created by hand in the Firebase console from the release branch, and that the GitHub release is published automatically only after the run succeeds. Ask one yes/no question: "Deploy `<branch>` (`<sha7>`) to prod project `<project_id>`?" Wait for the answer. A yes covers only this run.
 
 Leave `allow_destructive` and `redeploy_all` off. Set them only if the user asked for that specific thing, after you have explained what it does.
 
@@ -48,7 +48,8 @@ gh run view <id> --log | grep -E '\[(decision|result)\]'
 - The decision table: each part deployed or "not touched" with the reason, and whether a CMS snapshot was taken.
 - The smoke test result and the site URL.
 - If it failed: the failing step, the `Next:` hint, and what was already applied. Do not retry blindly; never weaken a guard to pass.
-- Remind the user of the manual follow-ups that are theirs: checking the site, and anything the release process asks for after a deploy (release notes live in `RELEASE_NOTES.md`).
+- Whether the GitHub release was published (the `Release` job runs only after a successful prod run; if the run failed, no release exists).
+- Remind the user of the manual follow-ups that are theirs: creating the App Hosting rollout from the release branch, and checking the site.
 
 ## Never
 

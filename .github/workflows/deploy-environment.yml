@@ -6,12 +6,14 @@ name: Deploy environment
 #   policy   no cloud access: environment, ref and prod rules
 #   gate     is the environment provisioned? skipped (dev) or failed (prod) before any build
 #   verify   no cloud access: typecheck, lint, build, terraform validate, script tests
-#   plan     terraform plan -> saved privately; plan guard blocks destroy/replace of stateful
-#            resources; decides which components changed and publishes that decision table
+#   plan     build the Cloud Functions source, terraform plan -> saved privately with that source;
+#            plan guard blocks destroy/replace of stateful resources (functions included); decides
+#            which components changed and publishes that decision table
 #   approve  prod only: required reviewers of the `prod-release` GitHub environment approve,
 #            seeing the same decision table
-#   apply    snapshot CMS files (only if something will change) -> apply the SAVED plan -> deploy
-#            only the components the plan job marked changed -> smoke test
+#   apply    snapshot CMS files (only if something will change) -> apply the SAVED plan (functions
+#            and rules are Terraform resources) -> deploy only the components the plan job marked
+#            changed (App Hosting on dev, the Python service) -> smoke test
 #
 # Every step prints its inputs, what it decided and why, and its result (scripts/deploy/log.sh
 # format: [step] [info] [decision] [result]); steps are folded into log groups.
@@ -50,6 +52,10 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      sha:
+        description: The commit that was verified, planned and deployed
+        value: ${{ jobs.verify.outputs.sha }}
 
 permissions:
   contents: read
@@ -178,6 +184,18 @@ jobs:
           echo "[result]   ${REF} -> ${sha}; every later job uses exactly this commit"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
+      # A successful prod deploy publishes the GitHub release from this file, so a missing file stops
+      # the run here, before any plan or approval.
+      - name: Release notes exist (prod)
+        if: inputs.environment == 'prod'
+        run: |
+          echo "[step]     Check RELEASE_NOTES.md (prod publishes a release after a successful deploy)"
+          if [[ ! -s RELEASE_NOTES.md ]]; then
+            echo "::error title=Verify::RELEASE_NOTES.md is missing or empty on the ref. Next: add it to the release branch and run again."
+            exit 1
+          fi
+          echo "[result]   RELEASE_NOTES.md is present"
+
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -264,6 +282,18 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Terraform zips this staged source (terraform/functions.tf) and names the object by its hash.
+      - name: Build the Cloud Functions source
+        run: bash scripts/build-functions.sh
+
       - name: Terraform plan
         id: plan
         working-directory: terraform
@@ -344,7 +374,27 @@ jobs:
           info "redeploy_all: ${REDEPLOY_ALL}"
           list=()
           rows=""
-          for c in functions rules apphosting python; do
+          # Functions and rules are Terraform resources: their rows come from the plan, not from a hash.
+          plan_row() {
+            local label="$1" pattern="$2" n
+            n="$(jq --arg re "$pattern" '[.resource_changes[]? | select(.address | test($re)) | select(.change.actions != ["no-op"] and .change.actions != ["read"])] | length' terraform/plan.json)"
+            if [[ "$n" == "0" ]]; then
+              decision "$label" "unchanged in the plan, not touched"
+              rows+="| ${label} (Terraform) | | | not touched | no change in the plan |"$'\n'
+            else
+              decision "$label" "${n} resource(s) change in the reviewed plan"
+              rows+="| ${label} (Terraform) | | | ${n} resource(s) change | applied from the reviewed plan |"$'\n'
+            fi
+          }
+          plan_row functions '^(google_cloudfunctions2_function|google_cloud_run_v2_service_iam_binding|google_storage_bucket_object)\.|^google_storage_bucket\.functions_src'
+          plan_row rules '^google_firebaserules_'
+          # Only these two are deployed outside Terraform: App Hosting (dev) and the Python service.
+          for c in apphosting python; do
+            if [[ "$ENVIRONMENT" == "prod" && "$c" == "apphosting" ]]; then
+              decision "$c" "not deployed by the pipeline on prod: create the rollout by hand from the release branch"
+              rows+="| ${c} | | | not deployed by the pipeline | create the rollout by hand from the release branch |"$'\n'
+              continue
+            fi
             IFS=$'\t' read -r changed current previous reason < <(bash scripts/deploy/components.sh status "$c" "$STATE_BUCKET")
             if [[ "$REDEPLOY_ALL" == "true" ]]; then changed=true; reason="redeploy_all is set"; fi
             info "$c: source ${current:0:12}, last deployed ${previous:0:12}"
@@ -384,8 +434,13 @@ jobs:
           uri="gs://${STATE_BUCKET}/deploy/plans/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/tfplan"
           info "destination: ${uri} (the state bucket is private; plans expire after 7 days)"
           gcloud storage cp tfplan "$uri"
+          # The saved plan reads the function source zip from disk when it is applied, so the zip that
+          # was planned is saved next to it and Apply never rebuilds it.
+          zip_uri="${uri%tfplan}functions.zip"
+          info "function source: ${zip_uri} (md5 $(md5sum .build/functions.zip | cut -d' ' -f1))"
+          gcloud storage cp .build/functions.zip "$zip_uri"
           echo "plan_uri=${uri}" >> "$GITHUB_OUTPUT"
-          result "plan saved"
+          result "plan and function source saved"
           step_end
 
   # ----------------------------------------------------------------------------
@@ -453,10 +508,6 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -517,30 +568,35 @@ jobs:
           info "plan: ${PLAN_URI}"
           decision "apply" "applying exactly the plan that was reviewed; no re-plan"
           gcloud storage cp "$PLAN_URI" tfplan
+          # The function source that was planned; Apply never rebuilds it.
+          mkdir -p .build
+          gcloud storage cp "${PLAN_URI%tfplan}functions.zip" .build/functions.zip
+          info "function source md5: $(md5sum .build/functions.zip | cut -d' ' -f1)"
           terraform apply -input=false -lock-timeout=5m -no-color tfplan
           result "reviewed plan applied"
           step_end
 
-      # Deploys ONLY the components the Plan job marked changed. Anything unchanged is not
-      # touched at all. No --force unless allow_destructive is set, so the CLI refuses to
-      # delete functions.
+      # Deploys ONLY the components the Plan job marked changed: App Hosting (dev) and the Python
+      # service. Functions and rules were applied from the plan above. Anything unchanged is not
+      # touched at all.
       - name: Deploy changed components
         run: |
           set -euo pipefail
           source scripts/deploy/log.sh
           if [[ -z "$COMPONENTS" ]]; then
             step_start "Deploy changed components"
-            decision "deploy" "skipped: functions, rules, App Hosting and the Python service are all unchanged"
+            decision "deploy" "skipped: App Hosting and the Python service are unchanged or not deployed by the pipeline"
             result "nothing deployed"
             step_end
             exit 0
           fi
-          step_start "Install the Firebase CLI"
-          info "firebase-tools@${FIREBASE_TOOLS_VERSION}"
-          npm install --global "firebase-tools@${FIREBASE_TOOLS_VERSION}"
-          step_end
+          if [[ ",${COMPONENTS}," == *",apphosting,"* ]]; then
+            step_start "Install the Firebase CLI"
+            info "firebase-tools@${FIREBASE_TOOLS_VERSION}"
+            npm install --global "firebase-tools@${FIREBASE_TOOLS_VERSION}"
+            step_end
+          fi
           args=(--components "$COMPONENTS" --region "$(awk -F'"' '/^region[[:space:]]*=/{print $2}' "terraform/environments/${ENVIRONMENT}.tfvars")")
-          if [[ "$ALLOW_DESTRUCTIVE" == "true" ]]; then args+=(--allow-destructive); fi
           bash scripts/deploy-backend.sh "$PROJECT_ID" "${args[@]}"
 
       # Recorded only after a successful deploy, so a failed deploy is retried by the next run.
@@ -584,5 +640,8 @@ jobs:
             echo "| Other | Result |"
             echo "|---|---|"
             echo "| CMS file backup | ${BACKUP:-none taken (nothing to protect or nothing to back up)} |"
+            if [[ "$ENVIRONMENT" == "prod" ]]; then
+              echo "| GitHub release | published by the Release job only after this run succeeds (none if it fails) |"
+            fi
             echo
           } >> "$GITHUB_STEP_SUMMARY"

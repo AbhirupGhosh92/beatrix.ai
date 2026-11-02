@@ -4,7 +4,7 @@
 
 1. **Infrastructure via Code (Terraform)**:
    - All GCP and Firebase infrastructure resources (including Firebase projects, Web Apps, Cloud Firestore databases, Cloud Storage buckets, security rulesets, IAM service accounts, and API enablement) MUST be declared in Terraform under the `terraform/` directory.
-   - Any modification to Firebase rules (`firestore.rules`, `storage.rules`), app hosting (`apphosting.yaml`), or backend function infrastructure (`functions/`) MUST be reflected in and validated against `terraform/`.
+   - Any modification to Firebase rules (`firestore.rules`, `storage.rules`), app hosting (`apphosting.yaml`), or backend function infrastructure (`functions/`) MUST be reflected in and validated against `terraform/`. Cloud Functions and the security rules are Terraform resources (`terraform/functions.tf`): never deploy them with the Firebase CLI, and keep `function_names` equal to the exports of `functions/src/index.ts` (`bash scripts/check-functions.sh`).
 
 2. **Agent Automation & Change Control**:
    - Infrastructure changes MUST occur via code and agents. Manual changes in the Google Cloud Console or Firebase Console without updating Terraform configurations are prohibited.

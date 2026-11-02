@@ -5,6 +5,8 @@ name: Deploy
 # v<major.minor.patch>) and type `prod` in `confirm`. Any environment can be redeployed the
 # same way.
 #
+# After a successful prod run the Release job publishes the GitHub release (release.yml).
+#
 # The pipeline (verify -> plan -> guard -> approve (prod) -> backup -> apply -> selective
 # component deploy -> smoke test) lives in deploy-environment.yml and is described step by step
 # in docs/DEPLOYMENT.md, including the one-time GitHub setup (environments, reviewers).
@@ -69,3 +71,16 @@ jobs:
       confirm: ${{ inputs.confirm }}
       allow_destructive: ${{ inputs.allow_destructive }}
       redeploy_all: ${{ inputs.redeploy_all }}
+
+  # Only a successful prod run (apply, smoke test) publishes the release; a failed or skipped run
+  # publishes nothing. Called from here, not from deploy-environment.yml, so `contents: write`
+  # never reaches the dev jobs.
+  release:
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && needs.manual.result == 'success' }}
+    needs: manual
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      ref: ${{ inputs.ref }}
+      sha: ${{ needs.manual.outputs.sha }}

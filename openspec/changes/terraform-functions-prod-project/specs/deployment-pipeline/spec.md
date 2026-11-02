@@ -9,9 +9,13 @@ Cloud Functions, security rules and infrastructure SHALL be changed only when th
 - **WHEN** only documentation changed
 - **THEN** the plan shows no changes, no function or rule is touched and no App Hosting rollout is created
 
-#### Scenario: One function changes
-- **WHEN** the source of one function changes
-- **THEN** the plan shows a change for that function's resource only
+#### Scenario: Function source changes
+- **WHEN** the source under `functions/` changes
+- **THEN** the plan shows an in-place update of each function's build source, never a replace, and no other infrastructure changes because of it
+
+#### Scenario: Function source unchanged
+- **WHEN** the source under `functions/` did not change
+- **THEN** the plan shows no change for any function
 
 ### Requirement: Resume storage is protected and deployed separately
 The resumes bucket and the per-owner index SHALL be protected resources: the plan guard SHALL block their deletion or replacement, and the bucket SHALL keep deleted versions for 30 days. The resume functions SHALL change only when the plan shows a difference for their resources, and a deploy SHALL NOT write or delete resume data or the resume config.

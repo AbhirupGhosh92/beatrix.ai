@@ -46,6 +46,9 @@ fi
 # ------------------------------------------------------------------------------
 # 3. Infrastructure
 # ------------------------------------------------------------------------------
+echo "==> Building the Cloud Functions source (Terraform deploys the functions)..."
+bash "${SCRIPT_DIR}/build-functions.sh"
+
 echo "==> Applying Terraform..."
 cd "${ROOT_DIR}/terraform"
 terraform init -reconfigure -input=false -backend-config="bucket=${STATE_BUCKET}"

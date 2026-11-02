@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ==============================================================================
 # The one script check used by every workflow (ci.yml, deploy-environment.yml, infra-check.yml):
-# every shell script under scripts/ must parse, and the plan guard and branch-name hook tests
-# must pass.
+# every shell script under scripts/ must parse, the Terraform function list must match the exports
+# of functions/src/index.ts, and the plan guard and branch-name hook tests must pass.
 # Run from anywhere: bash scripts/check-scripts.sh
 # ==============================================================================
 
@@ -20,6 +20,7 @@ while IFS= read -r -d '' f; do
 done < <(find scripts -name '*.sh' -print0 | LC_ALL=C sort -z)
 echo "[result]   ${count} shell scripts parse"
 
+bash scripts/check-functions.sh
 echo "[step]     Plan guard unit tests"
 python3 -I -m unittest discover -s scripts/deploy -p 'test_*.py'
 echo "[step]     Branch-name hook tests"

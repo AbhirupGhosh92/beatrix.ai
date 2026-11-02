@@ -1,9 +1,20 @@
 name: Release
 
+# Publishes the GitHub release (tag vX.Y[.Z], notes from RELEASE_NOTES.md at the deployed commit,
+# marked Latest). Not triggered by a push: deploy.yml calls it only after a prod deploy and its
+# smoke test succeeded, so a release never exists for a deploy that failed.
+
 on:
-  push:
-    branches:
-      - 'release/**'
+  workflow_call:
+    inputs:
+      ref:
+        description: The deployed ref (release/<major.minor[.patch]> or v<major.minor.patch>)
+        type: string
+        required: true
+      sha:
+        description: The commit that was deployed
+        type: string
+        required: true
 
 permissions:
   contents: write
@@ -11,27 +22,38 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          REF: ${{ inputs.ref }}
+          SHA: ${{ inputs.sha }}
         run: |
-          version="${BRANCH#release/}"
+          set -euo pipefail
+          version="${REF#release/}"
+          version="${version#v}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-            echo "::error::'$BRANCH' is not release/<major.minor[.patch]>"
+            echo "::error::'$REF' is not release/<major.minor[.patch]> or v<major.minor.patch>"
             exit 1
           fi
           if [[ ! -s RELEASE_NOTES.md ]]; then
-            echo "::error::RELEASE_NOTES.md is missing or empty on $BRANCH"
+            echo "::error::RELEASE_NOTES.md is missing or empty at $SHA"
             exit 1
           fi
           tag="v$version"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release edit "$tag" --title "$tag" --notes-file RELEASE_NOTES.md --latest
+            action="updated"
           else
             gh release create "$tag" --target "$SHA" --title "$tag" --notes-file RELEASE_NOTES.md --latest
+            action="created"
           fi
+          echo "[result]   release ${tag} ${action} from ${SHA:0:7}"
+          echo "### Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release \`${tag}\` ${action} (marked Latest) from \`${SHA:0:7}\`." >> "$GITHUB_STEP_SUMMARY"

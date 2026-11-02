@@ -35,6 +35,23 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(plan_guard.classify(["read"]), "read")
 
 
+class FunctionGuardTest(unittest.TestCase):
+    def test_function_update_and_create_pass(self):
+        p = plan(
+            ("google_cloudfunctions2_function", "fn[\"status\"]", ["update"]),
+            ("google_cloudfunctions2_function", "fn[\"newOne\"]", ["create"]),
+        )
+        self.assertEqual(run_guard(p), 0)
+
+    def test_function_delete_or_replace_is_blocked(self):
+        self.assertEqual(run_guard(plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete"]))), 1)
+        self.assertEqual(run_guard(plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete", "create"]))), 1)
+
+    def test_function_replace_allowed_only_when_asked(self):
+        p = plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete", "create"]))
+        self.assertEqual(run_guard(p, "--allow-destructive"), 0)
+
+
 class GuardTest(unittest.TestCase):
     def test_empty_plan_passes(self):
         self.assertEqual(run_guard({}), 0)

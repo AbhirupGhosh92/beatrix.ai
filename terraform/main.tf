@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   # State lives in a per-environment bucket (gs://<project_id>-tfstate), passed at init time:
   #   terraform init -reconfigure -backend-config="bucket=<project_id>-tfstate"
@@ -16,6 +16,10 @@ terraform {
     google-beta = {
       source  = "hashicorp/google-beta"
       version = ">= 5.0.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = ">= 2.4.0"
     }
   }
 }

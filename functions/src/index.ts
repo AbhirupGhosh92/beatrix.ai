@@ -16,8 +16,8 @@ export const status = onRequest({ invoker: [SITE_SERVER_ACCOUNT] }, (request, re
   });
 });
 
-// Each API is its own function, private to the Next.js server (IAM), deployed with
-// `firebase deploy --only functions`.
+// Each API is its own function, private to the Next.js server (IAM). Terraform deploys them:
+// add every new export to `function_names` in terraform/functions.tf (scripts/check-functions.sh).
 export { getProfile } from "./profile";
 export { getResumeConfig } from "./resumeConfig";
 export { resumeList, resumeGet, resumeCreate, resumeSave, resumeDelete } from "./resumes";
