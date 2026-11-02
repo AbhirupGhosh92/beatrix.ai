@@ -42,12 +42,12 @@ detection, the Terraform plan for functions and rules, backups). Section 13 list
 
 ## 2. Environments and triggers
 
-There are two pipelines, one per environment, and both run the same three stages in the same order:
+Dev and prod are **separate deployments**: two workflows, two GitHub environments, two GCP projects, two states, and a concurrency group per environment, so neither can start, block or target the other (`scripts/check-pipelines.sh` fails CI if that changes). Both run the same three stages in the same order:
 
 | Environment | GCP project | Pipeline | Started | Approval |
 |---|---|---|---|---|
-| `dev` | from `terraform/environments/dev.tfvars` | `deploy-dev.yml` | automatically on every push to `main`, or by hand for any ref | none |
-| `prod` | `asterion-453905` (`prod.tfvars`) | `deploy-prod.yml` | **only** by hand | typed confirmation + one approval by the reviewers of the `prod-release` GitHub environment |
+| `dev` | from `terraform/environments/dev.tfvars` | `deploy-dev.yml` | automatically on every merge (push) to `main`; by hand for another ref with `./scripts/deploy-dev.sh` or *Run workflow* | none |
+| `prod` | `asterion-453905` (`prod.tfvars`) | `deploy-prod.yml` | **only** by hand: `./scripts/deploy-prod.sh <version>` (a terminal, or the agent after your yes) or *Run workflow* | typed confirmation + one approval by the reviewers of the `prod-release` GitHub environment |
 
 | Stage | What it applies | Dev | Prod |
 |---|---|---|---|
@@ -416,10 +416,10 @@ CLI deployed (`adopt_existing_functions = true` in `terraform/functions/environm
 2. **Write the release notes** in `RELEASE_NOTES.md` on `main` (short, end-user wording) and bump the
    `package.json` version. Open the release ticket with the standard format
    (`.claude/rules/github-workflow.md`). There is no release branch to create: the pipeline cuts it.
-3. **Run the workflow:** Actions > Deploy prod > Run workflow.
-   - Use workflow from: `main`
-   - `ref`: `main` (or a commit SHA on `main`); `version`: `1.3` or `1.3.0`; `confirm`: `prod`
-   - leave `allow_destructive` and `redeploy_all` off
+3. **Start the pipeline**, either way (both start the same workflow, which does the deploying):
+   - **From a terminal (or the agent, after your explicit yes):** `./scripts/deploy-prod.sh 1.3` (add `--ref <sha-on-main>` to pin a commit). It runs the same preflight as Verify locally (commit on `main`, notes, version free), asks you to type `prod` (the agent passes `--yes` only after your yes in chat), then starts the workflow with that exact commit and version.
+   - **In GitHub:** Actions > Deploy prod > Run workflow. Use workflow from `main`; `ref`: `main` (or a commit SHA on `main`); `version`: `1.3` or `1.3.0`; `confirm`: `prod`.
+   - Leave `allow_destructive` and `redeploy_all` off. The script does not offer them; use *Run workflow* for those, after reading section 11.
 4. **Verify fails fast.** If the commit is not on `main`, the notes are missing or empty, or
    `release/<version>` or `v<version>` already exists at a different commit, the run stops in the `verify`
    job before any plan.
@@ -626,6 +626,9 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/deploy-backend.sh` | Deploys App Hosting (dev) and the Python service; refuses `functions` and `rules` (Terraform owns them) |
 | `scripts/build-functions.sh` | Builds the function source that Terraform zips (deterministic) |
 | `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions/functions.tf` and the exports of `functions/src/index.ts` differ |
+| `scripts/deploy-prod.sh` | Starts the Deploy prod workflow for a commit on `main` and a version, after the local preflight and a typed confirmation; the only scripted way to start prod |
+| `scripts/deploy-dev.sh` | Starts the Deploy dev workflow by hand for a ref (merges to `main` deploy dev by themselves) |
+| `scripts/check-pipelines.sh` | Fails when dev and prod stop being separate: prod must be manual only, dev must run on `main` and target only dev |
 | `scripts/check-terraform-stages.sh` | Fails when the two Terraform stages disagree on project, environment or region |
 | `scripts/deploy/email-vars.sh` | Turns the GitHub variables `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS` into `-var` arguments for the stage-1 plan, after validating them |
 | `scripts/deploy/check-prod-ref.sh`, `cut-release.sh` | Prod preflight (commit on main, version, notes, no clashing release) and the release cut, with tests |

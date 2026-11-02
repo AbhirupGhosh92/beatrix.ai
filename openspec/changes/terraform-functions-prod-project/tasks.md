@@ -59,6 +59,12 @@
 - [x] 10.1 Add `scripts/deploy/email-vars.sh` (validates `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS`, prints `-var` arguments, never logs addresses) with `test_email_vars.py`; pass them to the stage-1 plan in `deploy-environment.yml`; let `sync-github-env.sh` set them; verify the tests pass and the YAML parses
 - [x] 10.2 Document it in `docs/DEPLOYMENT.md` (section 7.3b and the troubleshooting row) and the tfvars comments; verify `openspec validate --all --strict` passes
 
+## 11. Separate deployments and a script entry for prod
+
+- [x] 11.1 Add `scripts/deploy-prod.sh` (local preflight, typed confirmation or `--yes`, starts the Deploy prod workflow with the exact commit and version, no destructive or redeploy options) and `scripts/deploy-dev.sh`, with tests (`test_deploy_prod_script.py`); verify the tests pass and that a commit off `main`, a taken version, missing notes and a missing confirmation all start nothing
+- [x] 11.2 Add `scripts/check-pipelines.sh` to `check-scripts.sh` (prod manual only, dev on `main` and dev-only, shared logic callable only by the two pipelines, concurrency per environment); verify it passes and fails for four deliberate breakages
+- [x] 11.3 Point the docs, rules and the `dev-deploy` and `prod-deploy` skills at the scripts; verify `openspec validate --all --strict` passes
+
 ## Workflow follow-up
 
 - Work on branch `feature/92-terraform-functions-prod-project` (issue #92, which replaces the closed #80), then archive with `/opsx:archive` before the PR is marked ready.
