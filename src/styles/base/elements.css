@@ -1,14 +1,25 @@
 body {
-  @apply bg-base-100 text-base-content flex flex-col min-h-screen font-sans text-base sm:text-lg;
+  @apply bg-base-100 text-base-content flex flex-col min-h-screen font-sans text-base;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  @apply font-display uppercase tracking-wide;
+  @apply font-display font-semibold tracking-tight;
 }
 
 button {
-  @apply btn font-display uppercase tracking-wider;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  @apply btn font-sans font-medium;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* The global `button { @apply btn }` rule is unlayered, so it beats daisyUI's
@@ -26,9 +37,9 @@ button.btn-accent {
   @apply btn-accent;
 }
 
-/* lucide icons: slightly heavier strokes */
+/* lucide icons: default stroke weight */
 .lucide {
-  stroke-width: 2.25;
+  stroke-width: 2;
 }
 
 html {

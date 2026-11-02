@@ -2,7 +2,7 @@
 
 
 import { useEffect, useRef } from 'react'
-import { Cat, Cpu } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useProfile } from './ProfileProvider.tsx'
 
 // daisyUI theme controller as a single toggle button: while the checkbox is
@@ -58,9 +58,9 @@ export function ThemeToggle() {
           }
         }}
       />
-      {/* icon matches the active theme: cyberpunk chip in dark, cute cat in light */}
-      <Cpu size={20} className="swap-on" aria-hidden="true" />
-      <Cat size={20} className="swap-off" aria-hidden="true" />
+      {/* icon matches the active theme: moon in dark, sun in light */}
+      <Moon size={20} className="swap-on" aria-hidden="true" />
+      <Sun size={20} className="swap-off" aria-hidden="true" />
     </label>
   )
 }

@@ -1,18 +1,10 @@
-/* Skills tabs: the selected tab gets a darker highlight "pill" that slides to
+/* Skills tabs: the selected tab gets a highlight "pill" that slides to
    whichever tab is clicked (Skills.tsx sets --pill-x/y/w/h on .tabs). The
    checked tab itself is made transparent so the pill shows through. */
 .tabs-box {
   --pill-bg: var(--color-primary);
   --pill-fg: var(--color-primary-content);
   position: relative;
-}
-
-/* light theme: dark pill with light text (the pastel primary is too pale) */
-.tabs-box {
-  @variant theme-light {
-    --pill-bg: var(--color-primary-content);
-    --pill-fg: var(--color-base-100);
-  }
 }
 
 .tabs-box > .tab-pill {
@@ -39,7 +31,7 @@
 .tabs-box > .tab {
   position: relative;
   z-index: 1;
-  transition: color 250ms ease;
+  transition: color var(--motion-base) var(--ease-standard);
 }
 
 /* daisyUI draws unselected tab labels at 50% opacity, which is too faint on the

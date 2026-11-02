@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useProfile } from '../layout/ProfileProvider.tsx'
 import { useInView } from '../../hooks/useInView.ts'
+import { Stagger, StaggerItem } from '../ui/motion.tsx'
 
 /**
  * Counts from 0 up to `to` once `active`. The final value is also rendered invisibly so the
@@ -47,9 +48,9 @@ export default function Stats() {
   const [ref, inView] = useInView<HTMLDivElement>(0.3)
 
   return (
-    <div ref={ref} className="stats stats-vertical surface w-full lg:stats-horizontal">
+    <Stagger ref={ref} className="stats stats-vertical surface w-full lg:stats-horizontal">
       {profile.stats.map((s) => (
-        <div className="stat" key={`${s.label}-${s.value}`}>
+        <StaggerItem className="stat" key={`${s.label}-${s.value}`}>
           <div className="stat-title">{s.label}</div>
           <div className="stat-value font-display text-brand">
             {s.prefix}
@@ -57,8 +58,8 @@ export default function Stats() {
             {s.suffix}
           </div>
           <div className="stat-desc whitespace-normal">{s.desc}</div>
-        </div>
+        </StaggerItem>
       ))}
-    </div>
+    </Stagger>
   )
 }

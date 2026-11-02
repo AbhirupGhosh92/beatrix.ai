@@ -1,7 +1,8 @@
 {
-  "name": "beatrix.ai",
+  "name": "asterion-ai",
   "private": true,
   "version": "0.0.0",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -26,6 +27,7 @@
     "@uiw/react-json-view": "2.0.0-alpha.44",
     "docx": "^9.15.0",
     "firebase": "^13.1.0",
+    "framer-motion": "^14.9.0",
     "google-auth-library": "^11.3.1",
     "lucide-react": "^1.61.0",
     "next": "^16.4.3",

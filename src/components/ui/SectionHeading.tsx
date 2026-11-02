@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Reveal } from './motion.tsx'
 
 export default function SectionHeading({
   id,
@@ -12,13 +13,15 @@ export default function SectionHeading({
   kicker?: string
 }) {
   return (
-    <div id={id} className="mb-8 scroll-mt-24">
-      {kicker && <p className="text-sm tracking-widest text-brand-2 uppercase">{kicker}</p>}
+    <Reveal className="mb-8 scroll-mt-24">
+    <div id={id} className="scroll-mt-24">
+      {kicker && <p className="text-sm tracking-widest text-brand uppercase">{kicker}</p>}
       <h2 className="flex items-center gap-3 text-2xl sm:text-3xl">
         <span className="text-brand">{icon}</span>
         {title}
       </h2>
-      <div className="mt-3 h-1 w-24 bg-linear-to-r from-primary via-secondary to-accent" />
+      <div className="mt-3 h-1 w-24 rounded-full bg-primary" />
     </div>
+    </Reveal>
   )
 }

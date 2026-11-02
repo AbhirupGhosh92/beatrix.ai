@@ -16,6 +16,7 @@ import BeyondCode from '../components/sections/BeyondCode.tsx'
 import UpcomingProjects from '../components/sections/UpcomingProjects.tsx'
 import Footer from '../components/layout/Footer.tsx'
 import BackToTop from '../components/layout/BackToTop.tsx'
+import { ScrollProgress } from '../components/ui/motion.tsx'
 
 /** The current session's role from the server, or null when logged out or unreachable. */
 async function fetchSessionRole(): Promise<Role | null> {
@@ -51,6 +52,7 @@ export default function Home() {
     <div className="drawer">
       <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
       <div className="drawer-content flex flex-col min-h-screen">
+        <ScrollProgress />
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
         <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">

@@ -24,7 +24,7 @@ PROJECT_ID="${2:-$(sed -n 's/^project_id[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\
 STATE_BUCKET="${PROJECT_ID}-tfstate"
 
 echo "======================================================================"
-echo " Beatrix.ai environment provisioning"
+echo " Asterion AI environment provisioning"
 echo " Environment: ${ENV_NAME}   Project: ${PROJECT_ID}"
 echo "======================================================================"
 

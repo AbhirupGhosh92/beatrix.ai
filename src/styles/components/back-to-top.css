@@ -1,4 +1,4 @@
-/* Back-to-top button: bottom center, springy pop in/out, then a periodic wibble.
+/* Back-to-top button: bottom center, springy pop in/out, 
    Set via the data-visible attribute from BackToTop.tsx. Written here (not as
    Tailwind utilities) because the unlayered .button-* rules would override
    layered utilities for position and transition. */
@@ -30,42 +30,4 @@
   scale: 1;
   opacity: 1;
   pointer-events: auto;
-  animation: wibble 2.6s ease-in-out 0.9s infinite;
-}
-
-.button-accent.back-to-top[data-visible="true"]:hover {
-  animation-play-state: paused;
-}
-
-@keyframes wibble {
-  0%,
-  55%,
-  100% {
-    rotate: 0deg;
-    scale: 1;
-  }
-  8% {
-    rotate: -16deg;
-    scale: 1.15;
-  }
-  16% {
-    rotate: 14deg;
-    scale: 1.15;
-  }
-  24% {
-    rotate: -10deg;
-    scale: 1.1;
-  }
-  32% {
-    rotate: 7deg;
-    scale: 1.06;
-  }
-  40% {
-    rotate: -4deg;
-    scale: 1.02;
-  }
-  48% {
-    rotate: 2deg;
-    scale: 1;
-  }
 }

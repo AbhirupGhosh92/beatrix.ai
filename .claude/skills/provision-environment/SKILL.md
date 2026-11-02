@@ -1,6 +1,6 @@
 ---
 name: provision-environment
-description: Create, recreate or repair a Beatrix.ai environment (dev, prod) in GCP/Firebase. Guides the user through each manual step (project, billing, Storage, sign-in) and automates the rest. Use when the user asks to create, set up, provision, recreate or fix an environment, or when a deploy fails because an environment is missing something.
+description: Create, recreate or repair a Asterion AI environment (dev, prod) in GCP/Firebase. Guides the user through each manual step (project, billing, Storage, sign-in) and automates the rest. Use when the user asks to create, set up, provision, recreate or fix an environment, or when a deploy fails because an environment is missing something.
 ---
 
 # Provision an environment

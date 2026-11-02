@@ -1,47 +1,99 @@
-# beatrix.ai
+<div align="center">
 
-A single-page personal bio / resume site aimed at recruiters, built with a cyberpunk-meets-cute aesthetic: neon glows, glitch and jelly-wiggle hover effects, animated stats, draggable before/after achievement cards and a light/dark theme toggle.
+<img src="public/favicon.svg" alt="Asterion AI logo" width="88" height="88" />
 
+# Asterion AI
+
+**A self-hosted personal site, resume builder and job tracker, with a clean light and dark design.**
+
+[![CI](https://github.com/AbhirupGhosh92/beatrix.ai/actions/workflows/ci.yml/badge.svg)](https://github.com/AbhirupGhosh92/beatrix.ai/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)
-![daisyUI](https://img.shields.io/badge/daisyUI-5-ff9903)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-App_Hosting-ffca28?logo=firebase&logoColor=black)
+
+[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Self-hosting](#self-hosting) · [Contributing](#contributing) · [License](#license)
+
+</div>
+
+---
+
+Asterion AI is a single-page bio and resume site for recruiters, plus a signed-in workspace with a **resume builder** and a **job application tracker**. All copy lives in one JSON file, so you can make it yours without touching a component, and the whole stack (Firebase, Cloud Functions, Terraform, CI/CD) is in this repository so you can run your own copy.
 
 ## Contents
 
 - [Features](#features)
 - [Tech stack](#tech-stack)
-- [Getting started](#getting-started)
-- [Customising the content](#customising-the-content)
+- [Architecture](#architecture)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Self-hosting](#self-hosting)
 - [Scripts](#scripts)
 - [Project structure](#project-structure)
-- [Theming](#theming)
-- [Infrastructure Automation (Terraform)](#infrastructure-automation-terraform)
-- [Deployment](#deployment-firebase-app-hosting)
-- [Spec-driven development](#spec-driven-development-openspec)
-- [Git hooks](#git-hooks)
-- [Contributing and branch protection](#contributing-and-branch-protection)
+- [Design system](#design-system)
+- [Development workflow](#development-workflow)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Features
 
-- **Hero** with rotating text, an aura-framed 3D-hover avatar (initials fallback), CTA buttons and a copy-email toast.
-- **Stats** with JS count-up counters.
-- **About** told as a chat between the owner and a recruiter.
-- **Experience** as draggable before/after `diff` cards listing pain points and solutions, followed by a timeline of roles.
-- **Skills** in tabs with a sliding highlight pill, plus **Education** and **Beyond code** sections.
-- **Light / dark themes** (`beatrix-light`, `beatrix-dark`) driven by daisyUI's theme controller with no flash on first paint; the choice persists in `localStorage` and defaults to the OS preference.
-- **Responsive** from 320px to 1920px, with a sticky navbar and a back-to-top button.
-- Honours `prefers-reduced-motion`.
-- **All copy lives in one JSON file**, so the page can be re-skinned for anyone without touching components.
+**Public site**
+
+- Hero with rotating roles, an avatar with a 3D hover and a copy-email button.
+- Animated stats, an "About" told as a chat, draggable before/after achievement cards, a role timeline, tabbed skills, education and a "beyond code" section.
+- Scroll animations built with [Framer Motion](https://www.framer.com/motion/): sections reveal as you scroll, the hero eases away, and a progress bar tracks the page. Everything is static when the visitor prefers reduced motion.
+- Light and dark themes that share one design and differ only in color; the choice is remembered and defaults to the operating system setting, with no flash on load.
+- Responsive from 320px to 1920px. Text contrast is checked in both themes.
+
+**Signed-in workspace** (Google sign-in, role based)
+
+- **Resume builder**: a structure-driven editor with live PDF preview, templates, a resume score and export to PDF, DOCX and Markdown. Exports are generated in the browser.
+- **Job tracker**: applications with status, labels, notes and a posting link, with search, sorting and filters, and tailored resumes created straight from an application.
+- **AI actions** (skill match and tailor for a job): the interface and the private service are in place, and the results are labelled placeholders until you connect a model.
+
+**Administration**
+
+- A JSON **CMS** at `/admin/cms` for the profile and resume configuration (Monaco editor, versioned backups).
+- An **access** panel at `/admin/access` to add users, change roles and revoke access. Roles are `reader`, `user-base`, `user-advanced` and `admin`, and the server decides what each can do.
+
+**Operations**
+
+- Infrastructure as code with Terraform, a guarded two-environment deploy pipeline (`dev` on every merge, `prod` by hand with approval) and automatic release notes. See [Self-hosting](#self-hosting).
 
 ## Tech stack
 
-React 19 · TypeScript 6 · Next.js 16 · Tailwind CSS v4 (CSS-first config) · daisyUI v5 · lucide-react icons · ESLint 10 flat config.
+| Area | Tools |
+| --- | --- |
+| App | Next.js 16 (App Router), React 19, TypeScript 6 |
+| UI | Tailwind CSS v4 (CSS-first config), daisyUI v5, Framer Motion, lucide-react |
+| Documents | `@react-pdf/renderer`, `docx`, Monaco editor |
+| Backend | Firebase (Auth, Firestore, Storage, App Hosting), Cloud Functions for Firebase (Node 22) |
+| AI service | FastAPI on Cloud Run (`ai_backend/`, stub routes for now) |
+| Infrastructure | Terraform, GitHub Actions with Workload Identity Federation |
+| Workflow | OpenSpec (spec-driven changes), ESLint 10 flat config |
 
-## Getting started
+## Architecture
 
-Requires Node.js 20+ and npm (or pnpm).
+The browser only talks to the Next.js server. Only that server calls the private Cloud Functions, so function URLs, tokens and payloads never reach a client.
+
+```mermaid
+flowchart LR
+  B[Browser] --> N[Next.js server<br/>routes and services]
+  N -->|Google-signed ID token| F[Private Cloud Functions]
+  N -->|private call| A[AI service<br/>Cloud Run]
+  F --> S[(Storage<br/>profile, CMS, resumes)]
+  F --> D[(Firestore<br/>users, applications)]
+```
+
+Access is default-deny: every route except the home page needs a server-verified session cookie, and the `admin` role is required for `/admin`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`openspec/specs/`](openspec/specs/) for the details.
+
+## Quick start
+
+You need Node.js 20.9 or later and npm (or pnpm).
 
 ```bash
 git clone https://github.com/AbhirupGhosh92/beatrix.ai.git
@@ -50,17 +102,41 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open <http://localhost:3000>. Without a backend the site renders a placeholder profile from `src/data/profile.example.json`, so you can see the design straight away. Sign-in, the resume builder, the job tracker and the admin panel need the Firebase backend described in [Self-hosting](#self-hosting).
 
-## Customising the content
+## Configuration
+
+### Your content
 
 Personal data is deliberately **not** committed.
 
-1. Copy `src/data/profile.example.json` to `src/data/profile.json` (git-ignored).
-2. Fill in your details. If `profile.json` is absent the site renders the placeholder example.
-3. Optionally add `public/avatar.jpg` and your resume (e.g. `public/resume.docx`, matching `person.resumeFile`). Both are git-ignored.
+1. Copy `src/data/profile.example.json` to `src/data/profile.json` (git-ignored) and fill in your details. Use only real facts and metrics.
+2. Optionally add `public/avatar.jpg` and your resume (for example `public/resume.docx`, matching `person.resumeFile`). Both are git-ignored.
+3. The shape of the file is the `Profile` interface in `src/data/profile.ts`. Keys missing from your file fall back to the example, so new fields never break an older profile.
 
-The shape of the file is defined by the `Profile` interface in `src/data/profile.ts`; update both together when adding fields. Use only real facts and metrics.
+In a deployed environment the profile is stored in Firebase Storage and edited in `/admin/cms`; edits go live within about 30 seconds, and the previous version is kept.
+
+### Environment variables
+
+Set these in `.env.local` for local development.
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` and the other `NEXT_PUBLIC_FIREBASE_*` values | Firebase web app config for sign-in and analytics. On Firebase App Hosting these are filled in automatically. |
+| `FUNCTIONS_CALLER_SERVICE_ACCOUNT` | `firebase-app-hosting-compute@<project>.iam.gserviceaccount.com`, so your dev server can call the private functions. Your account needs the Service Account Token Creator role on it. |
+| `AI_BACKEND_URL` | Address of the AI service, if you run it. |
+
+## Self-hosting
+
+Each environment (`dev`, `prod`) is its own Google Cloud and Firebase project, created by the same Terraform.
+
+1. Create a Google Cloud project, link billing (Firebase's Blaze plan) and install `gcloud`, `firebase` and `gh`.
+2. Copy `terraform/environments/dev.tfvars` and set your project id and admin email.
+3. Run `./scripts/recreate-environment.sh dev`. It is safe to re-run; when a step only you can do is missing (enabling Storage, the Google sign-in provider), it stops with an **ACTION REQUIRED** list.
+4. Add yourself as the first admin with `scripts/add-admin.sh dev you@example.com`.
+5. Merge to `main`; the **Deploy dev** workflow deploys it. **Deploy prod** runs only by hand (`./scripts/deploy-prod.sh <version>`), needs a reviewer's approval, and cuts a GitHub release from [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
+
+The deploy pipeline never destroys data (plans that delete or replace stateful resources are blocked), and its guarantees, one-time GitHub setup, rollback and restore runbooks are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Terraform details are in [`terraform/README.md`](terraform/README.md), and the AI service is described in [`ai_backend/README.md`](ai_backend/README.md).
 
 ## Scripts
 
@@ -85,6 +161,9 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 <!-- scripts:end -->
 
 ## Project structure
+
+<details>
+<summary>Show the source tree</summary>
 
 <!-- structure:start -->
 ```text
@@ -182,6 +261,7 @@ src/
 │       ├── Avatar.tsx
 │       ├── CopyEmailButton.tsx
 │       ├── JsonEditor.tsx
+│       ├── motion.tsx
 │       ├── Reveal.tsx
 │       └── SectionHeading.tsx
 ├── data/
@@ -244,13 +324,13 @@ src/
     │   ├── text-colors.css
     │   └── typography.css
     ├── effects/
-    │   ├── glitch.css
     │   ├── hover.css
     │   ├── reduced-motion.css
     │   └── reveal.css
     ├── tokens/
     │   ├── code.css
     │   ├── fonts.css
+    │   ├── motion.css
     │   ├── themes.css
     │   └── variants.css
     └── vendor/
@@ -259,74 +339,53 @@ src/
 ```
 <!-- structure:end -->
 
-## Theming
+</details>
 
-Themes are defined in `src/styles/tokens/themes.css` with `@plugin "daisyui/theme"`; `src/index.css` imports all style files from `src/styles/` in order. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
+## Design system
 
-## Infrastructure Automation (Terraform)
+Both themes (`beatrix-light`, `beatrix-dark`) share one design language: the Inter typeface, 0.5rem corner radius, 1px borders and the same component shapes. They differ only in color, with neutral surfaces and a single indigo accent. Themes are defined in `src/styles/tokens/themes.css`, visual identity comes from small semantic classes (`surface`, `text-brand`, `button-primary`, ...) in `src/styles/`, and motion follows the scale in `src/styles/tokens/motion.css`. The conventions and gotchas are in [`CLAUDE.md`](CLAUDE.md).
 
-Infrastructure for the `dev` and `prod` environments is fully automated using Terraform in the `terraform/` directory:
+## Development workflow
 
-```bash
-# Recreate infrastructure for dev environment:
-npm run infra:recreate dev beatrix-ai-dev
-```
-
-This automates GCP API enablement, Firebase Web App provisioning, Cloud Firestore database creation, Cloud Storage bucket configuration, security rules release, and initial data seeding. See [`terraform/README.md`](terraform/README.md) for full details.
-
-## Deployment (Firebase App Hosting)
-
-The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, owned by Terraform (`terraform/functions/`, stage 2 of the pipeline; the security rules are stage 1), so the Deploy dev and Deploy prod workflows plan and apply them:
-
-```bash
-npm run deploy:functions   # dev only: scripts/deploy-functions-dev.sh (plans and applies just the function resources)
-```
-
-See `docs/DEPLOYMENT.md` for the pipeline, the dev-only functions script and the prod flow.
-
-- Architecture: the browser only talks to the Next.js server (`src/app/api/*`, backed by the services in `src/middleware/`). Only that server calls the Cloud Functions, so function URLs, tokens, paths and payloads never reach a client.
-- Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile`, `adminListUsers`, `adminSetUser`, `sessionCreate`, `sessionVerify` and `status`. `/admin` has a **CMS** section (`/admin/cms`) and an **Access** section (`/admin/access`) where admins add users, change roles and revoke or restore access; a new Google account is registered as a `reader` on its first sign-in. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.
-- `profile.json` is stored in Firebase Storage (`cms/profile.json` in the default bucket). Seed it once with `gcloud storage cp src/data/profile.json gs://PROJECT_ID.firebasestorage.app/cms/profile.json`; after that, edit it in the admin panel (`/admin`). Edits go live within about 30 seconds, no rebuild. Previous versions are kept in `cms-backups/`.
-- Every route except `/` requires a server-verified session (an httpOnly cookie set at sign-in and checked by `src/proxy.ts`). Roles come from `allowed_emails/{email}.role` (`reader` by default, then `user-base`, `user-advanced`, `admin`; a legacy `admin: true` entry is an admin). Only the `admin` role can use `/admin` and the admin APIs; the functions verify the forwarded Firebase ID token themselves. `storage.rules` and `firestore.rules` deny direct client access to everything else.
-- The server needs the Firebase project id (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or App Hosting's `GOOGLE_CLOUD_PROJECT`). For local development set `FUNCTIONS_CALLER_SERVICE_ACCOUNT=firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com` in `.env.local` (your gcloud user needs the Service Account Token Creator role on it); without reachable functions the site falls back to `src/data/profile.json`, then `profile.example.json`.
-- Firebase Analytics and App Config (Remote Config) are initialized on the client side via `src/lib/firebase.ts` and `<FirebaseInit />` using standard public environment variables (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.).
-- `public/*.docx` is git-ignored, so the resume is not deployed. Host it elsewhere (e.g. a Cloud Storage URL) and set `person.resumeFile` to that URL.
-- Manual steps: use the Blaze plan, run `firebase login`, create the secrets above, and connect the GitHub repo to an App Hosting backend in the Firebase console.
-
-## Spec-driven development (OpenSpec)
-
-From version 1.2.0 changes are specified before they are built with [OpenSpec](https://github.com/Fission-AI/OpenSpec). Current behavior lives in `openspec/specs/<capability>/spec.md`; each non-trivial change is a folder in `openspec/changes/<name>/` (proposal, design, tasks, spec deltas). Install the CLI once, then use the slash commands in Claude Code:
+Changes are specified before they are built with [OpenSpec](https://github.com/Fission-AI/OpenSpec). Current behavior lives in `openspec/specs/<capability>/spec.md`, and each non-trivial change is a folder in `openspec/changes/<name>/` (proposal, design, tasks, spec deltas).
 
 ```bash
 npm install -g @fission-ai/openspec@latest   # or: brew install openspec
 openspec validate --all                      # check specs and in-flight changes
 ```
 
-`/opsx:propose <name>` creates a change, `/opsx:apply` implements its tasks and `/opsx:archive` merges its spec deltas into `openspec/specs/` before the PR is ready. Create the GitHub issue and branch first. When a spec is required and how it maps to issues and PRs: [`.claude/rules/openspec.md`](.claude/rules/openspec.md).
+Open a GitHub issue first (its number names the branch: `feature/12-add-login`), then run `/opsx:propose <name>`, `/opsx:apply` and `/opsx:archive` in Claude Code. The rules are in [`.claude/rules/`](.claude/rules/).
 
-## Git hooks
-
-A versioned `pre-push` hook in `.githooks/` regenerates the **Scripts** and **Project structure** sections above (via `scripts/update-readme.mjs`). If the README was stale, the push is aborted so you can commit the refreshed file and push again. Enable it once per clone:
+A versioned `pre-push` hook regenerates the **Scripts** and **Project structure** sections above. Enable it once per clone:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Run it manually any time with `node scripts/update-readme.mjs`. Everything outside the marked comment blocks is hand-written.
+## Documentation
 
-## Contributing and branch protection
+| Document | What it covers |
+| --- | --- |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | The deploy pipeline, safety guarantees and runbooks |
+| [`terraform/README.md`](terraform/README.md) | Creating and repairing an environment |
+| [`ai_backend/README.md`](ai_backend/README.md) | The Python AI service |
+| [`openspec/specs/`](openspec/specs/) | The behavior of every capability |
+| [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) | Architecture notes and conventions for contributors and AI agents |
 
-`main` is protected: direct pushes are blocked, and changes land through pull requests.
+## Contributing
 
-```bash
-git switch -c my-change
-# ...edit, commit...
-git push -u origin my-change
-gh pr create
-```
+Contributions are welcome. `main` is protected, so changes land through pull requests.
 
-Run `npm run check` and `npm run build` before opening a PR.
+1. Open an issue using one of the templates in `.github/ISSUE_TEMPLATE/`.
+2. Branch as `<feature|bug|spike|hotfix>/<issue-id>-<summary>`.
+3. Run `npm run check` and `npm run build` before opening a pull request, and fill in the pull request template with the checks you actually ran.
 
-### Automated review
+Components are function components with hooks only. There is no test runner yet, so describe how you verified your change.
 
-`.github/workflows/claude-review.yml` runs [Claude Code Action](https://github.com/anthropics/claude-code-action) on every non-draft PR from this repo and posts inline review comments plus a summary. It needs a repository secret named `ANTHROPIC_API_KEY` (Settings → Secrets and variables → Actions). Fork PRs are skipped because GitHub withholds secrets from them.
+## Security
+
+Please do not open a public issue for a security problem. Use GitHub's **Report a vulnerability** option on the Security tab of this repository.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [`NOTICE`](NOTICE).

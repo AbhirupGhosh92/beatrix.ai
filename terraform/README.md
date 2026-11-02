@@ -1,6 +1,6 @@
 # Environments and deployment
 
-Beatrix.ai runs in two Firebase/GCP projects, all built from this Terraform code:
+Asterion AI runs in two Firebase/GCP projects, all built from this Terraform code:
 
 | Environment | tfvars | Deployed |
 |---|---|---|

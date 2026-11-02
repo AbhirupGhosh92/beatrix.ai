@@ -37,8 +37,3 @@
   padding: 0;
   width: 100%;
 }
-
-.modal-backdrop button:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-}

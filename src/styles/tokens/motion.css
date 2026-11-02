@@ -1,0 +1,6 @@
+/* Shared motion scale: short, quiet transitions only. */
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}

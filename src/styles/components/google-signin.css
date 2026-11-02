@@ -53,11 +53,6 @@ button.gsi-button:disabled {
   cursor: default;
 }
 
-/* the generic button shine sweep is not part of Google's button */
-button.gsi-button::after {
-  display: none;
-}
-
 .gsi-button .gsi-icon {
   width: 20px;
   height: 20px;

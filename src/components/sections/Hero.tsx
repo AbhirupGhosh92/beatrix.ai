@@ -3,6 +3,7 @@
 import { CodeXml, Download, MapPin, Users } from 'lucide-react'
 import { useProfile } from '../layout/ProfileProvider.tsx'
 import Avatar from '../ui/Avatar.tsx'
+import { Parallax, ScrollFade } from '../ui/motion.tsx'
 import CopyEmailButton from '../ui/CopyEmailButton.tsx'
 
 export default function Hero() {
@@ -10,6 +11,7 @@ export default function Hero() {
   const { person, contact, labels, hero } = profile
 
   return (
+    <ScrollFade>
     <section className="grid items-center gap-10 py-6 lg:grid-cols-[1.3fr_1fr] lg:py-12">
       <div className="order-2 lg:order-1">
         <div className="badge badge-outline mb-4 gap-2 py-4">
@@ -20,7 +22,7 @@ export default function Hero() {
           {person.availability}
         </div>
 
-        <h1 className="glitch-hover w-fit text-4xl sm:text-6xl">{person.name}</h1>
+        <h1 className="w-fit text-4xl sm:text-6xl">{person.name}</h1>
 
         <p className="mt-4 text-xl sm:text-3xl">
           {person.title} · {hero.rotatingPrefix}{' '}
@@ -58,8 +60,11 @@ export default function Hero() {
       </div>
 
       <div className="order-1 flex justify-center lg:order-2">
-        <Avatar />
+        <Parallax distance={24}>
+          <Avatar />
+        </Parallax>
       </div>
     </section>
+    </ScrollFade>
   )
 }

@@ -14,8 +14,8 @@
     @apply text-sm opacity-80;
   }
 
-  /* display typeface, uppercase (normal case in the light theme, see tokens/fonts.css) */
+  /* heading style: same family, semibold, normal case in both themes */
   .heading-display {
-    @apply font-display uppercase tracking-wide;
+    @apply font-display font-semibold tracking-tight;
   }
 }

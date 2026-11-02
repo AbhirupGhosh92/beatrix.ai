@@ -49,37 +49,6 @@
   transform: translateX(2px);
 }
 
-/* Light (cute) theme: the same hover classes play a bouncy jelly wiggle with a
-   soft pink glow instead of the glitch. Light = dark toggle unchecked. */
-:is(.button-glitch:hover:not(:disabled), .glitch-hover:hover) {
-  @variant theme-light {
-    animation: cute-wiggle 650ms ease-in-out;
-  }
-}
-
-@keyframes cute-wiggle {
-  0%, 100% {
-    transform: scale(1) rotate(0deg);
-    filter: none;
-  }
-  15% {
-    transform: scale(1.12, 0.88);
-  }
-  30% {
-    transform: translateY(-5px) scale(0.94, 1.1) rotate(-5deg);
-    filter: drop-shadow(0 6px 5px color-mix(in oklab, var(--color-primary) 55%, transparent));
-  }
-  50% {
-    transform: translateY(0) scale(1.06, 0.95) rotate(4deg);
-  }
-  70% {
-    transform: scale(0.98, 1.03) rotate(-2deg);
-  }
-  85% {
-    transform: scale(1.02, 0.99) rotate(1deg);
-  }
-}
-
 /* In the light (pastel) theme the primary color is very pale, so using it as
    hover *text* color is unreadable on white. Darken it for text only; the
    glow/tint keep the pale color. Dark theme keeps the neon color as text. */
