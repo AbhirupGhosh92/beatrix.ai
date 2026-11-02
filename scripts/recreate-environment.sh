@@ -46,7 +46,7 @@ fi
 # ------------------------------------------------------------------------------
 # 3. Infrastructure
 # ------------------------------------------------------------------------------
-echo "==> Applying Terraform..."
+echo "==> Applying Terraform stage 1 (Firebase configuration)..."
 cd "${ROOT_DIR}/terraform"
 terraform init -reconfigure -input=false -backend-config="bucket=${STATE_BUCKET}"
 # Plan first, refuse to destroy or replace stateful resources (Firestore, Storage, ...), then
@@ -62,6 +62,21 @@ rm -f tfplan plan.json
 
 tf_out() { terraform output -raw "$1"; }
 DEFAULT_BUCKET="$(tf_out default_storage_bucket)"
+cd "${ROOT_DIR}"
+
+# Stage 2: the Cloud Functions, in their own Terraform configuration with their own state. Stage 1 above
+# created the APIs and accounts they need. Built first because Terraform zips the staged source.
+echo "==> Building the Cloud Functions source..."
+bash "${SCRIPT_DIR}/build-functions.sh"
+echo "==> Applying Terraform stage 2 (Cloud Functions)..."
+cd "${ROOT_DIR}/terraform/functions"
+terraform init -reconfigure -input=false -backend-config="bucket=${STATE_BUCKET}"
+trap 'rm -f "${ROOT_DIR}/terraform/tfplan" "${ROOT_DIR}/terraform/plan.json" "${ROOT_DIR}/terraform/functions/tfplan" "${ROOT_DIR}/terraform/functions/plan.json"' EXIT
+terraform plan -input=false -out=tfplan -var-file="environments/${ENV_NAME}.tfvars"
+terraform show -json tfplan > plan.json
+python3 -I "${ROOT_DIR}/scripts/deploy/plan_guard.py" plan.json
+terraform apply -input=false tfplan
+rm -f tfplan plan.json
 cd "${ROOT_DIR}"
 
 # ------------------------------------------------------------------------------
@@ -91,13 +106,19 @@ fi
 # 6. Seed data, deploy, and hand the environment to CI
 # ------------------------------------------------------------------------------
 bash "${SCRIPT_DIR}/seed-data.sh" "${PROJECT_ID}" "${DEFAULT_BUCKET}"
-bash "${SCRIPT_DIR}/deploy-backend.sh" "${PROJECT_ID}"
+if [[ "${ENV_NAME}" == "prod" ]]; then
+  # Prod never deploys App Hosting from a script or the pipeline: the rollout is created by hand from
+  # the Firebase console. Only the Python service is deployed here.
+  bash "${SCRIPT_DIR}/deploy-backend.sh" "${PROJECT_ID}" --components python
+else
+  bash "${SCRIPT_DIR}/deploy-backend.sh" "${PROJECT_ID}"
+fi
 bash "${SCRIPT_DIR}/sync-github-env.sh" "${ENV_NAME}"
 
 echo "======================================================================"
 echo " Environment '${ENV_NAME}' is ready."
 echo " Site:    $(cd terraform && tf_out apphosting_url)"
 echo " Project: ${PROJECT_ID}"
-echo " From now on, pushes to main deploy it via .github/workflows/deploy.yml"
+echo " From now on, pushes to main deploy it via .github/workflows/deploy-dev.yml"
 echo " (prod: only by running that workflow manually)."
 echo "======================================================================"

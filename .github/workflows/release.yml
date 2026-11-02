@@ -1,37 +1,47 @@
 name: Release
 
+# Stage 3 of the prod pipeline: cut the release for the commit that was just deployed. Called only by
+# deploy-prod.yml after stages 1 and 2 and the smoke test succeeded. It creates the branch
+# release/<version> at that commit, the tag v<version> and the GitHub release (marked Latest, notes
+# from RELEASE_NOTES.md at that commit). Pushing a release branch does not start it, so nothing is
+# released for a deploy that failed. Running it again for the same commit and version updates the
+# release. Details and tests: scripts/deploy/cut-release.sh.
+
 on:
-  push:
-    branches:
-      - 'release/**'
+  workflow_call:
+    inputs:
+      sha:
+        description: The commit that was deployed
+        type: string
+        required: true
+      version:
+        description: The release version, X.Y or X.Y.Z
+        type: string
+        required: true
 
 permissions:
   contents: write
 
 jobs:
-  publish:
+  cut:
+    name: Cut release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
 
-      - name: Publish GitHub release
+      - name: Cut the release
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ inputs.sha }}
+          VERSION: ${{ inputs.version }}
         run: |
-          version="${BRANCH#release/}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-            echo "::error::'$BRANCH' is not release/<major.minor[.patch]>"
-            exit 1
-          fi
-          if [[ ! -s RELEASE_NOTES.md ]]; then
-            echo "::error::RELEASE_NOTES.md is missing or empty on $BRANCH"
-            exit 1
-          fi
-          tag="v$version"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release edit "$tag" --title "$tag" --notes-file RELEASE_NOTES.md --latest
-          else
-            gh release create "$tag" --target "$SHA" --title "$tag" --notes-file RELEASE_NOTES.md --latest
-          fi
+          set -euo pipefail
+          bash scripts/deploy/cut-release.sh "$SHA" "$VERSION"
+          {
+            echo "### Release"
+            echo "Release \`v${VERSION}\` cut from \`${SHA:0:7}\`: branch \`release/${VERSION}\`, tag and GitHub release (marked Latest)."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -12,7 +12,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 echo "==> [1/3] Validating Terraform configuration syntax..."
 if command -v terraform &>/dev/null; then
   echo "    Running terraform fmt -check..."
-  terraform -chdir="${ROOT_DIR}/terraform" fmt -check || {
+  terraform -chdir="${ROOT_DIR}/terraform" fmt -check -recursive || {
     echo "Error: Terraform formatting check failed. Run 'terraform fmt terraform/' to fix."
     exit 1
   }

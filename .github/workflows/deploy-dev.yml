@@ -1,0 +1,47 @@
+name: Deploy dev
+
+# The dev pipeline. Every push to main deploys dev; it can also be started by hand for any ref.
+# Stages, in order (each starts only after the previous one succeeded), all by Terraform and
+# GitHub Actions:
+#   1  Firebase configuration  (terraform/)            rules, Firestore, Storage, Auth, IAM, backend resource
+#   2  Cloud Functions         (terraform/functions/)  the functions, then the Python service if it changed
+#   3  the app                 App Hosting rollout if the app changed, then a smoke test
+# The stages are the jobs of deploy-environment.yml and are described step by step in
+# docs/DEPLOYMENT.md. Prod has its own pipeline: deploy-prod.yml.
+#
+# The environment is set up by `./scripts/recreate-environment.sh dev`; until then a run is skipped
+# with a notice.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit SHA to deploy to dev
+        type: string
+        default: main
+        required: true
+      allow_destructive:
+        description: "DANGEROUS: allow the plans to delete/replace protected resources, functions included"
+        type: boolean
+        default: false
+      redeploy_all:
+        description: Redeploy every component even if its sources did not change
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  dev:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: dev
+      ref: ${{ github.event_name == 'push' && github.sha || inputs.ref }}
+      allow_destructive: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_destructive }}
+      redeploy_all: ${{ github.event_name == 'workflow_dispatch' && inputs.redeploy_all }}

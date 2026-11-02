@@ -42,13 +42,15 @@ jobs:
           terraform_version: 1.15.8
 
       - name: Terraform Format Check
-        run: terraform -chdir=terraform fmt -check
+        run: terraform -chdir=terraform fmt -check -recursive
 
-      - name: Terraform Init & Validate
+      - name: Terraform Init & Validate (stage 1 and stage 2)
         run: |
-          cd terraform
-          terraform init -backend=false
-          terraform validate
+          for dir in terraform terraform/functions; do
+            echo "[info]     ${dir}"
+            terraform -chdir="${dir}" init -backend=false
+            terraform -chdir="${dir}" validate
+          done
 
       - name: Run Infrastructure Sync Check
         run: bash scripts/check-infra.sh

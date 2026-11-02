@@ -4,15 +4,15 @@
 
 1. **Infrastructure via Code (Terraform)**:
    - All GCP and Firebase infrastructure resources (including Firebase projects, Web Apps, Cloud Firestore databases, Cloud Storage buckets, security rulesets, IAM service accounts, and API enablement) MUST be declared in Terraform under the `terraform/` directory.
-   - Any modification to Firebase rules (`firestore.rules`, `storage.rules`), app hosting (`apphosting.yaml`), or backend function infrastructure (`functions/`) MUST be reflected in and validated against `terraform/`.
+   - Any modification to Firebase rules (`firestore.rules`, `storage.rules`), app hosting (`apphosting.yaml`), or backend function infrastructure (`functions/`) MUST be reflected in and validated against `terraform/`. Cloud Functions and the security rules are Terraform resources (`terraform/functions/functions.tf`): never deploy them with the Firebase CLI, and keep `function_names` equal to the exports of `functions/src/index.ts` (`bash scripts/check-functions.sh`).
 
 2. **Agent Automation & Change Control**:
    - Infrastructure changes MUST occur via code and agents. Manual changes in the Google Cloud Console or Firebase Console without updating Terraform configurations are prohibited.
    - Always run `npm run infra:check` when making changes to infrastructure or security rules to ensure Terraform configurations remain synchronized and syntax is valid.
 
 3. **Environments & Deployment** (full runbook: `terraform/README.md`):
-   - Every push to `main` deploys `dev` via `.github/workflows/deploy.yml`. `prod` is deployed **only** by a manual run of that workflow chosen by the user. Never add automatic prod deploys, and never trigger one unasked. Deployments are plan-reviewed, plan-guarded and component-selective, and must never touch unchanged data, files, configuration, functions or services: do not weaken that pipeline (no `-auto-approve`, no `firebase deploy --force`, no removing `prevent_destroy`/delete protection/versioning). Read `docs/DEPLOYMENT.md` and `.claude/rules/environments.md` first.
-   - To deploy by hand use the skills `dev-deploy` (a pushed ref to dev) and `prod-deploy` (the current `release/*` branch to prod, only on the user's explicit yes); they run the Deploy workflow and narrate each step.
+   - There are two pipelines with three stages each (1 Firebase configuration in `terraform/`, 2 Cloud Functions in `terraform/functions/` plus the Python service, 3 the app on dev or the release cut on prod). Every push to `main` deploys `dev` via `.github/workflows/deploy-dev.yml`. `prod` is deployed **only** by a manual run of `.github/workflows/deploy-prod.yml` chosen by the user, with a commit on `main` and a `version`; it never deploys App Hosting. Never add automatic prod deploys, and never trigger one unasked. Deployments are plan-reviewed, plan-guarded and component-selective, and must never touch unchanged data, files, configuration, functions or services: do not weaken that pipeline (no `-auto-approve`, no `firebase deploy --force`, no removing `prevent_destroy`/delete protection/versioning). Read `docs/DEPLOYMENT.md` and `.claude/rules/environments.md` first.
+   - To deploy by hand use the skills `dev-deploy` (a pushed ref to dev) and `prod-deploy` (a commit on `main` and a version to prod, only on the user's explicit yes); they run the Deploy dev or Deploy prod pipeline and narrate each step.
    - To create, recreate or repair an environment, run:
      ```bash
      ./scripts/recreate-environment.sh <env>

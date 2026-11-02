@@ -11,7 +11,7 @@ The canonical runbook is `terraform/README.md`; this is the procedure to follow.
 
 - Environment name (`dev`, `prod`) and its project ID from `terraform/environments/<env>.tfvars`.
 - If the tfvars file does not exist, create it from `dev.tfvars`. Ask the user for `allowed_admin_emails` (CMS admins) and `developer_members` (e.g. `user:name@example.com`, may run the dev server against it) instead of guessing.
-- For `prod`, say clearly that provisioning creates infrastructure only. The app is deployed there only by a manual run of the Deploy workflow, so ask before triggering one.
+- For `prod`, say clearly that provisioning creates infrastructure only. Code is deployed there only by a manual run of the Deploy prod workflow (a commit on `main` and a version), so ask before triggering one; the App Hosting rollout is created by hand.
 
 ## 2. Run the script and loop on manual steps
 

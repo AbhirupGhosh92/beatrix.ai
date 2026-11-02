@@ -2,33 +2,28 @@
 set -euo pipefail
 
 # ==============================================================================
-# Deploy Cloud Functions, Firebase Security Rules, the App Hosting site and the Python AI service
-# (Cloud Run) from local source.
+# Deploy the App Hosting site (dev) and the Python AI service (Cloud Run) from local source.
+# Cloud Functions and the security rules are NOT deployed here: Terraform owns them (see
+# terraform/functions/ and scripts/deploy-functions-dev.sh).
 # The same script .github/workflows/deploy-environment.yml runs in CI.
 #
-# Usage: ./scripts/deploy-backend.sh <PROJECT_ID> [--components functions,rules,apphosting,python]
-#                                    [--region <region>] [--allow-destructive]
+# Usage: ./scripts/deploy-backend.sh <PROJECT_ID> [--components apphosting,python] [--region <region>]
 #
-#   --components         comma-separated list of what to deploy; default: all four.
-#                        Anything not listed is not touched at all.
-#   --region             Cloud Run region for the python component (default us-central1).
-#   --allow-destructive  pass --force to the Firebase CLI, which then also DELETES deployed
-#                        Cloud Functions that no longer exist in the source. Without it the CLI
-#                        refuses (non-interactive) instead of deleting. Never used by default.
+#   --components   comma-separated list of what to deploy; default: both.
+#                  Anything not listed is not touched at all.
+#   --region       Cloud Run region for the python component (default us-central1).
 # ==============================================================================
 
 source "$(dirname "${BASH_SOURCE[0]}")/deploy/log.sh"
 
 PROJECT_ID=""
-COMPONENTS="functions,rules,apphosting,python"
+COMPONENTS="apphosting,python"
 REGION="us-central1"
-ALLOW_DESTRUCTIVE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --components)        COMPONENTS="${2:?--components needs a value}"; shift 2 ;;
     --region)            REGION="${2:?--region needs a value}"; shift 2 ;;
-    --allow-destructive) ALLOW_DESTRUCTIVE=1; shift ;;
     -*)                  fail "unknown option '$1'" "see the usage at the top of this script" ;;
     *)                   PROJECT_ID="$1"; shift ;;
   esac
@@ -40,17 +35,15 @@ if [[ -z "${PROJECT_ID}" ]]; then
 fi
 
 ONLY=()
-DEPLOY_FUNCTIONS=0
 DEPLOY_PYTHON=0
 IFS=',' read -ra WANTED <<< "${COMPONENTS}"
 for component in "${WANTED[@]}"; do
   case "${component// /}" in
-    functions)  ONLY+=("functions"); DEPLOY_FUNCTIONS=1 ;;
-    rules)      ONLY+=("firestore:rules" "storage") ;;
+    functions|rules) fail "'${component}' is deployed by Terraform, not by this script" "change terraform/ or functions/ and apply the reviewed plan (docs/DEPLOYMENT.md); on dev, scripts/deploy-functions-dev.sh deploys the functions alone" ;;
     apphosting) ONLY+=("apphosting") ;;
     python)     DEPLOY_PYTHON=1 ;;
     "")         ;;
-    *)          fail "unknown component '${component}'" "use functions, rules, apphosting or python" ;;
+    *)          fail "unknown component '${component}'" "use apphosting or python" ;;
   esac
 done
 
@@ -63,35 +56,16 @@ step_start "Deploy components"
 info "project: ${PROJECT_ID}"
 info "components: ${COMPONENTS} (anything not listed is not touched)"
 
-# Step 1: build the functions package (only when functions are being deployed)
-if [[ "${DEPLOY_FUNCTIONS}" -eq 1 ]]; then
-  decision "build functions" "functions are being deployed, building them first"
-  pnpm --prefix functions install --frozen-lockfile
-  pnpm --prefix functions run build
-fi
-
-# Step 2: deploy only what was asked for
+# Step 1: deploy App Hosting with the Firebase CLI (dev only; prod rollouts are created by hand)
 FIREBASE=(firebase)
 command -v firebase &>/dev/null || FIREBASE=(npx --yes firebase-tools)
 
-DEPLOY_FLAGS=(--non-interactive)
-if [[ "${ALLOW_DESTRUCTIVE}" -eq 1 ]]; then
-  decision "--force" "--allow-destructive is set, so Cloud Functions removed from the source WILL BE DELETED"
-  DEPLOY_FLAGS+=(--force)
-fi
-
 if [[ ${#ONLY[@]} -gt 0 ]]; then
   ONLY_ARG="$(IFS=','; echo "${ONLY[*]}")"
-  "${FIREBASE[@]}" deploy --project "${PROJECT_ID}" --only "${ONLY_ARG}" "${DEPLOY_FLAGS[@]}"
+  "${FIREBASE[@]}" deploy --project "${PROJECT_ID}" --only "${ONLY_ARG}" --non-interactive
 fi
 
-# Step 3: delete old function container images after a day (else they accumulate and bill).
-# This only sets an Artifact Registry cleanup policy; it does not change any function.
-if [[ "${DEPLOY_FUNCTIONS}" -eq 1 ]]; then
-  "${FIREBASE[@]}" functions:artifacts:setpolicy --project "${PROJECT_ID}" --force
-fi
-
-# Step 4: the Python AI service on Cloud Run. Private (no unauthenticated access); only the App
+# Step 2: the Python AI service on Cloud Run. Private (no unauthenticated access); only the App
 # Hosting service account may invoke it. The secret is mounted by reference only when it already
 # has a version (the value is set by hand, never by this script), and its value is never read.
 if [[ "${DEPLOY_PYTHON}" -eq 1 ]]; then

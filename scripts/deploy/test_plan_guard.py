@@ -33,6 +33,31 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(plan_guard.classify(["delete", "create"]), "replace")
         self.assertEqual(plan_guard.classify(["create", "delete"]), "replace")
         self.assertEqual(plan_guard.classify(["read"]), "read")
+        self.assertEqual(plan_guard.classify(["forget"]), "forget")
+
+
+class FunctionGuardTest(unittest.TestCase):
+    def test_forgetting_a_protected_resource_passes(self):
+        p = plan(
+            ("google_cloudfunctions2_function", "fn[\"status\"]", ["forget"]),
+            ("google_storage_bucket", "functions_src", ["forget"]),
+        )
+        self.assertEqual(run_guard(p), 0)
+
+    def test_function_update_and_create_pass(self):
+        p = plan(
+            ("google_cloudfunctions2_function", "fn[\"status\"]", ["update"]),
+            ("google_cloudfunctions2_function", "fn[\"newOne\"]", ["create"]),
+        )
+        self.assertEqual(run_guard(p), 0)
+
+    def test_function_delete_or_replace_is_blocked(self):
+        self.assertEqual(run_guard(plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete"]))), 1)
+        self.assertEqual(run_guard(plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete", "create"]))), 1)
+
+    def test_function_replace_allowed_only_when_asked(self):
+        p = plan(("google_cloudfunctions2_function", "fn[\"status\"]", ["delete", "create"]))
+        self.assertEqual(run_guard(p, "--allow-destructive"), 0)
 
 
 class GuardTest(unittest.TestCase):

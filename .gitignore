@@ -37,14 +37,14 @@ next-env.d.ts
 .env*.local
 
 # terraform
-terraform/.terraform/
+terraform/**/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/terraform.tfvars
 # saved plans can contain sensitive values: never commit them
-terraform/tfplan
-terraform/plan.json
-terraform/plan.txt
+terraform/**/tfplan
+terraform/**/plan.json
+terraform/**/plan.txt
 
 # python bytecode (deployment script tests)
 __pycache__/
@@ -53,3 +53,6 @@ __pycache__/
 # Python build artifacts
 *.egg-info/
 .venv/
+
+# Terraform function source built by scripts/build-functions.sh
+terraform/functions/.build/

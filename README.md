@@ -76,7 +76,7 @@ The shape of the file is defined by the `Profile` interface in `src/data/profile
 | `npm run check` | `npm run typecheck && npm run lint` |
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
 | `npm run functions:build` | `pnpm --prefix functions run build` |
-| `npm run deploy:functions` | `firebase deploy --only functions,firestore:rules,storage` |
+| `npm run deploy:functions` | `bash scripts/deploy-functions-dev.sh` |
 | `npm run infra:preflight` | `bash scripts/env-preflight.sh` |
 | `npm run functions:serve` | `pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth` |
 | `npm run infra:recreate` | `bash scripts/recreate-environment.sh` |
@@ -276,13 +276,13 @@ This automates GCP API enablement, Firebase Web App provisioning, Cloud Firestor
 
 ## Deployment (Firebase App Hosting)
 
-The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, deployed separately:
+The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, owned by Terraform (`terraform/functions/`, stage 2 of the pipeline; the security rules are stage 1), so the Deploy dev and Deploy prod workflows plan and apply them:
 
 ```bash
-npm run deploy:functions   # firebase deploy --only functions,firestore:rules,storage
+npm run deploy:functions   # dev only: scripts/deploy-functions-dev.sh (plans and applies just the function resources)
 ```
 
-`.github/workflows/deploy-functions.yml` does the same on every push to `main` that touches `functions/` or the rules (add the repository secret `FIREBASE_SERVICE_ACCOUNT` with a service-account JSON key and the variable `FIREBASE_PROJECT_ID`).
+See `docs/DEPLOYMENT.md` for the pipeline, the dev-only functions script and the prod flow.
 
 - Architecture: the browser only talks to the Next.js server (`src/app/api/*`, backed by the services in `src/middleware/`). Only that server calls the Cloud Functions, so function URLs, tokens, paths and payloads never reach a client.
 - Every API is its own private HTTP function: `getProfile`, `adminListFiles`, `adminGetFile`, `adminSaveFile`, `adminListUsers`, `adminSetUser`, `sessionCreate`, `sessionVerify` and `status`. `/admin` has a **CMS** section (`/admin/cms`) and an **Access** section (`/admin/access`) where admins add users, change roles and revoke or restore access; a new Google account is registered as a `reader` on its first sign-in. Cloud Run IAM lets only the App Hosting service account (`firebase-app-hosting-compute@PROJECT_ID.iam.gserviceaccount.com`) invoke them, and every call carries a Google-signed ID token.

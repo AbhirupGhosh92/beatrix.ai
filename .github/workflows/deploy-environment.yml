@@ -1,18 +1,33 @@
 name: Deploy environment
 
-# Reusable: the full, reviewed deployment of ONE environment. Called by deploy.yml.
-# Full description, guarantees and runbooks: docs/DEPLOYMENT.md
+# Reusable: the full, reviewed deployment of ONE environment. Called by deploy-dev.yml (dev) and
+# deploy-prod.yml (prod). Full description, guarantees and runbooks: docs/DEPLOYMENT.md
 #
-#   policy   no cloud access: environment, ref and prod rules
-#   gate     is the environment provisioned? skipped (dev) or failed (prod) before any build
-#   verify   no cloud access: typecheck, lint, build, terraform validate, script tests
-#   plan     terraform plan -> saved privately; plan guard blocks destroy/replace of stateful
-#            resources; decides which components changed and publishes that decision table
-#   approve  prod only: required reviewers of the `prod-release` GitHub environment approve,
-#            seeing the same decision table
-#   apply    snapshot CMS files (only if something will change) -> apply the SAVED plan -> deploy
-#            only the components the plan job marked changed -> smoke test
+# Three stages, in this order; a stage starts only after the previous one succeeded:
+#   Stage 1  Firebase configuration  terraform/            APIs, Firestore, Storage, security rules, Auth, IAM,
+#                                                          the App Hosting backend resource
+#   Stage 2  Cloud Functions         terraform/functions/  the functions (Terraform), then the Python AI service
+#                                                          (gcloud run deploy, only when ai_backend/ changed)
+#   Stage 3  dev: the app            App Hosting rollout (Firebase CLI), only when the app changed
+#            prod: cut the release   done by deploy-prod.yml after this workflow succeeds; prod never
+#                                    deploys App Hosting (the rollout is created by hand)
 #
+# Jobs:
+#   policy    no cloud access: environment, ref, version and prod rules
+#   gate      is the environment provisioned? skipped (dev) or failed (prod) before any build
+#   verify    no cloud access: prod preflight (commit on main, version, release notes, no clashing
+#             release), typecheck, lint, build, both Terraform stages, script tests
+#   plan1     stage 1 terraform plan -> plan guard -> saved privately
+#   plan2     build the function source, stage 2 terraform plan -> plan guard -> saved privately with
+#             that source; decides which components changed and publishes the decision table
+#   approve   prod only: required reviewers of the `prod-release` GitHub environment approve once,
+#             after both plans, seeing the same decision table. Nothing is applied before that.
+#   apply1    snapshot CMS files (only if something will change) -> apply the SAVED stage-1 plan
+#   apply2    apply the SAVED stage-2 plan -> deploy the Python service if it changed
+#   stage3    dev: App Hosting rollout if the app changed; smoke test (dev and prod)
+#   summary   the decision table and the outcome
+#
+# No job targets single resources: each stage is its own configuration with its own saved plan.
 # Every step prints its inputs, what it decided and why, and its result (scripts/deploy/log.sh
 # format: [step] [info] [decision] [result]); steps are folded into log groups.
 #
@@ -21,7 +36,7 @@ name: Deploy environment
 # TF_STATE_BUCKET are written by scripts/sync-github-env.sh.
 #
 # Security notes: third-party actions are pinned to full commit SHAs; user-controlled values
-# (ref, confirm) reach shell only through env variables, never through ${{ }} in a script;
+# (ref, version, confirm) reach shell only through env variables, never through ${{ }} in a script;
 # every job declares the least permissions it needs.
 
 on:
@@ -32,16 +47,21 @@ on:
         type: string
         required: true
       ref:
-        description: Branch, tag or commit SHA to deploy
+        description: Branch, tag or commit SHA to deploy (prod uses a commit on main)
         type: string
         required: true
+      version:
+        description: Release version X.Y or X.Y.Z (required for prod, which cuts the release after success)
+        type: string
+        required: false
+        default: ''
       confirm:
         description: Must equal the environment name when deploying prod
         type: string
         required: false
         default: ''
       allow_destructive:
-        description: Allow the plan to delete/replace protected resources and removed functions to be deleted
+        description: Allow a plan to delete or replace protected resources, functions included
         type: boolean
         required: false
         default: false
@@ -50,6 +70,10 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      sha:
+        description: The commit that was verified, planned and deployed
+        value: ${{ jobs.verify.outputs.sha }}
 
 permissions:
   contents: read
@@ -79,6 +103,7 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           REF: ${{ inputs.ref }}
+          VERSION: ${{ inputs.version }}
           CONFIRM: ${{ inputs.confirm }}
           EVENT: ${{ github.event_name }}
           ALLOW_DESTRUCTIVE: ${{ inputs.allow_destructive }}
@@ -86,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "[step]     Check the deployment policy"
-          echo "[info]     environment=${ENVIRONMENT} ref=${REF} trigger=${EVENT}"
+          echo "[info]     environment=${ENVIRONMENT} ref=${REF} version=${VERSION:-<none>} trigger=${EVENT}"
           echo "[info]     allow_destructive=${ALLOW_DESTRUCTIVE} redeploy_all=${REDEPLOY_ALL}"
           case "$ENVIRONMENT" in
             dev|prod) echo "[decision] environment: '${ENVIRONMENT}' is allowed (dev | prod)" ;;
@@ -98,15 +123,15 @@ jobs:
           echo "[decision] ref: only safe characters"
           if [[ "$ENVIRONMENT" == "prod" ]]; then
             if [[ "$EVENT" != "workflow_dispatch" ]]; then
-              echo "::error title=Policy::prod is only deployed by a manual run of the Deploy workflow. Next: use Actions > Deploy > Run workflow."; exit 1
+              echo "::error title=Policy::prod is only deployed by a manual run of the Deploy prod workflow. Next: use Actions > Deploy prod > Run workflow."; exit 1
             fi
             if [[ "$CONFIRM" != "prod" ]]; then
               echo "::error title=Policy::To deploy prod, type prod in the 'confirm' input. Next: run the workflow again with confirm=prod."; exit 1
             fi
-            if [[ ! "$REF" =~ ^release/[0-9]+\.[0-9]+(\.[0-9]+)?$ && ! "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error title=Policy::prod is only deployed from a release/<major.minor[.patch]> branch or a v<major.minor.patch> tag, not '$REF'. Next: pick the release branch."; exit 1
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "::error title=Policy::prod needs a version like 1.3 or 1.3.0 (the release is cut with it after success), got '$VERSION'. Next: run the workflow again with a version."; exit 1
             fi
-            echo "[decision] prod: manual run, confirmation typed, ref is a release ref"
+            echo "[decision] prod: manual run, confirmation typed, version ${VERSION}; the commit is checked against main in Verify"
           fi
           echo "[result]   policy passed"
 
@@ -138,7 +163,7 @@ jobs:
               echo "::error title=Gate::GitHub environment 'prod' has no GCP variables. Next: run ./scripts/recreate-environment.sh prod (docs/DEPLOYMENT.md)."
               exit 1
             fi
-            echo "[decision] ready: no, '${ENVIRONMENT}' is not provisioned yet, so Verify, Plan and Apply are skipped"
+            echo "[decision] ready: no, '${ENVIRONMENT}' is not provisioned yet, so Verify and the plans are skipped"
             echo "::notice title=Gate::Environment '$ENVIRONMENT' is not provisioned yet; skipping. Run ./scripts/recreate-environment.sh $ENVIRONMENT."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
@@ -161,9 +186,12 @@ jobs:
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
     steps:
+      # Prod needs the whole history (is the commit on main?) and the release branches and tags
+      # (does this version clash?); dev needs one commit.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
+          fetch-depth: ${{ inputs.environment == 'prod' && 0 || 1 }}
           persist-credentials: false
 
       # Every later job checks out this exact commit, so what is verified is what is deployed,
@@ -177,6 +205,16 @@ jobs:
           echo "[step]     Resolve the commit to deploy"
           echo "[result]   ${REF} -> ${sha}; every later job uses exactly this commit"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      # A prod deploy goes out as a version and is released after it succeeds, so everything that
+      # could make the release fail is checked here, before any plan: the commit is on main, the
+      # notes exist, and the release branch and tag are free (or already at this commit).
+      - name: Prod preflight (commit on main, version, release notes)
+        if: inputs.environment == 'prod'
+        env:
+          SHA: ${{ steps.resolve.outputs.sha }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/deploy/check-prod-ref.sh "$SHA" "$VERSION" origin
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
@@ -212,24 +250,154 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: Validate Terraform
+      - name: Validate both Terraform stages
         working-directory: terraform
         run: |
-          echo "[step]     Validate Terraform (no backend, no cloud access)"
-          terraform fmt -check
-          terraform init -backend=false -input=false
-          terraform validate
-          echo "[result]   terraform is formatted and valid"
+          echo "[step]     Validate both Terraform stages (no backend, no cloud access)"
+          terraform fmt -check -recursive
+          for dir in . functions; do
+            echo "[info]     terraform/${dir}"
+            terraform -chdir="${dir}" init -backend=false -input=false
+            terraform -chdir="${dir}" validate
+          done
+          echo "[result]   both Terraform stages are formatted and valid"
 
       - name: Deployment script checks
         run: bash scripts/check-scripts.sh
 
   # ----------------------------------------------------------------------------
-  # 3. Plan: decide exactly what would change; nothing is applied here
+  # 3. Plan stage 1 (Firebase configuration): nothing is applied here
   # ----------------------------------------------------------------------------
-  plan:
-    name: Plan
+  plan1:
+    name: Plan stage 1 (Firebase configuration)
     needs: [gate, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      ALLOW_DESTRUCTIVE: ${{ inputs.allow_destructive }}
+      SHA: ${{ needs.verify.outputs.sha }}
+    outputs:
+      has_changes: ${{ steps.plan.outputs.has_changes }}
+      plan_uri: ${{ steps.save.outputs.plan_uri }}
+      row_md: ${{ steps.plan.outputs.row_md }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform plan (stage 1)
+        id: plan
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          source ../scripts/deploy/log.sh
+          step_start "Terraform plan, stage 1 Firebase configuration (nothing is applied in this job)"
+          tfvars="environments/${ENVIRONMENT}.tfvars"
+          info "project: ${PROJECT_ID}; state bucket: ${STATE_BUCKET}; var file: ${tfvars}; commit: ${SHA:0:7}"
+          if [[ ! -f "$tfvars" ]]; then
+            fail "terraform/$tfvars does not exist." "create it from dev.tfvars (docs/DEPLOYMENT.md)"
+          fi
+          terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
+          set +e
+          terraform plan -input=false -lock-timeout=5m -detailed-exitcode -no-color -out=tfplan -var-file="$tfvars"
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "has_changes=false" >> "$GITHUB_OUTPUT"; decision "stage 1" "no changes, Terraform will not be applied" ;;
+            2) echo "has_changes=true" >> "$GITHUB_OUTPUT";  decision "stage 1" "the plan has changes, listed in the summary" ;;
+            *) fail "terraform plan failed (exit $code)." "read the error above; nothing was applied" ;;
+          esac
+          terraform show -json tfplan > plan.json
+          terraform show -no-color tfplan > plan.txt
+          changed_n="$(jq '[.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"])] | length' plan.json)"
+          forget_n="$(jq '[.resource_changes[]? | select(.change.actions == ["forget"])] | length' plan.json)"
+          result "${changed_n} resource(s) would change (${forget_n} only forgotten from state)"
+          if [[ "$changed_n" == "0" ]]; then
+            row="| Stage 1 Firebase configuration (Terraform) | | | not touched | no change in the plan |"
+          else
+            row="| Stage 1 Firebase configuration (Terraform) | | | ${changed_n} resource(s) change | applied from the reviewed plan (${forget_n} forgotten from state only) |"
+          fi
+          echo "row_md=${row}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Stage 1 plan for \`${ENVIRONMENT}\` at \`${SHA:0:7}\`"
+            echo
+            echo "Resources that would change: **${changed_n}**"
+            if [[ "$changed_n" != "0" ]]; then
+              echo
+              echo "| Action | Resource |"
+              echo "|---|---|"
+              jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "| \(.change.actions | join("+")) | `\(.address)` |"' plan.json
+            fi
+            echo
+            echo "<details><summary>Full Terraform plan, stage 1 (sensitive values are redacted)</summary>"
+            echo
+            echo '```'
+            head -c 60000 plan.txt
+            echo '```'
+            echo "</details>"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          step_end
+
+      # Blocks the run before any approval or apply when a protected stateful resource would be
+      # deleted or replaced. See docs/DEPLOYMENT.md "What the plan guard blocks".
+      - name: Plan guard (stage 1)
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          source ../scripts/deploy/log.sh
+          step_start "Plan guard, stage 1 (protected resources must not be deleted or replaced)"
+          args=()
+          if [[ "$ALLOW_DESTRUCTIVE" == "true" ]]; then
+            args+=(--allow-destructive)
+            decision "allow_destructive" "set on purpose for this run, deletes and replaces are allowed"
+          else
+            decision "allow_destructive" "not set, a delete or replace of a protected resource fails this run"
+          fi
+          python3 -I ../scripts/deploy/plan_guard.py plan.json "${args[@]}" --summary "$GITHUB_STEP_SUMMARY"
+          result "plan guard passed"
+          step_end
+
+      # The saved plan can contain values Terraform does not redact in JSON, so it goes to the
+      # environment's private state bucket, not to a GitHub artifact.
+      - name: Save the plan privately
+        id: save
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          source ../scripts/deploy/log.sh
+          step_start "Save the stage 1 plan privately"
+          uri="gs://${STATE_BUCKET}/deploy/plans/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/stage1/tfplan"
+          info "destination: ${uri} (the state bucket is private; plans expire after 7 days)"
+          gcloud storage cp tfplan "$uri"
+          echo "plan_uri=${uri}" >> "$GITHUB_OUTPUT"
+          result "plan saved"
+          step_end
+
+  # ----------------------------------------------------------------------------
+  # 4. Plan stage 2 (Cloud Functions) and decide what else deploys
+  # ----------------------------------------------------------------------------
+  plan2:
+    name: Plan stage 2 (Cloud Functions)
+    needs: [gate, verify, plan1]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
@@ -264,17 +432,29 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: Terraform plan
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Terraform zips this staged source (terraform/functions/functions.tf) and names the object by its hash.
+      - name: Build the Cloud Functions source
+        run: bash scripts/build-functions.sh
+
+      - name: Terraform plan (stage 2)
         id: plan
-        working-directory: terraform
+        working-directory: terraform/functions
         run: |
           set -euo pipefail
-          source ../scripts/deploy/log.sh
-          step_start "Terraform plan (nothing is applied in this job)"
+          source ../../scripts/deploy/log.sh
+          step_start "Terraform plan, stage 2 Cloud Functions (nothing is applied in this job)"
           tfvars="environments/${ENVIRONMENT}.tfvars"
           info "project: ${PROJECT_ID}; state bucket: ${STATE_BUCKET}; var file: ${tfvars}; commit: ${SHA:0:7}"
           if [[ ! -f "$tfvars" ]]; then
-            fail "terraform/$tfvars does not exist." "create it from dev.tfvars (docs/DEPLOYMENT.md)"
+            fail "terraform/functions/$tfvars does not exist." "create it from environments/dev.tfvars (docs/DEPLOYMENT.md)"
           fi
           terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
           set +e
@@ -282,8 +462,8 @@ jobs:
           code=$?
           set -e
           case "$code" in
-            0) echo "has_changes=false" >> "$GITHUB_OUTPUT"; decision "infrastructure" "no changes, Terraform will not be applied" ;;
-            2) echo "has_changes=true" >> "$GITHUB_OUTPUT";  decision "infrastructure" "the plan has changes, listed in the summary" ;;
+            0) echo "has_changes=false" >> "$GITHUB_OUTPUT"; decision "stage 2" "no changes, Terraform will not be applied" ;;
+            2) echo "has_changes=true" >> "$GITHUB_OUTPUT";  decision "stage 2" "the plan has changes, listed in the summary" ;;
             *) fail "terraform plan failed (exit $code)." "read the error above; nothing was applied" ;;
           esac
           terraform show -json tfplan > plan.json
@@ -291,9 +471,9 @@ jobs:
           changed_n="$(jq '[.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"])] | length' plan.json)"
           result "${changed_n} resource(s) would change"
           {
-            echo "## Plan for \`${ENVIRONMENT}\` at \`${SHA:0:7}\`"
+            echo "## Stage 2 plan for \`${ENVIRONMENT}\` at \`${SHA:0:7}\`"
             echo
-            echo "Infrastructure resources that would change: **${changed_n}**"
+            echo "Resources that would change: **${changed_n}**"
             if [[ "$changed_n" != "0" ]]; then
               echo
               echo "| Action | Resource |"
@@ -301,7 +481,7 @@ jobs:
               jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "| \(.change.actions | join("+")) | `\(.address)` |"' plan.json
             fi
             echo
-            echo "<details><summary>Full Terraform plan (sensitive values are redacted)</summary>"
+            echo "<details><summary>Full Terraform plan, stage 2 (sensitive values are redacted)</summary>"
             echo
             echo '```'
             head -c 60000 plan.txt
@@ -311,14 +491,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           step_end
 
-      # Blocks the run before any approval or apply when a protected stateful resource would be
-      # deleted or replaced. See docs/DEPLOYMENT.md "What the plan guard blocks".
-      - name: Plan guard
-        working-directory: terraform
+      - name: Plan guard (stage 2)
+        working-directory: terraform/functions
         run: |
           set -euo pipefail
-          source ../scripts/deploy/log.sh
-          step_start "Plan guard (protected resources must not be deleted or replaced)"
+          source ../../scripts/deploy/log.sh
+          step_start "Plan guard, stage 2 (functions must not be deleted or replaced)"
           args=()
           if [[ "$ALLOW_DESTRUCTIVE" == "true" ]]; then
             args+=(--allow-destructive)
@@ -326,16 +504,17 @@ jobs:
           else
             decision "allow_destructive" "not set, a delete or replace of a protected resource fails this run"
           fi
-          python3 -I ../scripts/deploy/plan_guard.py plan.json "${args[@]}" --summary "$GITHUB_STEP_SUMMARY"
+          python3 -I ../../scripts/deploy/plan_guard.py plan.json "${args[@]}" --summary "$GITHUB_STEP_SUMMARY"
           result "plan guard passed"
           step_end
 
-      # Reads the last deployed hash of each component and compares it to the sources of this
-      # commit. The result is the table the prod approver sees and the only list Apply deploys.
+      # Reads the last deployed hash of each component outside Terraform and compares it to the
+      # sources of this commit. The result is the table the prod approver sees and the only list the
+      # apply jobs deploy from.
       - name: Decide what to deploy
         id: decide
         env:
-          HAS_CHANGES: ${{ steps.plan.outputs.has_changes }}
+          STAGE1_ROW: ${{ needs.plan1.outputs.row_md }}
         run: |
           set -euo pipefail
           source scripts/deploy/log.sh
@@ -344,7 +523,23 @@ jobs:
           info "redeploy_all: ${REDEPLOY_ALL}"
           list=()
           rows=""
-          for c in functions rules apphosting python; do
+          # Functions are Terraform resources: their row comes from the stage-2 plan, not from a hash.
+          n="$(jq '[.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"])] | length' terraform/functions/plan.json)"
+          if [[ "$n" == "0" ]]; then
+            decision "stage 2 functions" "unchanged in the plan, not touched"
+            fn_row="| Stage 2 Cloud Functions (Terraform) | | | not touched | no change in the plan |"
+          else
+            decision "stage 2 functions" "${n} resource(s) change in the reviewed plan"
+            fn_row="| Stage 2 Cloud Functions (Terraform) | | | ${n} resource(s) change | applied from the reviewed plan |"
+          fi
+          rows+="${STAGE1_ROW}"$'\n'"${fn_row}"$'\n'
+          # Outside Terraform: the Python service (stage 2) and App Hosting (stage 3, dev only).
+          for c in python apphosting; do
+            if [[ "$ENVIRONMENT" == "prod" && "$c" == "apphosting" ]]; then
+              decision "$c" "not deployed by the pipeline on prod: create the rollout by hand from the Firebase console"
+              rows+="| Stage 3 App Hosting | | | not deployed by the pipeline | prod: create the rollout by hand; the release is cut after success |"$'\n'
+              continue
+            fi
             IFS=$'\t' read -r changed current previous reason < <(bash scripts/deploy/components.sh status "$c" "$STATE_BUCKET")
             if [[ "$REDEPLOY_ALL" == "true" ]]; then changed=true; reason="redeploy_all is set"; fi
             info "$c: source ${current:0:12}, last deployed ${previous:0:12}"
@@ -355,13 +550,11 @@ jobs:
               decision "$c" "unchanged, will not be touched (${reason})"
               action="not touched"
             fi
-            rows+="| ${c} | \`${previous:0:12}\` | \`${current:0:12}\` | ${action} | ${reason} |"$'\n'
+            label="Stage 2 Python service"; [[ "$c" == "apphosting" ]] && label="Stage 3 App Hosting"
+            rows+="| ${label} | \`${previous:0:12}\` | \`${current:0:12}\` | ${action} | ${reason} |"$'\n'
           done
-          infra="no changes, not touched"
-          if [[ "$HAS_CHANGES" == "true" ]]; then infra="apply the reviewed plan"; fi
-          decision "infrastructure (Terraform)" "$infra"
           csv="$(IFS=','; echo "${list[*]:-}")"
-          table="### What this run will change on \`${ENVIRONMENT}\`"$'\n\n'"| Part | Last deployed | This commit | Action | Reason |"$'\n'"|---|---|---|---|---|"$'\n'"| infrastructure (Terraform) | | | ${infra} | see the plan above |"$'\n'"${rows}"
+          table="### What this run will change on \`${ENVIRONMENT}\`"$'\n\n'"| Part | Last deployed | This commit | Action | Reason |"$'\n'"|---|---|---|---|---|"$'\n'"${rows}"
           printf '%s\n' "$table" >> "$GITHUB_STEP_SUMMARY"
           {
             echo "components=${csv}"
@@ -373,28 +566,33 @@ jobs:
           step_end
 
       # The saved plan can contain values Terraform does not redact in JSON, so it goes to the
-      # environment's private state bucket, not to a GitHub artifact.
-      - name: Save the plan privately
+      # environment's private state bucket. The function source zip the plan reads from disk at
+      # apply time is saved with it, so Apply never rebuilds it.
+      - name: Save the plan and the function source privately
         id: save
-        working-directory: terraform
+        working-directory: terraform/functions
         run: |
           set -euo pipefail
-          source ../scripts/deploy/log.sh
-          step_start "Save the plan privately"
-          uri="gs://${STATE_BUCKET}/deploy/plans/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/tfplan"
-          info "destination: ${uri} (the state bucket is private; plans expire after 7 days)"
+          source ../../scripts/deploy/log.sh
+          step_start "Save the stage 2 plan and function source privately"
+          uri="gs://${STATE_BUCKET}/deploy/plans/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/stage2/tfplan"
+          zip_uri="${uri%tfplan}functions.zip"
+          info "destination: ${uri} and ${zip_uri} (private; expire after 7 days)"
+          info "function source md5: $(md5sum .build/functions.zip | cut -d' ' -f1)"
           gcloud storage cp tfplan "$uri"
+          gcloud storage cp .build/functions.zip "$zip_uri"
           echo "plan_uri=${uri}" >> "$GITHUB_OUTPUT"
-          result "plan saved"
+          result "plan and function source saved"
           step_end
 
   # ----------------------------------------------------------------------------
-  # 4. Approve (prod only): reviewers of the `prod-release` GitHub environment must approve
+  # 5. Approve (prod only): reviewers of the `prod-release` GitHub environment approve once,
+  #    after both plans. Nothing is applied before this.
   # ----------------------------------------------------------------------------
   approve:
     name: Approve prod
-    if: inputs.environment == 'prod' && needs.plan.result == 'success'
-    needs: [verify, plan]
+    if: inputs.environment == 'prod' && needs.plan1.result == 'success' && needs.plan2.result == 'success'
+    needs: [verify, plan1, plan2]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: prod-release
@@ -404,24 +602,26 @@ jobs:
         env:
           SHA: ${{ needs.verify.outputs.sha }}
           REF: ${{ inputs.ref }}
-          HAS_CHANGES: ${{ needs.plan.outputs.has_changes }}
-          COMPONENTS: ${{ needs.plan.outputs.components }}
-          DECISION_MD: ${{ needs.plan.outputs.decision_md }}
+          VERSION: ${{ inputs.version }}
+          HAS_CHANGES_1: ${{ needs.plan1.outputs.has_changes }}
+          HAS_CHANGES_2: ${{ needs.plan2.outputs.has_changes }}
+          COMPONENTS: ${{ needs.plan2.outputs.components }}
+          DECISION_MD: ${{ needs.plan2.outputs.decision_md }}
         run: |
           echo "[step]     Approval for prod"
-          echo "[info]     ref ${REF} at commit ${SHA}"
-          echo "[info]     infrastructure changes in the reviewed plan: ${HAS_CHANGES}"
-          echo "[info]     components that will deploy: ${COMPONENTS:-none}"
+          echo "[info]     ${REF} at commit ${SHA}, to be released as ${VERSION}"
+          echo "[info]     stage 1 changes in the reviewed plan: ${HAS_CHANGES_1}; stage 2 changes: ${HAS_CHANGES_2}"
+          echo "[info]     components that will deploy outside Terraform: ${COMPONENTS:-none}"
           printf '%s\n' "$DECISION_MD" >> "$GITHUB_STEP_SUMMARY"
-          echo "[result]   approved by a prod-release reviewer; Apply uses exactly this plan and this table"
+          echo "[result]   approved by a prod-release reviewer; stage 1 and stage 2 apply exactly the reviewed plans"
 
   # ----------------------------------------------------------------------------
-  # 5. Apply: only the reviewed plan, only the components marked changed
+  # 6. Apply stage 1: snapshot, then the saved Firebase configuration plan
   # ----------------------------------------------------------------------------
-  apply:
-    name: Apply
-    needs: [verify, plan, approve]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.approve.result == 'success' || needs.approve.result == 'skipped') }}
+  apply1:
+    name: Apply stage 1 (Firebase configuration)
+    needs: [verify, plan1, plan2, approve]
+    if: ${{ !cancelled() && needs.plan1.result == 'success' && needs.plan2.result == 'success' && (needs.approve.result == 'success' || needs.approve.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: ${{ inputs.environment }}
@@ -432,11 +632,13 @@ jobs:
       PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
       ENVIRONMENT: ${{ inputs.environment }}
-      ALLOW_DESTRUCTIVE: ${{ inputs.allow_destructive }}
       SHA: ${{ needs.verify.outputs.sha }}
-      HAS_CHANGES: ${{ needs.plan.outputs.has_changes }}
-      PLAN_URI: ${{ needs.plan.outputs.plan_uri }}
-      COMPONENTS: ${{ needs.plan.outputs.components }}
+      HAS_CHANGES_1: ${{ needs.plan1.outputs.has_changes }}
+      HAS_CHANGES_2: ${{ needs.plan2.outputs.has_changes }}
+      PLAN_URI: ${{ needs.plan1.outputs.plan_uri }}
+      COMPONENTS: ${{ needs.plan2.outputs.components }}
+    outputs:
+      backup: ${{ steps.backup.outputs.backup }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -453,21 +655,13 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Terraform init
+      - name: Terraform init (stage 1)
         id: init
         working-directory: terraform
         run: |
           set -euo pipefail
           source ../scripts/deploy/log.sh
-          step_start "Terraform init"
+          step_start "Terraform init, stage 1"
           info "state bucket: ${STATE_BUCKET}"
           terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
           cms_bucket="$(terraform output -raw default_storage_bucket 2>/dev/null || true)"
@@ -489,9 +683,9 @@ jobs:
         run: |
           set -euo pipefail
           source scripts/deploy/log.sh
-          if [[ "$HAS_CHANGES" != "true" && -z "$COMPONENTS" ]]; then
+          if [[ "$HAS_CHANGES_1" != "true" && "$HAS_CHANGES_2" != "true" && -z "$COMPONENTS" ]]; then
             step_start "Snapshot the CMS files"
-            decision "snapshot" "skipped: no infrastructure changes and no component will deploy, nothing is at risk"
+            decision "snapshot" "skipped: no Terraform changes and no component will deploy, nothing is at risk"
             result "no backup taken"
             step_end
             exit 0
@@ -501,16 +695,15 @@ jobs:
 
       # Applies the exact plan that was reviewed (and approved for prod). Terraform refuses a
       # saved plan whose state changed since it was made, so nothing unreviewed can sneak in.
-      - name: Terraform apply (saved plan)
-        id: tfapply
+      - name: Terraform apply, stage 1 (saved plan)
         working-directory: terraform
         run: |
           set -euo pipefail
           source ../scripts/deploy/log.sh
-          step_start "Terraform apply (saved plan)"
-          if [[ "$HAS_CHANGES" != "true" ]]; then
-            decision "apply" "skipped: the plan had no changes"
-            result "infrastructure not touched"
+          step_start "Terraform apply, stage 1 (saved plan)"
+          if [[ "$HAS_CHANGES_1" != "true" ]]; then
+            decision "apply" "skipped: the stage 1 plan had no changes"
+            result "Firebase configuration not touched"
             step_end
             exit 0
           fi
@@ -518,20 +711,142 @@ jobs:
           decision "apply" "applying exactly the plan that was reviewed; no re-plan"
           gcloud storage cp "$PLAN_URI" tfplan
           terraform apply -input=false -lock-timeout=5m -no-color tfplan
-          result "reviewed plan applied"
+          result "reviewed stage 1 plan applied"
           step_end
 
-      # Deploys ONLY the components the Plan job marked changed. Anything unchanged is not
-      # touched at all. No --force unless allow_destructive is set, so the CLI refuses to
-      # delete functions.
-      - name: Deploy changed components
+  # ----------------------------------------------------------------------------
+  # 7. Apply stage 2: the saved functions plan, then the Python service if it changed
+  # ----------------------------------------------------------------------------
+  apply2:
+    name: Apply stage 2 (Cloud Functions)
+    needs: [verify, plan1, plan2, apply1]
+    if: ${{ !cancelled() && needs.apply1.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      SHA: ${{ needs.verify.outputs.sha }}
+      HAS_CHANGES_2: ${{ needs.plan2.outputs.has_changes }}
+      PLAN_URI: ${{ needs.plan2.outputs.plan_uri }}
+      COMPONENTS: ${{ needs.plan2.outputs.components }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform apply, stage 2 (saved plan)
+        working-directory: terraform/functions
+        run: |
+          set -euo pipefail
+          source ../../scripts/deploy/log.sh
+          step_start "Terraform apply, stage 2 (saved plan)"
+          if [[ "$HAS_CHANGES_2" != "true" ]]; then
+            decision "apply" "skipped: the stage 2 plan had no changes"
+            result "Cloud Functions not touched"
+            step_end
+            exit 0
+          fi
+          info "plan: ${PLAN_URI}"
+          terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
+          decision "apply" "applying exactly the plan that was reviewed; no re-plan, no rebuild of the function source"
+          gcloud storage cp "$PLAN_URI" tfplan
+          # The function source the plan was made with; the plan reads it from this path.
+          mkdir -p .build
+          gcloud storage cp "${PLAN_URI%tfplan}functions.zip" .build/functions.zip
+          info "function source md5: $(md5sum .build/functions.zip | cut -d' ' -f1)"
+          terraform apply -input=false -lock-timeout=5m -no-color tfplan
+          result "reviewed stage 2 plan applied"
+          step_end
+
+      # The Python service is not a Terraform resource (it is built from source), so it is deployed
+      # here, after the functions, and only when ai_backend/ changed.
+      - name: Deploy the Python service (only if it changed)
         run: |
           set -euo pipefail
           source scripts/deploy/log.sh
-          if [[ -z "$COMPONENTS" ]]; then
-            step_start "Deploy changed components"
-            decision "deploy" "skipped: functions, rules, App Hosting and the Python service are all unchanged"
-            result "nothing deployed"
+          if [[ ",${COMPONENTS}," != *",python,"* ]]; then
+            step_start "Deploy the Python service"
+            decision "python" "skipped: ai_backend/ is unchanged"
+            result "Python service not touched"
+            step_end
+            exit 0
+          fi
+          region="$(awk -F'"' '/^[[:space:]]*region[[:space:]]*=/{print $2}' "terraform/environments/${ENVIRONMENT}.tfvars")"
+          bash scripts/deploy-backend.sh "$PROJECT_ID" --components python --region "$region"
+          bash scripts/deploy/components.sh record python "$STATE_BUCKET" "$SHA" "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+  # ----------------------------------------------------------------------------
+  # 8. Stage 3: dev deploys the app; prod only checks the site (the release is cut by the caller)
+  # ----------------------------------------------------------------------------
+  stage3:
+    name: Stage 3 (app on dev, smoke test)
+    needs: [verify, plan2, apply2]
+    if: ${{ !cancelled() && needs.apply2.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      SHA: ${{ needs.verify.outputs.sha }}
+      COMPONENTS: ${{ needs.plan2.outputs.components }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Dev only: prod never deploys App Hosting from the pipeline (the rollout is created by hand).
+      - name: Deploy the app (dev, only if it changed)
+        run: |
+          set -euo pipefail
+          source scripts/deploy/log.sh
+          if [[ "$ENVIRONMENT" == "prod" ]]; then
+            step_start "Deploy the app"
+            decision "app" "prod never deploys App Hosting from the pipeline; create the rollout by hand from the Firebase console"
+            result "no rollout created"
+            step_end
+            exit 0
+          fi
+          if [[ ",${COMPONENTS}," != *",apphosting,"* ]]; then
+            step_start "Deploy the app"
+            decision "app" "skipped: the app sources are unchanged"
+            result "App Hosting not touched"
             step_end
             exit 0
           fi
@@ -539,40 +854,39 @@ jobs:
           info "firebase-tools@${FIREBASE_TOOLS_VERSION}"
           npm install --global "firebase-tools@${FIREBASE_TOOLS_VERSION}"
           step_end
-          args=(--components "$COMPONENTS" --region "$(awk -F'"' '/^region[[:space:]]*=/{print $2}' "terraform/environments/${ENVIRONMENT}.tfvars")")
-          if [[ "$ALLOW_DESTRUCTIVE" == "true" ]]; then args+=(--allow-destructive); fi
-          bash scripts/deploy-backend.sh "$PROJECT_ID" "${args[@]}"
-
-      # Recorded only after a successful deploy, so a failed deploy is retried by the next run.
-      - name: Record what was deployed
-        run: |
-          set -euo pipefail
-          source scripts/deploy/log.sh
-          step_start "Record what was deployed"
-          if [[ -z "$COMPONENTS" ]]; then
-            decision "record" "skipped: nothing was deployed"
-            step_end
-            exit 0
-          fi
-          IFS=',' read -ra items <<< "$COMPONENTS"
-          for c in "${items[@]}"; do
-            bash scripts/deploy/components.sh record "$c" "$STATE_BUCKET" "$SHA" "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          done
-          step_end
+          bash scripts/deploy-backend.sh "$PROJECT_ID" --components apphosting
+          bash scripts/deploy/components.sh record apphosting "$STATE_BUCKET" "$SHA" "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: Smoke test
         working-directory: terraform
         run: |
           set -euo pipefail
+          terraform init -input=false -backend-config="bucket=${STATE_BUCKET}" >/dev/null
           url="$(terraform output -raw apphosting_url)"
           bash ../scripts/deploy/smoke-test.sh "$url"
 
+  # ----------------------------------------------------------------------------
+  # 9. Summary: always, so a failed run still says what was decided and how far it got
+  # ----------------------------------------------------------------------------
+  summary:
+    name: Summary
+    needs: [verify, plan2, apply1, apply2, stage3]
+    if: ${{ always() && needs.verify.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
       - name: Summary
-        if: always()
         env:
-          BACKUP: ${{ steps.backup.outputs.backup }}
-          DECISION_MD: ${{ needs.plan.outputs.decision_md }}
+          ENVIRONMENT: ${{ inputs.environment }}
           REF: ${{ inputs.ref }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ needs.verify.outputs.sha }}
+          DECISION_MD: ${{ needs.plan2.outputs.decision_md }}
+          BACKUP: ${{ needs.apply1.outputs.backup }}
+          APPLY1: ${{ needs.apply1.result }}
+          APPLY2: ${{ needs.apply2.result }}
+          STAGE3: ${{ needs.stage3.result }}
         run: |
           {
             echo "## Deployment of \`${REF}\` to \`${ENVIRONMENT}\`"
@@ -581,8 +895,18 @@ jobs:
             echo
             printf '%s\n' "$DECISION_MD"
             echo
-            echo "| Other | Result |"
+            echo "| Stage | Result |"
             echo "|---|---|"
+            echo "| Stage 1 Firebase configuration | ${APPLY1} |"
+            echo "| Stage 2 Cloud Functions and Python service | ${APPLY2} |"
+            if [[ "$ENVIRONMENT" == "prod" ]]; then
+              echo "| Stage 3 smoke test (the release is cut next) | ${STAGE3} |"
+            else
+              echo "| Stage 3 app and smoke test | ${STAGE3} |"
+            fi
             echo "| CMS file backup | ${BACKUP:-none taken (nothing to protect or nothing to back up)} |"
+            if [[ "$ENVIRONMENT" == "prod" ]]; then
+              echo "| GitHub release | cut as \`release/${VERSION}\` by the Release job only after every stage above succeeded (none if any failed) |"
+            fi
             echo
           } >> "$GITHUB_STEP_SUMMARY"

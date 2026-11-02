@@ -12,7 +12,7 @@
     "check": "npm run typecheck && npm run lint",
     "clean": "rm -rf .next out next-env.d.ts *.tsbuildinfo",
     "functions:build": "pnpm --prefix functions run build",
-    "deploy:functions": "firebase deploy --only functions,firestore:rules,storage",
+    "deploy:functions": "bash scripts/deploy-functions-dev.sh",
     "infra:preflight": "bash scripts/env-preflight.sh",
     "functions:serve": "pnpm --prefix functions run build && firebase emulators:start --only functions,firestore,storage,auth",
     "infra:recreate": "bash scripts/recreate-environment.sh",
