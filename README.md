@@ -276,7 +276,7 @@ This automates GCP API enablement, Firebase Web App provisioning, Cloud Firestor
 
 ## Deployment (Firebase App Hosting)
 
-The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, owned by Terraform (`terraform/functions.tf`) together with the security rules, so the Deploy workflow plans and applies them with everything else:
+The site deploys from GitHub to [Firebase App Hosting](https://firebase.google.com/docs/app-hosting) using `apphosting.yaml` (scaled 0-1 instances). The backend is a set of [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) in `functions/`, owned by Terraform (`terraform/functions/`, stage 2 of the pipeline; the security rules are stage 1), so the Deploy dev and Deploy prod workflows plan and apply them:
 
 ```bash
 npm run deploy:functions   # dev only: scripts/deploy-functions-dev.sh (plans and applies just the function resources)

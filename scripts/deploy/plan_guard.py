@@ -4,7 +4,7 @@
 Reads the JSON of a saved plan (`terraform show -json tfplan`) and checks every resource
 change. A resource of a protected type that would be deleted, or replaced (which deletes the
 old one), blocks the run before any approval or apply happens. The only way past the guard is
-the explicit `--allow-destructive` flag (the `allow_destructive` input of the Deploy workflow).
+the explicit `--allow-destructive` flag (the `allow_destructive` input of the Deploy dev and Deploy prod workflows).
 
 Usage:
   plan_guard.py plan.json [--allow-destructive] [--summary FILE] [--github-output FILE]
@@ -51,6 +51,9 @@ def classify(actions):
         return "create"
     if acts == ["update"]:
         return "update"
+    if acts == ["forget"]:
+        # Removed from the state without touching the real resource (a `removed` block).
+        return "forget"
     # Unknown combination: treat anything containing delete as destructive.
     return "delete" if "delete" in acts else "update"
 

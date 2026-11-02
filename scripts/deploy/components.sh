@@ -17,7 +17,7 @@ set -euo pipefail
 #       Record the current hash after the component was deployed successfully.
 #
 # Components: apphosting | python. Cloud Functions and the security rules are Terraform resources
-# (terraform/functions.tf, terraform/main.tf), so the plan decides their changes, not a hash.
+# (terraform/functions/, terraform/main.tf), so the plan decides their changes, not a hash.
 # Markers live at gs://<state_bucket>/deploy/markers/<component>.json (the per-environment
 # Terraform state bucket, versioned, private).
 # Run from the repository root.
@@ -47,7 +47,7 @@ component_hash() {
         hash_firebase_section apphosting; } | sha256sum | cut -d' ' -f1 ;;
     python)
       hash_paths ai_backend ;;
-    functions|rules) echo "'$1' is a Terraform resource, not a component: its changes come from the plan (terraform/functions.tf, terraform/main.tf)" >&2; exit 2 ;;
+    functions|rules) echo "'$1' is a Terraform resource, not a component: its changes come from the plan (terraform/functions/, terraform/main.tf)" >&2; exit 2 ;;
     *) echo "Unknown component '$1' (apphosting | python)" >&2; exit 2 ;;
   esac
 }

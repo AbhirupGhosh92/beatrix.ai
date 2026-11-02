@@ -2,10 +2,11 @@
 set -euo pipefail
 
 # ==============================================================================
-# Deploy the Cloud Functions to the DEV project alone, through Terraform (they are Terraform
-# resources: terraform/functions.tf). Builds the functions, plans only the function resources
-# (bucket, source object, functions, invoker bindings), runs the plan guard, shows the plan, asks
-# for confirmation and applies exactly that saved plan.
+# Deploy the Cloud Functions to the DEV project alone, through Terraform: this is stage 2 of the
+# pipeline (terraform/functions/), which holds only the function resources (source bucket and object,
+# the functions, invoker bindings). Builds the functions, plans that configuration, runs the plan
+# guard, shows the plan, asks for confirmation and applies exactly that saved plan. No resource
+# targeting is needed because stage 2 is its own configuration with its own state.
 #
 # Usage: ./scripts/deploy-functions-dev.sh [--yes] [--project <dev project id>]
 #
@@ -13,14 +14,14 @@ set -euo pipefail
 #   --project   must equal project_id in terraform/environments/dev.tfvars; any other project
 #               (prod included) is refused before anything is planned or applied
 #
-# `-target` is acceptable here only because this is dev and the plan is guarded. The pipeline never
-# uses it: prod changes only through the reviewed, saved plan of the Deploy workflow.
+# Prod changes only through the reviewed, saved plans of the Deploy prod workflow.
 # ==============================================================================
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/deploy/log.sh"
 
 TFVARS="${ROOT_DIR}/terraform/environments/dev.tfvars"
+STAGE2_TFVARS="${ROOT_DIR}/terraform/functions/environments/dev.tfvars"
 ASSUME_YES=0
 REQUESTED_PROJECT=""
 
@@ -45,16 +46,12 @@ step_end
 
 bash "${ROOT_DIR}/scripts/build-functions.sh"
 
-step_start "Plan only the function resources"
+step_start "Plan the Cloud Functions (stage 2)"
 PLAN_DIR="$(mktemp -d)"
 trap 'rm -rf "${PLAN_DIR}"' EXIT
-cd "${ROOT_DIR}/terraform"
+cd "${ROOT_DIR}/terraform/functions"
 terraform init -input=false -reconfigure -backend-config="bucket=${DEV_PROJECT}-tfstate" >/dev/null
-terraform plan -input=false -lock-timeout=5m -var-file="${TFVARS}" -out="${PLAN_DIR}/tfplan" \
-  -target=google_storage_bucket.functions_src \
-  -target=google_storage_bucket_object.functions \
-  -target=google_cloudfunctions2_function.fn \
-  -target=google_cloud_run_v2_service_iam_binding.function_invoker
+terraform plan -input=false -lock-timeout=5m -var-file="${STAGE2_TFVARS}" -out="${PLAN_DIR}/tfplan"
 terraform show -json "${PLAN_DIR}/tfplan" > "${PLAN_DIR}/plan.json"
 result "plan saved for this run only"
 step_end
@@ -72,5 +69,5 @@ if [[ "${ASSUME_YES}" -ne 1 ]]; then
 fi
 terraform apply -input=false -lock-timeout=5m "${PLAN_DIR}/tfplan"
 result "functions applied to ${DEV_PROJECT}"
-info "Terraform owns the Cloud Functions: change them through terraform/functions.tf and the Deploy workflow, not with the Firebase CLI."
+info "Terraform owns the Cloud Functions: change them through terraform/functions/functions.tf and the Deploy dev or Deploy prod workflow, not with the Firebase CLI."
 step_end

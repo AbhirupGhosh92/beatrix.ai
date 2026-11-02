@@ -8,5 +8,3 @@ allowed_admin_emails = [
 developer_members = [
   "user:dev-email@example.com"
 ]
-# First apply adopts the functions the Firebase CLI deployed (see docs/DEPLOYMENT.md); set back to false afterwards.
-adopt_existing_functions = true

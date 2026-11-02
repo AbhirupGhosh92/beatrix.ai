@@ -1,50 +1,62 @@
 # Tasks
 
-## 1. Function resources and the dev spike
+## 1. Function resources and the dev spike (done in the first iteration; the files move in group 4)
 
-- [x] 1.1 Add `terraform/functions.tf`: `local.function_names` (every export of `functions/src/index.ts`, 23 today including the job tracker's), the `<project>-functions-src` bucket, the `archive_file` zip of `functions/lib` + `package.json` + `pnpm-lock.yaml` + `pnpm-workspace.yaml`, the hash-named bucket object, the `google_cloudfunctions2_function` `for_each` mirroring the deployed settings (design.md decision 1), and the authoritative `run.invoker` binding for the App Hosting service account; verify `terraform fmt -check`, `terraform init -backend=false` and `terraform validate` pass
-- [x] 1.2 Add `scripts/check-functions.sh` (the Terraform list must equal the exports of `functions/src/index.ts`, in both directions) and call it from `scripts/check-scripts.sh`; verify it passes, and fails with a clear message when a name is temporarily removed from either side (revert after)
-- [x] 1.3 Add `google_cloudfunctions2_function` to `PROTECTED_TYPES` in `scripts/deploy/plan_guard.py` with a test that a function delete or replace is blocked and an in-place update is not; verify `python3 -I -m unittest discover -s scripts/deploy -p 'test_*.py'` passes
-- [x] 1.4 Spike on dev: build `functions/`, run `terraform plan -target` limited to the `status` function, its bucket, object and binding against `beatrix-ai-dev` (read-only); verify the plan shows the import plus an in-place update and no replace. Ask the user before any apply; with their yes, apply and verify `status` still answers through the site server and that the builder accepted pnpm
+- [x] 1.1 Add the function resources (`local.function_names` for every export of `functions/src/index.ts`, the `<project>-functions-src` bucket, the hash-named zip object, the `google_cloudfunctions2_function` `for_each` mirroring the deployed settings, and the authoritative `run.invoker` binding); verified with `terraform fmt -check`, `init -backend=false` and `validate` (first written as `terraform/functions.tf`; moved in task 4.1)
+- [x] 1.2 Add `scripts/check-functions.sh` (the Terraform list must equal the exports of `functions/src/index.ts`, in both directions) and call it from `scripts/check-scripts.sh`; verified positive and negative (its path changes in task 4.3)
+- [x] 1.3 Add `google_cloudfunctions2_function` to `PROTECTED_TYPES` in `scripts/deploy/plan_guard.py` with tests; verified `python3 -I -m unittest discover -s scripts/deploy -p 'test_*.py'` passes
+- [x] 1.4 Spike on dev: planned and, with the owner's yes, applied only the `status` function, its bucket, source object and binding; verified `status` answers 200 for `firebase-app-hosting-compute`, 403 anonymously, with the pnpm build succeeding and a no-change re-plan
 
-## 2. Adopt the dev functions
+## 2. Adopt the dev functions (done in the first iteration)
 
-- [x] 2.1 Add the `import` blocks (`for_each = var.adopt_existing_functions ? local.functions : {}`), the `adopt_existing_functions` variable (default false), `adopt_existing_functions = true` in `dev.tfvars`, and outputs for the function URLs; verify `terraform validate` passes
-- [x] 2.1b Before planning, compare `local.function_names` with `gcloud functions list --project beatrix-ai-dev` (read-only); verify every name in the list is deployed on dev, and deploy or remove any that is not before step 2.2
-- [x] 2.2 Plan the full set against dev (read-only) and run the plan guard on it; verify the plan has one import, one in-place update and one binding per function (N each, N = the count on dev), 1 bucket, 1 shared source object and no delete or replace (record the counts in the PR)
-- [x] 2.3 Document the adoption and the follow-up flag flip in `docs/DEPLOYMENT.md` and `terraform/README.md`; verify the documented commands match the files
+- [x] 2.1 Add the `import` blocks behind `adopt_existing_functions` (dev true, prod false) and outputs for the function URLs; verified `terraform validate`
+- [x] 2.1b Compare `local.function_names` with `gcloud functions list --project beatrix-ai-dev` (read-only); verified all 23 are deployed on dev
+- [x] 2.2 Plan the full set against dev (read-only) with the plan guard; verified 23 imports, 23 in-place updates, 23 bindings, 1 bucket, 1 source object and no delete or replace
+- [x] 2.3 Document the adoption and the flag flip in `docs/DEPLOYMENT.md` and `terraform/README.md` (reworded for two configurations in group 9)
 
-## 3. Pipeline: Terraform owns functions and rules
+## 3. Groundwork that still holds
 
-- [x] 3.1 In the Plan job install pnpm and Node, build `functions/`, run the plan, upload `functions.zip` next to `tfplan`, and in Apply download both to the same path (no rebuild); verify `ruby -ryaml` parses the workflow and a dev run shows the zip saved and restored with the same md5
-- [x] 3.2 Reduce `components.sh` and `deploy-backend.sh` to the `apphosting` and `python` components (the Python service keeps its `ai_backend/` hash and `gcloud run deploy`), remove the rules deploy and the functions `predeploy` from `firebase.json`, and delete their markers logic; verify `bash scripts/check-scripts.sh` passes and `deploy-backend.sh --components functions` is rejected with a clear message
-- [x] 3.3 Derive the functions and rules rows of the decision table from `plan.json` (resource types and addresses, or "unchanged, not touched"); for `prod` force `apphosting` out of the component list (shown as a manual rollout) and run `python` only after the apply, when its hash changed; verify by running the step locally against a sample `plan.json` for a no-change plan and a one-function-change plan
-- [x] 3.4 In Verify, for `prod` only, fail early when `RELEASE_NOTES.md` is missing or empty on the ref; verify with a local run of the step on a tree with and without the file
-- [x] 3.5 Update `docs/DEPLOYMENT.md` (guarantees table, stages, components, the new ownership, authoritative invoker binding) and the `deployment-pipeline` wording in `CLAUDE.md`/`AGENTS.md`/`.claude/rules/environments.md`; verify `grep -n "firebase deploy --only functions" docs CLAUDE.md AGENTS.md` finds nothing outdated
+- [x] 3.1 Reduce `components.sh` and `deploy-backend.sh` to the `apphosting` and `python` components, remove the rules deploy and the functions `predeploy` from `firebase.json`; verified `deploy-backend.sh --components functions` is rejected with a clear message
 
-## 4. Release after a successful prod deploy
+## 4. Split Terraform into the stage-1 and stage-2 configurations
 
-- [x] 4.1 Convert `.github/workflows/release.yml` to `workflow_call` (inputs `ref`, `sha`, `contents: write`, no push trigger) deriving `vX.Y[.Z]` from the ref and reading `RELEASE_NOTES.md` at the deployed SHA; add the `release` job to `deploy.yml` (`needs: manual`, prod and success only); verify the YAML parses, the branch-push trigger is gone and the pin check in `infra-check.yml` still passes
-- [x] 4.2 Show "release published" or "no release published" in the prod run summary; document the new release flow in `docs/DEPLOYMENT.md` and `CLAUDE.md` (Releases section); verify by reading the rendered summary step
+- [x] 4.1 Create `terraform/functions/` (providers `google` and `archive`, gcs backend with prefix `terraform/functions`, variables `project_id`, `region`, `environment`, `adopt_existing_functions`, `functions.tf` moved from `terraform/`, output `function_urls`, per-environment tfvars in `terraform/functions/environments/`) and remove `functions.tf`, the `archive` provider, `adopt_existing_functions` and the function outputs from `terraform/`; add a check to `scripts/check-scripts.sh` that each stage-2 tfvars `project_id` equals the stage-1 one; verify `terraform init -backend=false`, `validate` and `fmt -check -recursive` pass in both configurations
+- [x] 4.2 Add the `removed` blocks (`lifecycle { destroy = false }`) for the four function resource types to `terraform/`, and make the stage-2 import of the already-existing source bucket part of `adopt_existing_functions`; verify with read-only plans against dev that the stage-1 plan shows only removals from state and no destroy, and the stage-2 plan shows the bucket and function imports, in-place updates, bindings and one new source object with no delete or replace
+- [x] 4.3 Point `scripts/build-functions.sh` (stage dir `terraform/functions/.build/functions-src`), `.gitignore` and `scripts/check-functions.sh` (`terraform/functions/functions.tf`) at the new location; verify building twice gives the same zip hash and the check passes and fails when a name is removed
+- [x] 4.4 Make `infra-check.yml`, `ci.yml` and the Verify job validate and `fmt -check` both configurations, and keep `scripts/check-infra.sh` and the lock files correct; verify `npm run infra:check` and `bash scripts/check-scripts.sh` pass and a `terraform fmt` mistake in `terraform/functions/` would fail
+- [x] 4.5 Apply the move on dev (only with the owner's explicit yes): stage 1 first (forgets only), then stage 2 (adopt the bucket and the 23 functions, bindings, new source object), each from a saved reviewed plan; verify every function still answers 200 for the site identity and 403 anonymously, and that a new plan of each stage shows no changes
 
-## 5. Dev functions script
+## 5. The two pipelines and the three stages
 
-- [x] 5.1 Add `scripts/deploy-functions-dev.sh` (project from `dev.tfvars`, refuses any other project, build, targeted plan, plan guard, confirmation or `--yes`, apply of the saved plan, ownership notice, `log.sh` format); verify `bash -n`, that it refuses `--project <prod id>`, and that a dry plan against dev runs
-- [x] 5.2 Document the script in `docs/DEPLOYMENT.md` and the `dev-deploy` skill; verify `grep -n deploy-functions-dev` finds both
+- [x] 5.1 Replace `deploy.yml` with `deploy-dev.yml` (push to `main`, plus a manual dev run) and `deploy-prod.yml` (`workflow_dispatch` only; inputs `ref` default `main`, `version`, `confirm`, `allow_destructive`, `redeploy_all`), both calling the reusable `deploy-environment.yml`; verify both parse with `ruby -ryaml`, the dev file has no prod inputs, and nothing triggers prod automatically
+- [x] 5.2 In `deploy-environment.yml` make the stages explicit jobs: plan stage 1 and plan stage 2 (build the functions, plan, guard, save each plan and the stage-2 zip), approve for prod after both plans, apply stage 1, apply stage 2 and then the Python service when `ai_backend/` changed, stage 3 (dev: App Hosting when app sources changed; prod: nothing here), smoke test; every later job `needs` the earlier one and no job uses `-target`; verify the YAML parses, read the `needs` graph, and check that `grep -rn -- '-target' .github/workflows` finds nothing
+- [x] 5.3 Give the decision table one row per stage (stage 1 and stage 2 from their plans, the Python service and App Hosting from their hashes, prod stage 3 as "release cut after success"); verify by running the step locally against sample plans for a no-change run, a one-function change and a first-adoption run
+- [x] 5.4 Rework the prod policy and Verify: `ref` defaults to `main` and must be reachable from `main`, `version` must match `^[0-9]+\.[0-9]+(\.[0-9]+)?$`, `confirm` must be `prod`, and fail before any plan when `RELEASE_NOTES.md` is missing or empty or when `release/<version>` or `v<version>` exists at a different commit; verify each case with local runs on a temporary repository
 
-## 6. Prod project
+## 6. Cut the release after a successful prod run
 
-- [x] 6.1 Set `project_id = "asterion-453905"` in `terraform/environments/prod.tfvars`; replace the three `beatrix-ai-prod` mentions in `docs/DEPLOYMENT.md`; verify `grep -rn beatrix-ai-prod` (outside the archive) finds nothing and `terraform validate` passes
-- [x] 6.2 Update the `prod-deploy` skill for the new prod flow (one reviewed apply, no CLI components, manual App Hosting rollout from the release branch, release published after success); verify the skill text states each of those
+- [x] 6.1 Rework `release.yml` into the cut stage (`workflow_call`; inputs `sha`, `version`; creates `release/<version>` at `sha`, the tag and the GitHub release marked Latest with the notes at `sha`; idempotent for the same commit; fails when the branch or tag is at another commit) and call it from `deploy-prod.yml` only after a successful run with `contents: write` granted by that caller; verify the YAML parses, no push trigger exists, the pin check passes, and the create/update/refuse logic with a temporary git repository
+- [x] 6.2 Show "release cut" or "no release cut" in the prod run summary; verify by reading the summary step
 
-## 7. Specs, checks and wrap-up
+## 7. Dev functions script and environment bootstrap
 
-- [x] 7.1 Run `openspec validate --all --strict`; verify it exits 0
-- [x] 7.2 Run `npm run typecheck`, `npm run lint`, `npm run build`, `npm run infra:check` and `bash scripts/check-scripts.sh`; verify all pass and record in the PR Verification only what was actually run
-- [x] 7.3 Update the docs affected by this change: `CLAUDE.md` (Deployment and Releases sections), `AGENTS.md`, `README.md` (generated sections via the pre-push hook), `docs/DEPLOYMENT.md`, `terraform/README.md`, `.claude/rules/environments.md`; verify `grep -rn "functions component\|rules component" CLAUDE.md AGENTS.md README.md docs terraform .claude` finds nothing outdated
+- [x] 7.1 Make `scripts/deploy-functions-dev.sh` plan and apply the whole `terraform/functions` configuration (no `-target`), still dev only with the plan guard and a confirmation; verify `bash -n`, that it refuses the prod project and unknown options, and that a dry plan against dev runs and stops before apply
+- [x] 7.2 Make `scripts/recreate-environment.sh` apply stage 1, build the functions, then apply stage 2 (each guarded and from a saved plan); verify `bash -n` and a read-through of the order
+
+## 8. Prod project and skills
+
+- [x] 8.1 Set `project_id = "asterion-453905"` in `terraform/environments/prod.tfvars` and remove `beatrix-ai-prod` from the docs; verified by `grep` and `terraform validate`
+- [x] 8.2 Update the `dev-deploy` and `prod-deploy` skills (prod takes `ref` on `main` and a `version`, asks once, the release is cut only after success, no App Hosting on prod); verify each point is in the skill text
+
+## 9. Specs, checks and docs
+
+- [x] 9.1 Run `openspec validate --all --strict`; verify it exits 0
+- [x] 9.2 Run `npm run typecheck`, `npm run lint`, `npm run build`, `npm run infra:check` and `bash scripts/check-scripts.sh`; verify all pass and record in the PR Verification only what was actually run
+- [x] 9.3 Update the docs: `docs/DEPLOYMENT.md` (two pipelines, three stages, the two configurations and the declarative move, prod commit-on-main with a version, the cut release), `CLAUDE.md`, `AGENTS.md`, `README.md` (generated sections via the pre-push hook), `terraform/README.md`, `.claude/rules/environments.md`; verify `grep -rn "deploy.yml\|functions component\|rules component\|-target" docs CLAUDE.md AGENTS.md README.md terraform .claude` finds nothing outdated
 
 ## Workflow follow-up
 
 - Work on branch `feature/92-terraform-functions-prod-project` (issue #92, which replaces the closed #80), then archive with `/opsx:archive` before the PR is marked ready.
-- First dev apply: review the adoption plan at the pipeline's Plan step, then set `adopt_existing_functions = false` for dev in a follow-up commit.
-- Prod (the user's steps): create the `asterion-453905` project and run `./scripts/recreate-environment.sh prod`; replace the placeholder admin email in `prod.tfvars`; connect the prod App Hosting backend to the repository and create each rollout by hand from the release branch.
+- First full dev apply: review both plans at the pipeline's Plan step, then set `adopt_existing_functions = false` for dev in a follow-up commit.
+- Dev needs real admin emails in its tfvars (or equivalent) before a dev run can pass the plan guard; that is the owner's call and is not part of this change.
+- Prod (the user's steps): create the `asterion-453905` project and run `./scripts/recreate-environment.sh prod`; replace the placeholder admin email in `prod.tfvars`; connect the prod App Hosting backend to the repository and create each rollout by hand from the Firebase console.

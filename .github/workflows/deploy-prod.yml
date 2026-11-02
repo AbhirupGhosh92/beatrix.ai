@@ -1,0 +1,71 @@
+name: Deploy prod
+
+# The prod pipeline. It is never started automatically: run it by hand ("Run workflow") with a
+# version and type `prod` in `confirm`. Stages, in order (each starts only after the previous one
+# succeeded), all by Terraform and GitHub Actions:
+#   1  Firebase configuration  (terraform/)            rules, Firestore, Storage, Auth, IAM, backend resource
+#   2  Cloud Functions         (terraform/functions/)  the functions, then the Python service if it changed
+#   3  cut the release         branch release/<version>, tag v<version> and the GitHub release, only after
+#                              stages 1 and 2 and the smoke test succeeded
+# Prod deploys a commit that is on main (ref, default main). It never deploys App Hosting: the prod
+# rollout is created by hand from the Firebase console. Both plans are made before anything is
+# applied, and the reviewers of the `prod-release` environment approve once, seeing both.
+#
+# The stages are the jobs of deploy-environment.yml (shared with dev) and are described step by
+# step in docs/DEPLOYMENT.md, including the one-time GitHub setup (environments, reviewers).
+# The environment is set up by `./scripts/recreate-environment.sh prod`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, or a branch or tag that points at a commit on main
+        type: string
+        default: main
+        required: true
+      version:
+        description: "Release version, X.Y or X.Y.Z (the branch release/<version> and the tag v<version> are cut after success)"
+        type: string
+        required: true
+      confirm:
+        description: "Type prod to confirm"
+        type: string
+        default: ""
+      allow_destructive:
+        description: "DANGEROUS: allow the plans to delete/replace protected resources, functions included"
+        type: boolean
+        default: false
+      redeploy_all:
+        description: Redeploy every component even if its sources did not change
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  prod:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: prod
+      ref: ${{ inputs.ref }}
+      version: ${{ inputs.version }}
+      confirm: ${{ inputs.confirm }}
+      allow_destructive: ${{ inputs.allow_destructive }}
+      redeploy_all: ${{ inputs.redeploy_all }}
+
+  # Stage 3 on prod. Only a fully successful run cuts the release; a failed or skipped run cuts
+  # nothing. Called from here, not from deploy-environment.yml, so `contents: write` never reaches
+  # the dev jobs.
+  release:
+    needs: prod
+    if: ${{ !cancelled() && needs.prod.result == 'success' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      sha: ${{ needs.prod.outputs.sha }}
+      version: ${{ inputs.version }}

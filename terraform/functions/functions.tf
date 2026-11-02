@@ -1,14 +1,16 @@
 # ------------------------------------------------------------------------------
 # Cloud Functions (gen2), one per export of functions/src/index.ts.
 #
-# Terraform owns the functions: the Firebase CLI no longer deploys them, so the plan, the plan guard
-# and the prod approver see every change. scripts/check-functions.sh keeps `function_names` equal to
-# the exports of functions/src/index.ts. See docs/DEPLOYMENT.md.
+# This is stage 2 of the pipeline (stage 1 is the Firebase configuration in terraform/). Terraform
+# owns the functions: the Firebase CLI no longer deploys them, so the plan, the plan guard and the prod
+# approver see every change. scripts/check-functions.sh keeps `function_names` equal to the exports
+# of functions/src/index.ts. See docs/DEPLOYMENT.md.
 #
-# The source is built before planning by scripts/build-functions.sh into terraform/.build/functions-src
-# (compiled lib/, package.json and the pnpm files, with fixed file times) and zipped here. The zip is
-# named by its content hash, so identical code gives an identical plan and no new function revision.
-# The pipeline saves the zip next to the plan and Apply never rebuilds it.
+# The source is built before planning by scripts/build-functions.sh into
+# terraform/functions/.build/functions-src (compiled lib/, package.json and the pnpm files, with fixed
+# file times) and zipped here. The zip is named by its content hash, so identical code gives an
+# identical plan and no new function revision. The pipeline saves the zip next to the plan and Apply
+# never rebuilds it.
 # ------------------------------------------------------------------------------
 locals {
   function_names = [
@@ -39,6 +41,9 @@ locals {
 
   functions = toset(local.function_names)
 
+  # The App Hosting runtime account (created by stage 1) is the only identity that may call a function.
+  app_hosting_account = "firebase-app-hosting-compute@${var.project_id}.iam.gserviceaccount.com"
+
   # Same value the Firebase CLI set on the deployed functions.
   firebase_config = jsonencode({
     projectId     = var.project_id
@@ -55,8 +60,6 @@ resource "google_storage_bucket" "functions_src" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
   force_destroy               = false
-
-  depends_on = [google_project_service.enabled_services]
 }
 
 data "archive_file" "functions" {
@@ -111,8 +114,6 @@ resource "google_cloudfunctions2_function" "fn" {
       LOG_EXECUTION_ID = "true"
     }
   }
-
-  depends_on = [google_project_service.enabled_services]
 }
 
 # Only the App Hosting service account may invoke a function. The binding is authoritative, so an
@@ -123,17 +124,19 @@ resource "google_cloud_run_v2_service_iam_binding" "function_invoker" {
   location = var.region
   name     = regex("[^/]+$", each.value.service_config[0].service)
   role     = "roles/run.invoker"
-  members  = ["serviceAccount:${google_service_account.apphosting_compute.email}"]
+  members  = ["serviceAccount:${local.app_hosting_account}"]
 }
 
-# First apply on an environment whose functions the Firebase CLI deployed: adopt them in place.
+# First apply on an environment whose functions the Firebase CLI deployed: adopt them in place. The
+# same switch adopts the source bucket that an earlier apply created in the stage-1 state.
+import {
+  for_each = var.adopt_existing_functions ? toset(["bucket"]) : toset([])
+  to       = google_storage_bucket.functions_src
+  id       = "${var.project_id}/${var.project_id}-functions-src"
+}
+
 import {
   for_each = var.adopt_existing_functions ? local.functions : toset([])
   to       = google_cloudfunctions2_function.fn[each.key]
   id       = "projects/${var.project_id}/locations/${var.region}/functions/${each.key}"
-}
-
-output "function_urls" {
-  value       = { for name, fn in google_cloudfunctions2_function.fn : name => fn.service_config[0].uri }
-  description = "URL of each Cloud Function (private: only the App Hosting service account may call them)."
 }

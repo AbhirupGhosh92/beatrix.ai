@@ -17,10 +17,6 @@ terraform {
       source  = "hashicorp/google-beta"
       version = ">= 5.0.0"
     }
-    archive = {
-      source  = "hashicorp/archive"
-      version = ">= 2.4.0"
-    }
   }
 }
 
@@ -434,3 +430,43 @@ resource "google_project_iam_member" "deployer" {
   role     = each.key
   member   = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# ------------------------------------------------------------------------------
+# The Cloud Functions are stage 2 (terraform/functions/). An earlier version of this configuration
+# created the source bucket, its object, the status function and its binding here on dev. These
+# blocks make this state forget them WITHOUT destroying anything (destroy = false); stage 2 adopts
+# them. They change nothing on an environment whose state never held them. Remove the blocks once
+# every environment has applied them.
+# ------------------------------------------------------------------------------
+removed {
+  from = google_cloudfunctions2_function.fn
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = google_cloud_run_v2_service_iam_binding.function_invoker
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = google_storage_bucket_object.functions
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = google_storage_bucket.functions_src
+
+  lifecycle {
+    destroy = false
+  }
+}
+

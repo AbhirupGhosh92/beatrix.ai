@@ -4,7 +4,7 @@ set -euo pipefail
 # ==============================================================================
 # Deploy the App Hosting site (dev) and the Python AI service (Cloud Run) from local source.
 # Cloud Functions and the security rules are NOT deployed here: Terraform owns them (see
-# terraform/functions.tf and scripts/deploy-functions-dev.sh).
+# terraform/functions/ and scripts/deploy-functions-dev.sh).
 # The same script .github/workflows/deploy-environment.yml runs in CI.
 #
 # Usage: ./scripts/deploy-backend.sh <PROJECT_ID> [--components apphosting,python] [--region <region>]

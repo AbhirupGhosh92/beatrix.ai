@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# Point a GitHub Actions environment at its GCP project, so .github/workflows/deploy.yml
+# Point a GitHub Actions environment at its GCP project, so .github/workflows/deploy-environment.yml
 # can deploy to it. Reads the Terraform outputs of the environment initialized in terraform/.
 # Usage: ./scripts/sync-github-env.sh <env>
 # ==============================================================================

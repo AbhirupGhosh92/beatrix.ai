@@ -30,8 +30,8 @@ A deployment changes **only what the release changes**. Specifically:
 | Firestore data (including `allowed_emails`) | Never deleted or replaced by a deploy. The database has delete protection, `prevent_destroy`, `ABANDON` on destroy and 7-day point-in-time recovery. A plan that would delete or replace it fails before anything is applied. |
 | CMS files (`cms/profile.json`, `cms-backups/`) | Never written by a deploy. They are copied to a timestamped backup first, and both buckets keep old versions. |
 | User resumes and job applications (`gs://<project>-resumes`, Firestore `resume_owners`, `application_owners`, `resume_audit`) | Never written, deleted or snapshotted by a deploy. The bucket is protected like the other stateful resources and keeps old versions for 30 days (section 10.1b). The pre-deploy snapshot and `harden-buckets.sh` only handle the state and CMS buckets, so personal resume data is never copied into the state bucket. Job applications are Firestore documents under `application_owners/<email>/applications`, so they are covered by the database protections above (delete protection, 7-day point-in-time recovery) and are never written by a deploy. |
-| Cloud Functions | Terraform resources (`terraform/functions.tf`), changed only when the reviewed plan shows a difference. The source zip is named by its content hash, so unchanged code gives no diff and no new revision. A delete or replace of a function fails the plan guard. Each function is invokable only by `firebase-app-hosting-compute` (authoritative binding). The Firebase CLI never deploys them. |
-| Security rules | Terraform resources (`google_firebaserules_*`), changed only when the plan shows a difference. The Firebase CLI never deploys them. |
+| Cloud Functions | Terraform resources (`terraform/functions/functions.tf`, stage 2), changed only when the reviewed plan shows a difference. The source zip is named by its content hash, so unchanged code gives no diff and no new revision. A delete or replace of a function fails the plan guard. Each function is invokable only by `firebase-app-hosting-compute` (authoritative binding). The Firebase CLI never deploys them. |
+| Security rules | Terraform resources (`google_firebaserules_*`, stage 1), changed only when the plan shows a difference. The Firebase CLI never deploys them. |
 | App Hosting site | A new rollout is created only when app source, dependencies or `apphosting.yaml` changed. |
 | Python AI service (Cloud Run `beatrix-ai`) | Redeployed only when `ai_backend/` changed (component `python`). Private: no unauthenticated access, only `firebase-app-hosting-compute` holds `roles/run.invoker`. The model API key is the Secret Manager secret `model-api-key`; Terraform creates it empty and only the runtime account `python-ai-runtime` can read it. You add the value yourself (`gcloud secrets versions add model-api-key --data-file=-`, see `ai_backend/README.md`), so it never reaches state, logs or the pipeline; the deploy mounts it only when a version exists. |
 | Terraform-managed infrastructure (IAM, buckets, service accounts, ...) | Terraform changes only resources whose configuration differs. Stateful resources cannot be destroyed or replaced by a normal deploy. |
@@ -42,35 +42,53 @@ detection, the Terraform plan for functions and rules, backups). Section 13 list
 
 ## 2. Environments and triggers
 
-| Environment | GCP project | Deployed | Approval |
-|---|---|---|---|
-| `dev` | from `terraform/environments/dev.tfvars` | automatically on every push to `main` | none |
-| `prod` | `asterion-453905` (`prod.tfvars`) | **only** by a manual run of the Deploy workflow | typed confirmation + reviewers of the `prod-release` GitHub environment |
+There are two pipelines, one per environment, and both run the same three stages in the same order:
 
-Automatic runs (`dev`) use the same pipeline as prod, including the plan guard, so a
+| Environment | GCP project | Pipeline | Started | Approval |
+|---|---|---|---|---|
+| `dev` | from `terraform/environments/dev.tfvars` | `deploy-dev.yml` | automatically on every push to `main`, or by hand for any ref | none |
+| `prod` | `asterion-453905` (`prod.tfvars`) | `deploy-prod.yml` | **only** by hand | typed confirmation + one approval by the reviewers of the `prod-release` GitHub environment |
+
+| Stage | What it applies | Dev | Prod |
+|---|---|---|---|
+| 1 Firebase configuration | `terraform/`: APIs, Firestore, Storage, security rules, Auth, IAM, the App Hosting backend resource | yes | yes |
+| 2 Cloud Functions | `terraform/functions/`: the Node functions; then the Python service (`gcloud run deploy`) when `ai_backend/` changed | yes | yes |
+| 3 | dev: the App Hosting rollout (Firebase CLI) when the app changed. prod: **cut the release** | app | release |
+
+Everything is applied by Terraform and GitHub Actions; the App Hosting rollout and the Python Cloud Run
+deploy cannot be Terraform resources, so they are CLI steps inside Actions. A stage starts only after the
+previous one succeeded. Automatic runs (`dev`) use the same stages and the same plan guards as prod, so a
 destructive change fails the run instead of being applied. Never add an automatic trigger for prod.
+
+**Prod takes a commit on `main` and a version.** `ref` (default `main`) must be reachable from `main`, and
+`version` (`X.Y` or `X.Y.Z`) is required, with `confirm` = `prod`. Prod never deploys App Hosting: create
+the rollout by hand in the Firebase console. After stages 1 and 2 and the smoke test succeed, the release
+is cut at the deployed commit: the branch `release/<version>`, the tag `v<version>` and the GitHub release
+(section "GitHub releases").
 
 ## 3. The pipeline, stage by stage
 
-Entry point: `.github/workflows/deploy.yml` (inputs and triggers). The pipeline itself:
-`.github/workflows/deploy-environment.yml`. One run per environment at a time (a second run waits).
+Entry points: `.github/workflows/deploy-dev.yml` (push to `main`, or by hand) and
+`.github/workflows/deploy-prod.yml` (by hand). Both call `.github/workflows/deploy-environment.yml`, which
+holds the jobs once; prod then calls `.github/workflows/release.yml` for stage 3. One run per environment
+at a time (a second run waits).
 
 ```mermaid
 flowchart LR
     P[Policy<br/>no cloud access] --> G{Gate<br/>environment<br/>provisioned?}
     G -- no, dev --> S[Skipped with a notice]
     G -- no, prod --> X0[Run fails]
-    G -- yes --> A[Verify<br/>no cloud access]
-    A --> B[Plan<br/>terraform plan, saved privately<br/>+ decide what to deploy]
-    B --> C{Plan guard<br/>protected resource<br/>deleted or replaced?}
-    C -- yes --> X[Run fails<br/>nothing applied]
-    C -- no --> D{Environment?}
-    D -- prod --> E[Approve<br/>prod-release reviewers<br/>see the decision table]
-    D -- dev --> F
-    E --> F[Apply]
-    subgraph F[Apply job]
-      F1[Protect buckets] --> F2[Snapshot CMS files<br/>only if something will change] --> F3[Apply SAVED plan<br/>functions, rules, infrastructure] --> F4[Deploy only the components marked changed<br/>App Hosting on dev, Python service] --> F5[Record what was deployed] --> F6[Smoke test]
-    end
+    G -- yes --> A[Verify<br/>no cloud access<br/>prod: commit on main, version, notes]
+    A --> B1[Plan stage 1<br/>Firebase configuration<br/>plan guard, saved]
+    B1 --> B2[Plan stage 2<br/>Cloud Functions<br/>plan guard, saved with the source zip]
+    B2 --> D{Environment?}
+    D -- prod --> E[Approve once<br/>prod-release reviewers<br/>see both plans]
+    D -- dev --> F1
+    E --> F1[Apply stage 1<br/>snapshot, saved plan]
+    F1 --> F2[Apply stage 2<br/>saved plan, Python service]
+    F2 --> F3{Stage 3}
+    F3 -- dev --> H[App Hosting rollout if changed<br/>smoke test]
+    F3 -- prod --> R[Smoke test, then cut the release]
 ```
 
 **Reading a run.** Every step prints its inputs, what it decided and why, and its result, in four line
@@ -80,74 +98,85 @@ kinds (format in `scripts/deploy/log.sh`):
 |---|---|
 | `[step]` | the step is starting (also a fold-able group in the Actions log) |
 | `[info]` | an input or a fact the step relies on (project, bucket, hashes) |
-| `[decision]` | what the step decided **and why** (for example `rules: unchanged, will not be touched`) |
+| `[decision]` | what the step decided **and why** (for example `python: unchanged, will not be touched`) |
 | `[result]` | what actually happened |
 
-A failure names the step and the next action to take. The run summary shows the Terraform changes, a
-table of what this run changes on the environment (infrastructure, functions and rules read from the plan; App Hosting and the Python service each
-with the last deployed hash, the hash of this commit, the action and the reason) and where the CMS
-backup went, if one was taken.
+A failure names the step and the next action to take. The run summary shows both Terraform plans, a table
+of what this run changes (one row per stage: stage 1 and stage 2 from their plans; the Python service and
+App Hosting each with the last deployed hash, the hash of this commit, the action and the reason), how far
+each stage got and where the CMS backup went, if one was taken.
 
-### Stage 0: Policy (job `policy`)
+### Policy (job `policy`)
 
 No checkout, no GitHub environment, no credentials. Environment must be `dev` or `prod`; the ref may only
-contain safe characters. For `prod`: the run must be manual, `confirm` must be `prod`, and the ref must
-be a `release/<major.minor[.patch]>` branch or a `v<major.minor.patch>` tag. Anything else stops here.
-It runs before anything reads an environment, so an unknown environment name can never create one.
+contain safe characters. For `prod`: the run must be manual, `confirm` must be `prod` and `version` must
+be `X.Y` or `X.Y.Z`. Anything else stops here. It runs before anything reads an environment, so an unknown
+environment name can never create one.
 
-### Stage 1: Gate (job `gate`)
+### Gate (job `gate`)
 
 Reads the GitHub environment variables (`GCP_PROJECT_ID`, `TF_STATE_BUCKET`) and nothing else: no
 checkout, no credentials. An unprovisioned `dev` is skipped with a notice, before any build; an
 unprovisioned `prod` **fails**, so a misconfiguration is never reported as success.
 
-### Stage 2: Verify (job `verify`)
+### Verify (job `verify`)
 
 Runs with **no cloud credentials**.
 
 1. **Checkout** of the ref and **resolution to a commit SHA.** Every later job checks out that exact
    SHA, so what was verified and approved is what is deployed, even if the branch moves meanwhile.
-2. `pnpm install --frozen-lockfile`, `npm run typecheck`, `npm run lint`, `npm run build`, build of the
-   Cloud Functions. For `prod` only, `RELEASE_NOTES.md` must exist and be non-empty on the ref (it is the
-   body of the GitHub release published after a successful deploy).
-3. `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`.
-4. Script checks (`scripts/check-scripts.sh`): `bash -n` on every shell script, the check that the function
-   list in `terraform/functions.tf` equals the exports of `functions/src/index.ts`, and the plan guard unit
-   tests. The same script runs in pull request checks and in `infra-check.yml`.
+2. **Prod preflight** (`scripts/deploy/check-prod-ref.sh`, prod only, before any plan): the commit is
+   reachable from `main`; `RELEASE_NOTES.md` exists and is non-empty at that commit; the branch
+   `release/<version>` and the tag `v<version>` do not already exist at a *different* commit (the same
+   commit is fine, a re-run updates its release). It reads the refs that the checkout fetched, so it needs
+   no credentials.
+3. `pnpm install --frozen-lockfile`, `npm run typecheck`, `npm run lint`, `npm run build`, build of the
+   Cloud Functions.
+4. `terraform fmt -check -recursive`, then `init -backend=false` and `validate` for **both** stages
+   (`terraform/` and `terraform/functions/`).
+5. Script checks (`scripts/check-scripts.sh`): `bash -n` on every shell script, the check that the function
+   list in `terraform/functions/functions.tf` equals the exports of `functions/src/index.ts`, the check that
+   both stages agree on project and environment, and the unit tests (plan guard, prod preflight, cut
+   release). The same script runs in pull request checks and in `infra-check.yml`.
 
-### Stage 3: Plan (job `plan`, GitHub environment = the target)
+### Plan stage 1 and plan stage 2 (jobs `plan1`, `plan2`, GitHub environment = the target)
 
-1. Signs in to Google Cloud with Workload Identity Federation (no keys).
-2. Builds the function source (`scripts/build-functions.sh`: compiled `lib/`, `package.json` and the pnpm
-   files in `terraform/.build/functions-src`, with fixed file times), then
-   `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars`. Nothing is
-   changed. The summary lists each resource that would change; the full redacted plan is folded below.
-3. **Plan guard** (`scripts/deploy/plan_guard.py`), see section 5.
-4. **Decide what to deploy.** Functions and rules rows come from the plan (resources that change, or
-   "not touched"). `scripts/deploy/components.sh status` hashes the sources of `apphosting` and `python`
-   and compares them with the marker recorded after the last successful deploy
+Both plans are made **before** any approval and nothing is applied.
+
+1. Sign in to Google Cloud with Workload Identity Federation (no keys).
+2. **Stage 1:** `terraform plan -detailed-exitcode -out=tfplan -var-file=environments/<env>.tfvars` in
+   `terraform/`, then the **plan guard** (`scripts/deploy/plan_guard.py`, section 5). The summary lists
+   each resource that would change; the full redacted plan is folded below.
+3. **Stage 2:** `scripts/build-functions.sh` builds the function source (compiled `lib/`, `package.json`
+   and the pnpm files in `terraform/functions/.build/functions-src`, with fixed file times), then the same
+   plan and plan guard in `terraform/functions/` with `environments/<env>.tfvars`.
+4. **Decide what to deploy.** The stage rows come from the plans (resources that change, or "not
+   touched"). `scripts/deploy/components.sh status` hashes the sources of `python` (`ai_backend/`) and
+   `apphosting` and compares them with the marker recorded after the last successful deploy
    (`gs://<project>-tfstate/deploy/markers/<component>.json`). With `redeploy_all` every component is
    marked changed. On `prod` App Hosting is never deployed by the pipeline (the table says to create the
-   rollout by hand from the release branch). The result is the decision table, and Apply deploys exactly
-   the components in it.
-5. The binary plan and the function source zip it was made with are stored in the environment's private
-   state bucket at `gs://<project>-tfstate/deploy/plans/<run>-<attempt>/tfplan` and `.../functions.zip`
-   (Apply downloads both and never rebuilds the zip; not a GitHub artifact, because a
-   plan can contain values Terraform does not redact in JSON).
+   rollout by hand). The result is the decision table, and the apply jobs deploy exactly the components
+   in it.
+5. Each binary plan is stored in the environment's private state bucket at
+   `gs://<project>-tfstate/deploy/plans/<run>-<attempt>/stage1/tfplan` and `.../stage2/tfplan`, with the
+   function source zip beside the stage-2 plan (`stage2/functions.zip`). Apply downloads them and never
+   rebuilds the zip. They are not GitHub artifacts, because a plan can contain values Terraform does not
+   redact in JSON.
 
-### Stage 4: Approve (job `approve`, prod only)
+### Approve (job `approve`, prod only)
 
-The job uses the GitHub environment `prod-release`. Its required reviewers are asked to approve. The
-approval screen shows the commit and the ref; the plan and the decision table (what will deploy and what
-will not be touched) are in the job summary of the same run, so the reviewer approves a known set of
-changes. The job has no cloud access and no token permissions. It exists only to hold the run until a
-person approves.
+The job uses the GitHub environment `prod-release`. Its required reviewers are asked to approve **once**,
+after both plans exist. The approval screen shows the commit, the ref and the version; the two plans and
+the decision table (what will deploy and what will not be touched) are in the job summary of the same
+run, so the reviewer approves a known set of changes. The job has no cloud access and no token
+permissions. It exists only to hold the run until a person approves. If either plan guard blocks, the run
+fails before this point and no approval is requested.
 
 > The approval is only a real gate if `prod-release` has **required reviewers**. GitHub creates a missing
 > environment with no protection, which would let the run through. Section 7 shows how to set it up
 > and how to check it.
 
-### Stage 5: Apply (job `apply`, GitHub environment = the target)
+### Apply stage 1 (job `apply1`, GitHub environment = the target)
 
 1. **Protect buckets** (`scripts/deploy/harden-buckets.sh`): turns on object versioning on the state
    bucket and the CMS bucket, and public access prevention on the state bucket, when missing. Adds
@@ -156,20 +185,29 @@ person approves.
    and writes nothing when protection is already in place.
 2. **Snapshot the CMS files** (`scripts/deploy/backup-snapshot.sh`): copies `cms/` and `cms-backups/`
    from the CMS bucket to `gs://<project>-tfstate/backups/<UTC time>-<sha7>/storage/`. Read-only on the
-   source. **Only taken when the plan has changes or a component will deploy**; a run with nothing to
+   source. **Only taken when a plan has changes or a component will deploy**; a run with nothing to
    change writes no backup. Skipped with a notice when there are no files yet.
-3. **Terraform apply of the saved plan** (infrastructure, Cloud Functions and rules). Terraform refuses a
-   plan whose state changed since it was made, so nothing unreviewed can be applied. Skipped when the plan
-   has no changes.
-4. **Deploy only the components marked changed** (`scripts/deploy-backend.sh --components ...`): App Hosting
-   on dev (Firebase CLI pinned to an exact version) and the Python service (`gcloud run deploy`). On prod
-   the Python service is deployed after the apply, under the same approval, only when `ai_backend/`
-   changed. Skipped when none changed.
-5. **Record what was deployed.** Markers are written only after a successful deploy, so a failed deploy
-   is retried by the next run.
-6. **Smoke test** (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML; `GET /api/admin/cms`
-   without a token returns 401. Read-only.
-7. **Summary:** the decision table, the commit and the backup location, if one was taken.
+3. **Terraform apply of the saved stage-1 plan.** Terraform refuses a plan whose state changed since it
+   was made, so nothing unreviewed can be applied. Skipped when the plan has no changes.
+
+### Apply stage 2 (job `apply2`)
+
+1. **Terraform apply of the saved stage-2 plan** with the saved function source zip (functions, source
+   object, invoker bindings). Skipped when the plan has no changes.
+2. **The Python service** (`scripts/deploy-backend.sh --components python`, `gcloud run deploy`), only when
+   `ai_backend/` changed, then its marker is recorded. On prod this runs after the approved apply, under
+   the same approval.
+
+### Stage 3 (job `stage3`, then `release.yml` on prod)
+
+- **dev:** the App Hosting rollout (`scripts/deploy-backend.sh --components apphosting`, Firebase CLI
+  pinned to an exact version) only when the app sources changed; the marker is recorded after success.
+- **both:** the smoke test (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML;
+  `GET /api/admin/cms` without a token returns 401. Read-only.
+- **prod:** no App Hosting deploy. After the smoke test, `deploy-prod.yml` calls `release.yml`, which cuts
+  the release (section "GitHub releases"). A run that failed at any stage cuts nothing.
+- **Summary** (job `summary`, always): the decision table, how far each stage got, the commit and the
+  backup location, if one was taken.
 
 ### Pull request checks (`ci.yml`)
 
@@ -178,19 +216,19 @@ without cloud access, so a failing change is rejected before it reaches `main` a
 
 ### Deploy skills
 
-Two agent skills run the Deploy workflow and narrate it: `dev-deploy` (a pushed branch or commit to dev) and
-`prod-deploy` (the current `release/x.y[.z]` branch to prod; it refuses any other branch, a dirty or
+Two agent skills run the pipelines and narrate them: `dev-deploy` (a pushed branch or commit to dev) and
+`prod-deploy` (a commit on `main` to prod with a version; it refuses a ref that is not on `main`, a dirty or
 unpushed tree, asks for an explicit yes in chat, and never approves `prod-release` itself).
 
-### Deploy inputs (Actions > Deploy > Run workflow)
+### Pipeline inputs (Actions > Deploy dev / Deploy prod > Run workflow)
 
-| Input | Meaning |
-|---|---|
-| `environment` | `dev` or `prod` (default `dev`, so a careless click never targets prod) |
-| `ref` | Branch, tag or commit SHA. Prod accepts only `release/x.y[.z]` or `vX.Y.Z` |
-| `confirm` | Type `prod` to deploy prod |
-| `allow_destructive` | **Dangerous.** Lets the plan delete/replace protected resources, functions included. Section 11 |
-| `redeploy_all` | Redeploy every component even if unchanged (for example to repair a component) |
+| Input | Dev | Prod | Meaning |
+|---|---|---|---|
+| `ref` | yes (default `main`) | yes (default `main`) | Branch, tag or commit SHA. Prod accepts only a commit reachable from `main` |
+| `version` | | required | `X.Y` or `X.Y.Z`; the branch `release/<version>`, the tag and the GitHub release are cut with it after success |
+| `confirm` | | required | Type `prod` |
+| `allow_destructive` | yes | yes | **Dangerous.** Lets a plan delete or replace protected resources, functions included. Section 11 |
+| `redeploy_all` | yes | yes | Redeploy every component even if unchanged (for example to repair a component) |
 
 ## 4. How unchanged things stay untouched
 
@@ -202,7 +240,7 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 | User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
 | User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. Job applications (`application_owners/<email>/applications`, written only by the `application*` functions) follow the Firestore rows above: no new bucket, rule, Terraform resource or deploy component is involved, and they deploy with the `functions` component. |
-| Cloud Functions | Terraform plan + content-hashed source | A function whose code did not change has the same source object, so the plan shows nothing for it. A function removed from the source and `terraform/functions.tf` is a delete that the plan guard blocks. |
+| Cloud Functions | Terraform plan + content-hashed source | A function whose code did not change has the same source object, so the plan shows nothing for it. A function removed from the source and `terraform/functions/functions.tf` is a delete that the plan guard blocks. |
 | Security rules | Terraform plan | Changed only when the rules files change the Terraform resources. |
 | App Hosting | Component hash | No new rollout when the app did not change. Existing rollouts are never deleted. |
 | Python AI service | Component hash + protected secret | No new Cloud Run revision when `ai_backend/` did not change. The secret `model-api-key` is a `PROTECTED_TYPES` resource (`prevent_destroy`), so a plan cannot delete it. |
@@ -243,9 +281,10 @@ you add a new resource that holds data or identity.
   environment variables, never through `${{ }}` inside a script, and the ref is validated first.
 - **What is verified is what is deployed.** One commit SHA is resolved once and used by every job.
 - **No unreviewed apply, no `--force`.** `infra-check.yml` fails the build if a workflow contains
-  `-auto-approve` or calls `firebase deploy --force` directly.
-- **Prod gates.** Manual trigger only, typed confirmation, release ref only, environment protection on
-  `prod`, and required reviewers on `prod-release`.
+  `-auto-approve` or calls `firebase deploy --force` directly, and no workflow targets single resources.
+- **Prod gates.** Manual trigger only, typed confirmation, a version, a commit that is on `main`,
+  environment protection on `prod`, and one approval by the required reviewers of `prod-release` after
+  both plans.
 - **One deploy at a time per environment** (concurrency group), and Terraform state locking.
 - **Private artifacts.** Saved plans, markers and backups live in the private, versioned,
   public-access-prevented state bucket; `terraform/tfplan` and `plan.json` are git-ignored.
@@ -313,8 +352,8 @@ Settings > Environments:
 
 | Environment | Settings |
 |---|---|
-| `prod` | Deployment branches and tags: *Selected branches and tags* with `main`, `release/*` and the tag pattern `v*` (this restricts which ref the workflow may be run from). Variables are written by `recreate-environment.sh`, which only creates the environment when it is missing and never resets protection rules you set in the UI. No reviewers needed here (the approval happens in `prod-release`, so you are not asked twice). |
-| `prod-release` | **Required reviewers: add yourself and anyone who may approve prod.** Deployment branches: same as `prod`. No variables or secrets. |
+| `prod` | Deployment branches and tags: *Selected branches* with `main` only (the workflow is always run from `main`; the `ref` input must also be a commit on `main`). Variables are written by `recreate-environment.sh`, which only creates the environment when it is missing and never resets protection rules you set in the UI. No reviewers needed here (the approval happens in `prod-release`, so you are not asked twice). |
+| `prod-release` | **Required reviewers: add yourself and anyone who may approve prod.** Deployment branches: `main` only. No variables or secrets. |
 | `dev` | Variables only (written by the script). |
 
 With one maintainer, leave "Prevent self-review" off or you cannot approve your own deployment; with a
@@ -334,50 +373,70 @@ It must print at least one login. An empty result means approvals are not enforc
 - Branch protection on `main` (already on): require PRs and passing checks (`check-branch-name`,
   `Validate Infrastructure Code`).
 - Protect release branches and tags: a ruleset for `release/*` and `v*` that blocks force-push and
-  deletion, so a reviewed release cannot be rewritten.
+  deletion, so a reviewed release cannot be rewritten. Do **not** restrict *creation* for them: the prod
+  pipeline creates `release/<version>` and `v<version>` with the workflow token after a successful run.
 - `CODEOWNERS` lists the owner as default reviewer for every path. To make that binding, enable *Require review from Code Owners* in the branch protection of `main`, so changes to `.github/workflows/`, `terraform/` and `scripts/` cannot merge without the owner.
 
-### 7.4 After this change is merged
+### 7.4 First run after the two-stage split
 
-The workflow file is taken from the branch you run it from. Merge `main` into `release/*` branches
-that must be deployable with this pipeline (for example `release/1.1.0`).
+The functions moved from the stage-1 Terraform state to the new stage-2 configuration (`terraform/functions/`).
+The move is declarative: stage 1 carries `removed` blocks (`destroy = false`) that make it forget the
+function resources an earlier version created, and stage 2 imports them and the 22 functions the Firebase
+CLI deployed (`adopt_existing_functions = true` in `terraform/functions/environments/dev.tfvars`).
+
+1. Read the first dev run's two plans: stage 1 shows only resources being *forgotten from state* (no
+   destroy); stage 2 shows imports, in-place updates, the invoker bindings and one new source object, and no
+   delete or replace.
+2. After it succeeds, set `adopt_existing_functions = false` for dev in a follow-up commit. Remove the
+   `removed` blocks from `terraform/main.tf` once every environment has applied them.
+3. Prod has none of these resources and `adopt_existing_functions = false`, so stage 2 creates everything.
 
 ## 8. Runbook: deploy to prod
 
-1. **Dev first.** The commit you intend to release must already be deployed to dev (every push to
-   `main` does that) and pass the smoke test. Open dev and check the change by hand.
-2. **Cut the release branch** from `main`: `release/<major.minor[.patch]>`. Bump `package.json` version.
-   Open the release ticket with the standard format and release notes (`.claude/rules/github-workflow.md`).
-3. **Run the workflow:** Actions > Deploy > Run workflow.
-   - Use workflow from: `main` (or the release branch)
-   - `environment`: `prod`; `ref`: `release/1.1.0`; `confirm`: `prod`
+1. **Dev first.** The commit you intend to release must already be on `main` (so deployed to dev by the
+   push) and pass the smoke test. Open dev and check the change by hand.
+2. **Write the release notes** in `RELEASE_NOTES.md` on `main` (short, end-user wording) and bump the
+   `package.json` version. Open the release ticket with the standard format
+   (`.claude/rules/github-workflow.md`). There is no release branch to create: the pipeline cuts it.
+3. **Run the workflow:** Actions > Deploy prod > Run workflow.
+   - Use workflow from: `main`
+   - `ref`: `main` (or a commit SHA on `main`); `version`: `1.3` or `1.3.0`; `confirm`: `prod`
    - leave `allow_destructive` and `redeploy_all` off
-4. **Review the plan.** Open the run, read the job summary of the `plan` job: counts, the table of changes
-   and the plan text. A first prod deploy creates everything; later deploys should show few changes.
-   Unexpected `delete`/`replace` lines mean stop: cancel the run and investigate.
-5. **Approve.** The `approve` job waits on the `prod-release` reviewers. Approve only if the plan matches
-   the release. Rejecting stops the run; nothing has been applied before this point.
-6. **Watch the apply job.** It snapshots the CMS files, applies the saved plan, deploys changed
-   components, records them and smoke-tests. The final job summary lists what was deployed and what was
-   left untouched, plus the backup location.
-7. **Verify by hand:** home page in both themes, sign-in, `/admin` list/open/save, the JSON editor theme.
-8. **Close out:** tag `v<version>` on the deployed commit, publish the GitHub release with the notes, tick
-   the release ticket. Merge the release branch back into `main` if it received any commits.
+4. **Verify fails fast.** If the commit is not on `main`, the notes are missing or empty, or
+   `release/<version>` or `v<version>` already exists at a different commit, the run stops in the `verify`
+   job before any plan.
+5. **Review the plans.** Open the run, read the summaries of `plan1` (Firebase configuration) and `plan2`
+   (Cloud Functions): counts, the tables of changes and the plan text, and the decision table. A first
+   prod deploy creates everything; later deploys should show few changes. Unexpected `delete`/`replace`
+   lines mean stop: cancel the run and investigate.
+6. **Approve.** The `approve` job waits on the `prod-release` reviewers, once, with both plans in front of
+   them. Approve only if the plans match the release. Rejecting stops the run; nothing has been applied
+   before this point.
+7. **Watch the apply jobs.** `apply1` snapshots the CMS files and applies the saved stage-1 plan; `apply2`
+   applies the saved stage-2 plan and deploys the Python service if it changed; `stage3` smoke-tests the
+   site. Prod does not deploy App Hosting.
+8. **The release is cut** when everything above succeeded: branch `release/<version>`, tag `v<version>` and
+   the GitHub release, from the notes at the deployed commit.
+9. **Create the App Hosting rollout by hand** in the Firebase console for the new release, then verify by
+   hand: home page in both themes, sign-in, `/admin` list/open/save, the JSON editor theme.
+10. **Close out:** tick the release ticket. If a hotfix needs commits on `release/<version>`, merge them
+    back into `main`.
 
 ## 9. Runbook: roll back
 
 Rolling back code is a normal deployment of an older ref. Data is **not** rolled back by it (see
 section 10 for data).
 
-1. **Code (functions, rules, site):** Run the Deploy workflow for `prod` with `ref` set to the previous
-   release (`release/x.y` or `vX.Y.Z`) and `confirm` = `prod`. Change detection compares hashes, so every
-   component whose sources differ from the current deploy is redeployed to the old version; the others are
-   untouched. Use `redeploy_all` only to repair a component.
-2. **Faster for the site only:** in the Firebase console (App Hosting > beatrix-web > Rollouts) roll back
-   to the previous rollout. Then redeploy the old ref through the workflow so the markers match reality.
-3. **Infrastructure:** the old ref's Terraform is planned against current state; read the plan as usual.
-   Terraform will not recreate or delete protected resources (guard).
-4. **Functions deleted by mistake** (only possible with `allow_destructive`): redeploy the ref that still
+1. **Code (functions, rules, Python service):** run Deploy prod with `ref` set to the commit to go back to
+   (it is on `main`, so it is allowed), a **new** `version` (the old one is taken by the commit it was cut
+   at) and `confirm` = `prod`. Both stages plan against current state, so only resources whose
+   configuration differs are changed; the Python service is redeployed when its sources differ from the
+   current deploy. Use `redeploy_all` only to repair a component.
+2. **Site:** prod does not deploy App Hosting from the pipeline. In the Firebase console (App Hosting >
+   beatrix-web > Rollouts) roll back to the previous rollout, or create a rollout for the older commit.
+3. **Infrastructure:** the old commit's Terraform is planned against current state; read both plans as
+   usual. Terraform will not recreate or delete protected resources (guard).
+4. **Functions deleted by mistake** (only possible with `allow_destructive`): redeploy a commit that still
    contains them; functions are source-defined.
 
 ## 10. Runbook: restore data
@@ -463,7 +522,7 @@ admin email, or replacing a bucket. The plan guard refuses them by default. To d
 3. For a resource with `prevent_destroy`, change the Terraform in a reviewed PR first: remove the
    `lifecycle { prevent_destroy = true }` block (and, for Firestore, set `delete_protection_state` to
    `DELETE_PROTECTION_DISABLED`) in its own commit, deploy that, then make the destructive change.
-4. Run the Deploy workflow with `allow_destructive` checked. The guard prints a **WARNING** listing every
+4. Run the Deploy dev or Deploy prod workflow with `allow_destructive` checked. The guard prints a **WARNING** listing every
    protected resource that will go. For prod the reviewers see the same plan.
 5. Put the protection back in a follow-up PR.
 
@@ -473,14 +532,16 @@ Never use `allow_destructive` to "make a failing run pass". Read the guard messa
 
 | Symptom | Cause and fix |
 |---|---|
-| Run fails in `verify` with "prod is only deployed from release/..." | The `ref` is not a release branch or `vX.Y.Z` tag. Cut a release branch (section 8). |
+| Run fails in `verify` with "commit ... is not reachable from main" | Prod deploys only commits on `main`. Merge the change first, or pick a commit on `main` (section 8). |
+| Run fails in `verify` with "release/<version> already exists at ..." | That version was already cut at another commit. Use a new version, or deploy the commit it points at. |
+| Run fails in policy with "prod needs a version" | Pass `version` as `X.Y` or `X.Y.Z`. |
 | "To deploy prod, type prod in the 'confirm' input" | Type `prod` in `confirm`. |
 | Plan guard: `BLOCKED ... would delete/replace protected resource` | A Terraform change would destroy data or identity. Read the resource address in the summary, fix the change (often an accidental rename or a changed immutable argument such as a location). Only use section 11 if it is intended. |
 | `Instance cannot be destroyed` from Terraform | `prevent_destroy` caught it. Same as above. |
 | `Saved plan is stale` | State changed between plan and apply (another apply, or manual change). Re-run; a new plan is made. |
 | `Error acquiring the state lock` | Another run or a crashed run holds the lock. Wait; if no deploy is running, `terraform force-unlock <id>` from a trusted machine. |
-| Plan guard: a function would be deleted or replaced | A function is in the project but no longer in `terraform/functions.tf` (renamed or removed), or a setting changed in a way the API cannot update in place. Restore it, or follow section 11 if the removal is intended. |
-| `check-functions.sh` fails | `function_names` in `terraform/functions.tf` and the exports of `functions/src/index.ts` differ. Make them equal. |
+| Plan guard: a function would be deleted or replaced | A function is in the project but no longer in `terraform/functions/functions.tf` (renamed or removed), or a setting changed in a way the API cannot update in place. Restore it, or follow section 11 if the removal is intended. |
+| `check-functions.sh` fails | `function_names` in `terraform/functions/functions.tf` and the exports of `functions/src/index.ts` differ. Make them equal. |
 | Old function container images pile up | The pipeline no longer sets the Artifact Registry cleanup policy (it did with `firebase functions:artifacts:setpolicy`). Set it once per project with that command, or manage the repository's cleanup in Terraform. |
 | `approve` never appears or passes instantly | `prod-release` has no required reviewers. Fix section 7.2 and re-run. |
 | Smoke test fails right after deploy | The new rollout may still be starting (it retries for about a minute). If it persists, roll back (section 9) and check the App Hosting logs. |
@@ -529,8 +590,10 @@ Be aware of these; none of them is hidden by the pipeline:
 
 | Path | Purpose |
 |---|---|
-| `.github/workflows/deploy.yml` | Triggers and inputs (push to `main` -> dev; manual -> any) |
-| `.github/workflows/deploy-environment.yml` | The pipeline: policy, gate, verify, plan, approve, apply |
+| `.github/workflows/deploy-dev.yml` | The dev pipeline: triggers and inputs (push to `main`, or by hand) |
+| `.github/workflows/deploy-prod.yml` | The prod pipeline: manual only, `ref`, `version`, `confirm`; calls the release stage after success |
+| `.github/workflows/deploy-environment.yml` | The shared stages: policy, gate, verify, plan stage 1, plan stage 2, approve, apply stage 1, apply stage 2, stage 3, summary |
+| `.github/workflows/release.yml` | Prod stage 3: cut the release (branch, tag, GitHub release) |
 | `.github/workflows/ci.yml` | Pull request checks: typecheck, lint, build, functions build, script checks |
 | `.github/workflows/infra-check.yml` | PR checks: terraform fmt/validate, script tests, SHA pins, no `-auto-approve`/`--force` |
 | `.github/dependabot.yml` | Weekly proposals to update pinned actions |
@@ -543,25 +606,34 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/deploy/smoke-test.sh` | Post-deploy read-only checks |
 | `scripts/deploy-backend.sh` | Deploys App Hosting (dev) and the Python service; refuses `functions` and `rules` (Terraform owns them) |
 | `scripts/build-functions.sh` | Builds the function source that Terraform zips (deterministic) |
-| `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions.tf` and the exports of `functions/src/index.ts` differ |
-| `scripts/deploy-functions-dev.sh` | Deploys only the function resources to dev through Terraform; refuses any other project |
-| `terraform/functions.tf` | The Cloud Functions, their source bucket and object, and the invoker bindings |
+| `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions/functions.tf` and the exports of `functions/src/index.ts` differ |
+| `scripts/check-terraform-stages.sh` | Fails when the two Terraform stages disagree on project, environment or region |
+| `scripts/deploy/check-prod-ref.sh`, `cut-release.sh` | Prod preflight (commit on main, version, notes, no clashing release) and the release cut, with tests |
+| `scripts/deploy-functions-dev.sh` | Plans and applies stage 2 (the functions) on dev only; refuses any other project |
+| `terraform/` | Stage 1: Firebase configuration and the data protections |
+| `terraform/functions/` | Stage 2: the Cloud Functions, their source bucket and object, and the invoker bindings (own state) |
 | `scripts/recreate-environment.sh` | Provision or repair an environment (plan, guard, apply) |
-| `.claude/skills/dev-deploy`, `.claude/skills/prod-deploy` | Agent skills that run the Deploy workflow for dev or the current release branch (prod) and narrate each step |
+| `.claude/skills/dev-deploy`, `.claude/skills/prod-deploy` | Agent skills that run the dev pipeline or the prod pipeline (a commit on `main` with a version) and narrate each step |
 | `functions/src/resumes.ts`, `resumeAdmin.ts` | Resume storage, cap and ownership; admin list and purge of data left by revoked users |
 | `terraform/` | Infrastructure, including the data protections (CMS bucket, resumes bucket) |
 | `terraform/README.md` | Environment provisioning runbook |
 
 ## Functions owned by Terraform
 
-Every function exported by `functions/src/index.ts` is a `google_cloudfunctions2_function` in `terraform/functions.tf` (same names, `nodejs22`, 256Mi, 60s, up to 5 instances, `us-central1`). Adding a function means exporting it and adding its name to `function_names`; `scripts/check-functions.sh` fails CI otherwise.
+Every function exported by `functions/src/index.ts` is a `google_cloudfunctions2_function` in `terraform/functions/functions.tf` (same names, `nodejs22`, 256Mi, 60s, up to 5 instances, `us-central1`). Adding a function means exporting it and adding its name to `function_names`; `scripts/check-functions.sh` fails CI otherwise. They are **stage 2**, a separate Terraform configuration with its own state (`gs://<project>-tfstate`, prefix `terraform/functions`), so each stage has its own reviewed, guarded, saved plan and no workflow needs `terraform -target`.
 
-- **Source.** `scripts/build-functions.sh` compiles `functions/` and stages `lib/`, `package.json` and the pnpm files with fixed file times. Terraform zips them and names the object by the zip's hash, so the same code gives the same plan. A local `terraform plan` therefore needs that script run first.
-- **Invoker.** Each function has an authoritative `roles/run.invoker` binding for `firebase-app-hosting-compute@<project>` only. An invoker added by hand shows up as a removal in the next plan.
-- **Adoption.** Where the Firebase CLI already deployed the functions (dev), `adopt_existing_functions = true` imports them on the first apply, as in-place updates (labels and source). Where none exist (a new environment, prod), leave it `false`. After the first apply on dev, set it back to `false`.
-- **Dev only, alone.** `./scripts/deploy-functions-dev.sh` builds, plans only the function resources with `-target`, runs the plan guard, asks for confirmation and applies that saved plan. It refuses any project other than the one in `dev.tfvars`. The pipeline never uses `-target`.
-- **Prod.** A prod run is one reviewed `terraform apply` of the saved plan (functions and rules included), then the Python service revision when `ai_backend/` changed. No Firebase CLI component is deployed; create the prod App Hosting rollout by hand from the release branch.
+- **Source.** `scripts/build-functions.sh` compiles `functions/` and stages `lib/`, `package.json` and the pnpm files with fixed file times. Terraform zips them and names the object by the zip's hash, so the same code gives the same plan. A local `terraform plan` in `terraform/functions/` therefore needs that script run first. All functions share one zip, so any change under `functions/` updates every function in place.
+- **Invoker.** Each function has an authoritative `roles/run.invoker` binding for `firebase-app-hosting-compute@<project>` only (derived from the project id). An invoker added by hand shows up as a removal in the next plan.
+- **Adoption.** Where the Firebase CLI already deployed the functions (dev), `adopt_existing_functions = true` imports them (and the source bucket) on the first apply, as in-place updates. Where none exist (a new environment, prod), leave it `false`. After the first apply on dev, set it back to `false`.
+- **Dev only, alone.** `./scripts/deploy-functions-dev.sh` builds, plans the whole stage-2 configuration, runs the plan guard, asks for confirmation and applies that saved plan. It refuses any project other than the one in `dev.tfvars`.
+- **Prod.** Both stage plans are reviewed and approved once, then applied, then the Python service revision when `ai_backend/` changed. No Firebase CLI component is deployed; create the prod App Hosting rollout by hand.
 
 ## GitHub releases
 
-A GitHub release is published only by a **successful prod deploy**. After `apply` and the smoke test pass, the `release` job in `deploy.yml` calls `.github/workflows/release.yml`, which creates or updates the tag `vX.Y[.Z]` (from `release/X.Y[.Z]` or `vX.Y.Z`) and a release marked Latest using `RELEASE_NOTES.md` at the deployed commit. Pushing a release branch publishes nothing, and a prod run that fails before or at the smoke test publishes nothing. The prod run's Verify stage fails early when `RELEASE_NOTES.md` is missing or empty. The site shows the latest release version and notes in a modal at the bottom of the home page.
+The release is **cut by a successful prod run**, and only then. After stages 1 and 2 and the smoke test pass, `deploy-prod.yml` calls `.github/workflows/release.yml` (`scripts/deploy/cut-release.sh`), which creates, at the deployed commit:
+
+- the branch `release/<version>`,
+- the tag `v<version>`, and
+- the GitHub release marked Latest, with the body of `RELEASE_NOTES.md` at that commit.
+
+The prod run's Verify stage refuses early (before any plan) when the commit is not on `main`, `RELEASE_NOTES.md` is missing or empty, or `release/<version>` or `v<version>` already exists at a different commit. Running prod again for the same commit and version updates the release and creates nothing twice. Pushing a release branch publishes nothing, and a prod run that fails at any stage cuts nothing. The site shows the latest release version and notes in a modal at the bottom of the home page.

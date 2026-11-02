@@ -44,9 +44,3 @@ variable "github_repository" {
   description = "GitHub repository (owner/name) whose Actions may deploy to this environment."
   default     = "AbhirupGhosh92/beatrix.ai"
 }
-
-variable "adopt_existing_functions" {
-  type        = bool
-  default     = false
-  description = "Import functions that the Firebase CLI already deployed (true for the first apply on an environment that has them, false where none exist)."
-}

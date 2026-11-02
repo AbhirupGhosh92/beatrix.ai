@@ -2,18 +2,18 @@
 set -euo pipefail
 
 # ==============================================================================
-# Builds the Cloud Functions source that Terraform zips and deploys (terraform/functions.tf):
+# Builds the Cloud Functions source that Terraform zips and deploys (terraform/functions/functions.tf):
 # compiles functions/ and stages the compiled lib/ plus package.json, pnpm-lock.yaml and
-# pnpm-workspace.yaml into terraform/.build/functions-src with fixed file times, so identical code
+# pnpm-workspace.yaml into terraform/functions/.build/functions-src with fixed file times, so identical code
 # always gives an identical zip (and therefore no new function revision).
-# Run before `terraform plan`. Usage: bash scripts/build-functions.sh
+# Run before `terraform plan` of the stage-2 configuration (terraform/functions). Usage: bash scripts/build-functions.sh
 # ==============================================================================
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=deploy/log.sh
 source "${ROOT_DIR}/scripts/deploy/log.sh"
 
-STAGE="${ROOT_DIR}/terraform/.build/functions-src"
+STAGE="${ROOT_DIR}/terraform/functions/.build/functions-src"
 
 step_start "Build the Cloud Functions source"
 info "installing and compiling functions/ (pnpm, frozen lockfile)"
@@ -30,5 +30,5 @@ cp "${ROOT_DIR}/functions/package.json" "${ROOT_DIR}/functions/pnpm-lock.yaml" "
 # Fixed times so the zip does not change when nothing else did.
 find "${STAGE}" -exec touch -t 198001010000 {} +
 
-result "staged $(find "${STAGE}" -type f | wc -l | tr -d ' ') files in terraform/.build/functions-src"
+result "staged $(find "${STAGE}" -type f | wc -l | tr -d ' ') files in terraform/functions/.build/functions-src"
 step_end
