@@ -9,8 +9,7 @@ import { useProfile } from './ProfileProvider.tsx'
 const BOTTOM_THRESHOLD = 120
 
 /**
- * Floating bottom-center button that pops in only at the bottom of the page, wibbles to
- * attract attention, and scrolls back to the top. Styles live in index.css (.back-to-top).
+ * Floating bottom-center button that pops in only at the bottom of the page and scrolls back to the top. Styles live in index.css (.back-to-top).
  */
 export default function BackToTop() {
   const profile = useProfile()

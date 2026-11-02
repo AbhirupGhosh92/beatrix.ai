@@ -1,6 +1,6 @@
 /* Code palette used by embedded third-party UI: the Monaco editor and the JSON
-   tree viewer (see vendor/). The values are the colors those themes used before
-   they were tokenised; point a token at a theme color (for example
+   tree viewer (see vendor/). The values follow the neutral/indigo palette in
+   tokens/themes.css; point a token at a theme color (for example
    `var(--color-base-100)`) to restyle both. Monaco reads these through
    vendor/monaco.ts, so keep each value a plain CSS color.
    Light is the default; [data-theme] lets a probe element read either palette. */
@@ -8,72 +8,72 @@
 [data-theme="beatrix-light"] {
   /* editor */
   --code-bg: #ffffff;
-  --code-fg: #1f2937;
-  --code-line-highlight: #f3f4f6;
-  --code-cursor: #9333ea;
-  --code-line-number: #9ca3af;
-  --code-line-number-active: #9333ea;
+  --code-fg: #1f2430;
+  --code-line-highlight: #f5f6f8;
+  --code-cursor: #4f46e5;
+  --code-line-number: #8b92a1;
+  --code-line-number-active: #4f46e5;
 
   /* JSON syntax */
-  --code-key: #9333ea;
-  --code-string: #0284c7;
-  --code-number: #e11d48;
-  --code-keyword: #059669;
+  --code-key: #4338ca;
+  --code-string: #0f766e;
+  --code-number: #b45309;
+  --code-keyword: #6d28d9;
 
   /* tree viewer */
-  --code-tree-fg: #002b36;
+  --code-tree-fg: #1f2430;
   --code-tree-bg: #ffffff;
-  --code-tree-line: #ebebeb;
-  --code-tree-info: #0000004d;
+  --code-tree-line: #e5e7eb;
+  --code-tree-info: #6b7280;
   --code-tree-update: #ebcb8b;
-  --code-tree-copied: #002b36;
+  --code-tree-copied: #1f2430;
   --code-tree-copied-success: #28a745;
-  --code-tree-brace: #236a7c;
-  --code-tree-colon: #002b36;
-  --code-tree-string: #cb4b16;
-  --code-tree-int: #268bd2;
-  --code-tree-float: #859900;
-  --code-tree-boolean: #2aa198;
-  --code-tree-date: #586e75;
-  --code-tree-url: #0969da;
-  --code-tree-null: #d33682;
-  --code-tree-nan: #859900;
-  --code-tree-undefined: #586e75;
+  --code-tree-brace: #4b5563;
+  --code-tree-colon: #1f2430;
+  --code-tree-string: #0f766e;
+  --code-tree-int: #4338ca;
+  --code-tree-float: #4338ca;
+  --code-tree-boolean: #6d28d9;
+  --code-tree-date: #6b7280;
+  --code-tree-url: #4f46e5;
+  --code-tree-null: #b45309;
+  --code-tree-nan: #b45309;
+  --code-tree-undefined: #6b7280;
 }
 
 [data-theme="beatrix-dark"],
 :root:has(input.theme-controller[value="beatrix-dark"]:checked) {
   /* editor */
-  --code-bg: #00060e;
-  --code-fg: #f3f4f6;
-  --code-line-highlight: #111827;
-  --code-cursor: #03d8f3;
-  --code-whitespace: #374151;
-  --code-line-number: #4b5563;
-  --code-line-number-active: #03d8f3;
+  --code-bg: #16171b;
+  --code-fg: #e6e8ee;
+  --code-line-highlight: #1f2127;
+  --code-cursor: #8b8cf7;
+  --code-whitespace: #3a3d46;
+  --code-line-number: #5d6372;
+  --code-line-number-active: #8b8cf7;
 
   /* JSON syntax */
-  --code-key: #03d8f3;
-  --code-string: #fcee0c;
-  --code-number: #ff1493;
-  --code-keyword: #b026ff;
+  --code-key: #a5a6f9;
+  --code-string: #5eead4;
+  --code-number: #fbbf77;
+  --code-keyword: #c4b5fd;
 
   /* tree viewer */
-  --code-tree-fg: #0184a6;
-  --code-tree-bg: #202020;
-  --code-tree-line: #323232;
-  --code-tree-info: #656565;
+  --code-tree-fg: #e6e8ee;
+  --code-tree-bg: #16171b;
+  --code-tree-line: #2c2f38;
+  --code-tree-info: #8b92a1;
   --code-tree-update: #ebcb8b;
-  --code-tree-copied: #0184a6;
+  --code-tree-copied: #e6e8ee;
   --code-tree-copied-success: #28a745;
-  --code-tree-brace: #1896b6;
-  --code-tree-string: #cb4b16;
-  --code-tree-int: #268bd2;
-  --code-tree-float: #859900;
-  --code-tree-boolean: #2aa198;
-  --code-tree-date: #586e75;
-  --code-tree-url: #649bd8;
-  --code-tree-null: #d33682;
-  --code-tree-nan: #076678;
-  --code-tree-undefined: #586e75;
+  --code-tree-brace: #a0a6b4;
+  --code-tree-string: #5eead4;
+  --code-tree-int: #a5a6f9;
+  --code-tree-float: #a5a6f9;
+  --code-tree-boolean: #c4b5fd;
+  --code-tree-date: #8b92a1;
+  --code-tree-url: #8b8cf7;
+  --code-tree-null: #fbbf77;
+  --code-tree-nan: #fbbf77;
+  --code-tree-undefined: #8b92a1;
 }

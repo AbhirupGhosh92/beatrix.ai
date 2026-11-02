@@ -1,6 +1,6 @@
 # beatrix.ai
 
-A single-page personal bio / resume site aimed at recruiters, built with a cyberpunk-meets-cute aesthetic: neon glows, glitch and jelly-wiggle hover effects, animated stats, draggable before/after achievement cards and a light/dark theme toggle.
+A single-page personal bio / resume site aimed at recruiters, with a clean, minimal design shared by a light and a dark theme: subtle hover glows, scroll animations (Framer Motion), animated stats and draggable before/after achievement cards.
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
@@ -182,6 +182,7 @@ src/
 │       ├── Avatar.tsx
 │       ├── CopyEmailButton.tsx
 │       ├── JsonEditor.tsx
+│       ├── motion.tsx
 │       ├── Reveal.tsx
 │       └── SectionHeading.tsx
 ├── data/
@@ -244,13 +245,13 @@ src/
     │   ├── text-colors.css
     │   └── typography.css
     ├── effects/
-    │   ├── glitch.css
     │   ├── hover.css
     │   ├── reduced-motion.css
     │   └── reveal.css
     ├── tokens/
     │   ├── code.css
     │   ├── fonts.css
+    │   ├── motion.css
     │   ├── themes.css
     │   └── variants.css
     └── vendor/
@@ -261,7 +262,7 @@ src/
 
 ## Theming
 
-Themes are defined in `src/styles/tokens/themes.css` with `@plugin "daisyui/theme"`; `src/index.css` imports all style files from `src/styles/` in order. `beatrix-light` is a pastel theme and `beatrix-dark` a neon cyberpunk one. Fonts (Rajdhani / Orbitron for dark, Quicksand / Fredoka for light) load from Google Fonts via link tags in `src/app/layout.tsx`. Use `text-brand`, `text-brand-2` and `text-brand-3` for coloured text, since the pastel palette is too pale to read otherwise.
+Themes are defined in `src/styles/tokens/themes.css` with `@plugin "daisyui/theme"`; `src/index.css` imports all style files from `src/styles/` in order. Both themes share one design language (Inter, 0.5rem radii, 1px borders) and differ only in color: neutral surfaces with one indigo accent. Fonts (Inter) load from Google Fonts via the link tag in `src/app/layout.tsx`. Use `text-brand` for accent-coloured text.
 
 ## Infrastructure Automation (Terraform)
 

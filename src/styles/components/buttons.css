@@ -1,16 +1,61 @@
+/* Button styles: one shape in both themes; only colors change with the theme. Hover lifts with a glow and a shine sweep (the tail of this file).
+   primary = solid accent, secondary = outlined neutral, accent = quiet tonal.
+   Written as plain (unlayered) rules because they must beat the unlayered global
+   `button` rule; keep the re-apply rules below. */
+.button-primary,
+.button-secondary,
+.button-accent {
+  @apply btn font-sans font-medium;
+  box-shadow: none;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
 .button-primary {
-  @apply btn btn-primary font-display uppercase tracking-wider;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  --btn-color: var(--color-primary);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.button-primary:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 88%, var(--color-base-content));
+  border-color: color-mix(in oklab, var(--color-primary) 88%, var(--color-base-content));
 }
 
 .button-secondary {
-  @apply btn btn-secondary font-display uppercase tracking-wider;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  --btn-color: var(--color-base-300);
+  background-color: var(--color-base-100);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background-color: var(--color-base-200);
+  border-color: color-mix(in oklab, var(--color-base-300) 70%, var(--color-base-content));
 }
 
 .button-accent {
-  @apply btn btn-accent font-display uppercase tracking-wider;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  --btn-color: var(--color-accent);
+  background-color: var(--color-accent);
+  border-color: transparent;
+  color: var(--color-accent-content);
+}
+
+.button-accent:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-accent) 85%, var(--color-accent-content));
+}
+
+/* Disabled state: the unlayered variant colors above would otherwise hide daisyUI's. */
+.button-primary:disabled,
+.button-secondary:disabled,
+.button-accent:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Same layering issue for btn-square: the unlayered .button-* padding beats
