@@ -1,99 +1,80 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
-import { resumeApi } from '../../lib/resumeClient.ts'
-import type { BuilderConfig, ResumeSummary } from '../../lib/resumeTypes.ts'
+import { useEffect, useRef } from 'react'
+import { useCreateResumeMutation, useDeleteResumeMutation, useGetResumeConfigQuery, useListResumesQuery } from '../../store/api.ts'
+import { useAppDispatch, useAppSelector } from '../../store/hooks.ts'
+import { openResume } from '../../store/resumeWorkspace.ts'
+import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import ResumeEditor from './ResumeEditor.tsx'
 import ResumeList from './ResumeList.tsx'
 
-// The builder page: the user's resumes, and the editor for the one that is open.
+// The builder page: the user's resumes, and the editor for the one that is open. The config and the
+// list come from the store's data layer; which resume is open lives in the workspace slice.
 export default function ResumeBuilder() {
-  const [config, setConfig] = useState<BuilderConfig | null>(null)
-  const [resumes, setResumes] = useState<ResumeSummary[]>([])
-  const [openId, setOpenId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const dispatch = useAppDispatch()
+  const openId = useAppSelector((state) => state.resumeWorkspace.openId)
+  const configQuery = useGetResumeConfigQuery()
+  const listQuery = useListResumesQuery()
+  const [createResume, { isLoading: creating }] = useCreateResumeMutation()
+  const [deleteResume, { isLoading: deleting }] = useDeleteResumeMutation()
+  const deepLinkHandled = useRef(false)
 
-  const refresh = useCallback(async () => {
-    const { resumes: list } = await resumeApi.list()
-    setResumes(list)
-  }, [])
+  const config = configQuery.data
+  const resumes = listQuery.data?.resumes
 
+  // Leaving the page closes the open resume.
+  useEffect(() => () => void dispatch(openResume(null)), [dispatch])
+
+  // Deep link from the job tracker: /resume-builder?open=<id> opens that resume, once the list is known.
   useEffect(() => {
-    let ignore = false
-    Promise.all([resumeApi.config(), resumeApi.list()])
-      .then(([builderConfig, { resumes: list }]) => {
-        if (ignore) return
-        setConfig(builderConfig)
-        setResumes(list)
-        // Deep link from the job tracker: /resume-builder?open=<id> opens that resume.
-        const wanted = new URLSearchParams(window.location.search).get('open')
-        if (wanted && list.some((resume) => resume.id === wanted)) setOpenId(wanted)
-      })
-      .catch((err: unknown) => {
-        if (!ignore) setError(err instanceof Error ? err.message : 'Could not load the resume builder.')
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false)
-      })
-    return () => {
-      ignore = true
-    }
-  }, [])
+    if (deepLinkHandled.current || !resumes) return
+    deepLinkHandled.current = true
+    const wanted = new URLSearchParams(window.location.search).get('open')
+    if (wanted && resumes.some((resume) => resume.id === wanted)) dispatch(openResume(wanted))
+  }, [resumes, dispatch])
 
-  async function run(action: () => Promise<void>) {
-    setBusy(true)
-    setError(null)
+  const create = async (title: string) => {
     try {
-      await action()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-    } finally {
-      setBusy(false)
+      const { resume } = await createResume({ title }).unwrap()
+      dispatch(openResume(resume.id))
+    } catch {
+      // Already reported by the error snackbar.
     }
   }
 
-  const create = (title: string) =>
-    run(async () => {
-      const { resume } = await resumeApi.create(title)
-      await refresh()
-      setOpenId(resume.id)
-    })
-
-  const remove = (id: string) =>
-    run(async () => {
-      await resumeApi.remove(id)
-      await refresh()
-    })
-
-  if (loading) {
-    return <p className="flex items-center gap-2 text-muted"><Loader2 className="animate-spin" size={18} /> Loading...</p>
+  const remove = async (id: string) => {
+    try {
+      await deleteResume(id).unwrap()
+    } catch {
+      // Already reported by the error snackbar.
+    }
   }
-  if (!config) {
-    return <p role="alert" className="text-error">{error ?? 'The resume builder is unavailable.'}</p>
+
+  if (configQuery.isLoading || listQuery.isLoading) return <SkeletonPage label="Loading your resumes" />
+  if (!config || !resumes) {
+    const failed = !config ? configQuery : listQuery
+    const message = (failed.error && 'message' in failed.error ? failed.error.message : undefined) ?? 'The resume builder is unavailable.'
+    return (
+      <ErrorState
+        message={message}
+        onRetry={() => {
+          if (!config) void configQuery.refetch()
+          if (!resumes) void listQuery.refetch()
+        }}
+      />
+    )
   }
 
   if (openId) {
-    return (
-      <ResumeEditor
-        key={openId}
-        id={openId}
-        config={config}
-        onClose={() => setOpenId(null)}
-        onSaved={() => void refresh().catch(() => {})}
-      />
-    )
+    return <ResumeEditor key={openId} id={openId} config={config} onClose={() => dispatch(openResume(null))} />
   }
 
   return (
     <ResumeList
       resumes={resumes}
       cap={config.cap}
-      busy={busy}
-      error={error}
-      onOpen={setOpenId}
+      busy={creating || deleting}
+      onOpen={(id) => dispatch(openResume(id))}
       onCreate={create}
       onDelete={remove}
     />

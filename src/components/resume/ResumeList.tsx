@@ -9,13 +9,12 @@ interface Props {
   /** Resumes allowed, or null for no cap. */
   cap: number | null
   busy: boolean
-  error: string | null
   onOpen: (id: string) => void
   onCreate: (title: string) => void
   onDelete: (id: string) => void
 }
 
-export default function ResumeList({ resumes, cap, busy, error, onOpen, onCreate, onDelete }: Props) {
+export default function ResumeList({ resumes, cap, busy, onOpen, onCreate, onDelete }: Props) {
   const [title, setTitle] = useState('My resume')
   const [confirming, setConfirming] = useState<string | null>(null)
   const atCap = cap !== null && resumes.length >= cap
@@ -41,8 +40,6 @@ export default function ResumeList({ resumes, cap, busy, error, onOpen, onCreate
           {atCap && ' - delete one to create another'}
         </p>
       </form>
-
-      {error && <p role="alert" className="text-error">{error}</p>}
 
       {resumes.length === 0 ? (
         <p className="text-muted">You have no resumes yet. Create your first one above.</p>

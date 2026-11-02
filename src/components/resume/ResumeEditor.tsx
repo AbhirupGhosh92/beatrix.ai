@@ -1,15 +1,19 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { useAiActions } from '../../hooks/useAiActions.ts'
 import { reconcileData } from '../../lib/resumeForm.ts'
-import { ResumeApiError, resumeApi } from '../../lib/resumeClient.ts'
 import { scoreResume } from '../../lib/resume/score.ts'
 import { fitView, reorder, shift } from '../../lib/resume/view.ts'
 import type { BuilderConfig } from '../../lib/resumeTypes.ts'
-import { validateForGenerate, type ResumeData, type ResumeView, type Structure } from '../../lib/resumeValidation.ts'
+import { validateForGenerate, type Structure } from '../../lib/resumeValidation.ts'
 import { exportResume, saveBlob, type ExportFormat } from '../../lib/resume/export.ts'
+import { useGetResumeQuery, useSaveResumeMutation } from '../../store/api.ts'
+import type { ApiError } from '../../store/api.ts'
+import { useAppDispatch, useAppSelector } from '../../store/hooks.ts'
+import { edited, loaded, saveFailed, saveStarted, saveSucceeded, snapshotOf } from '../../store/resumeWorkspace.ts'
+import type { Doc } from '../../store/resumeWorkspace.ts'
+import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import AiPanel from './AiPanel.tsx'
 import QuickActions from './QuickActions.tsx'
 import SidePanel, { type PanelTab } from './SidePanel.tsx'
@@ -21,27 +25,13 @@ import WorkspaceHeader, { type SyncState } from './WorkspaceHeader.tsx'
 
 const AUTOSAVE_MS = 1500
 
-type Status = 'idle' | 'saving' | 'saved' | 'error' | 'conflict'
 type Pane = 'edit' | 'preview' | 'actions'
-
-interface Doc {
-  title: string
-  data: ResumeData
-  /** The resume's own structure (advanced users), or null to use the default one. */
-  structure: Structure | null
-  /** Section order and exported variants; part of the resume, never of the structure. */
-  view?: ResumeView
-}
 
 interface Props {
   id: string
   config: BuilderConfig
   onClose: () => void
-  /** Called after a successful save so the list can refresh its titles and dates. */
-  onSaved: () => void
 }
-
-const snapshotOf = (doc: Doc) => JSON.stringify(doc)
 
 /** The label of the field an issue path (`section.field` or `section.<index>.field`) points at. */
 function fieldName(structure: Structure, path: string): string {
@@ -59,15 +49,13 @@ const PANES: { id: Pane; label: string }[] = [
 ]
 
 // The workspace for one resume: header, side panel (Content / AI / Design), live canvas and the
-// quick-actions rail. `doc` is the only copy of the resume; the canvas, the score and the AI
-// actions are all derived from it.
-export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
-  const [doc, setDoc] = useState<Doc | null>(null)
-  const [generation, setGeneration] = useState('')
-  const [saved, setSaved] = useState('')
-  const [status, setStatus] = useState<Status>('idle')
-  const [message, setMessage] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+// quick-actions rail. `doc` (in the store's workspace slice) is the only copy of the resume; the
+// canvas, the score and the AI actions are all derived from it.
+export default function ResumeEditor({ id, config, onClose }: Props) {
+  const dispatch = useAppDispatch()
+  const { doc, saved, generation, status, message, loadedId } = useAppSelector((state) => state.resumeWorkspace)
+  const resumeQuery = useGetResumeQuery(id, { refetchOnMountOrArgChange: true })
+  const [saveResume] = useSaveResumeMutation()
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set())
   const [showAll, setShowAll] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -92,30 +80,20 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
 
   const autosave = config.canCustomize
 
+  // Hand the loaded resume to the workspace once per open; later refetches never overwrite edits.
+  const resumeEnvelope = resumeQuery.data
   useEffect(() => {
-    let ignore = false
-    resumeApi
-      .get(id)
-      .then(({ resume, generation: version }) => {
-        if (ignore) return
-        const structure = resume.structure
-        const loaded: Doc = {
-          title: resume.title,
-          structure,
-          data: reconcileData(structure ?? config.defaultStructure, resume.data),
-          ...(resume.view ? { view: resume.view } : {}),
-        }
-        setDoc(loaded)
-        setSaved(snapshotOf(loaded))
-        setGeneration(version)
-      })
-      .catch((err: unknown) => {
-        if (!ignore) setLoadError(err instanceof Error ? err.message : 'Could not load this resume.')
-      })
-    return () => {
-      ignore = true
+    if (!resumeEnvelope || loadedId === id) return
+    const { resume, generation: version } = resumeEnvelope
+    const structure = resume.structure
+    const loadedDoc: Doc = {
+      title: resume.title,
+      structure,
+      data: reconcileData(structure ?? config.defaultStructure, resume.data),
+      ...(resume.view ? { view: resume.view } : {}),
     }
-  }, [id, config.defaultStructure])
+    dispatch(loaded({ id, doc: loadedDoc, generation: version }))
+  }, [resumeEnvelope, loadedId, id, config.defaultStructure, dispatch])
 
   const toggleSection = useCallback(
     (sectionId: string) => {
@@ -145,31 +123,25 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
 
   const save = useCallback(async () => {
     if (!doc || status === 'saving') return
-    setStatus('saving')
-    setMessage(null)
+    dispatch(saveStarted())
     try {
-      const result = await resumeApi.save(id, {
+      const result = await saveResume({
+        id,
         title: doc.title,
         data: doc.data,
         // Only roles that may customize send a structure; base users never do.
         ...(config.canCustomize && doc.structure ? { structure: doc.structure } : {}),
         view: doc.view ?? null,
         generation,
-      })
-      setGeneration(result.generation)
-      setSaved(snapshotOf(doc))
-      setStatus('saved')
-      onSaved()
+        // Autosave only moves the sync indicator; an explicit save also says so in a snackbar.
+        silent: config.canCustomize,
+      }).unwrap()
+      dispatch(saveSucceeded({ snapshot: snapshotOf(doc), generation: result.generation }))
     } catch (err) {
-      if (err instanceof ResumeApiError && err.status === 409) {
-        setStatus('conflict')
-        setMessage(err.message)
-      } else {
-        setStatus('error')
-        setMessage(err instanceof Error ? err.message : 'Saving failed.')
-      }
+      const failure = err as ApiError
+      dispatch(saveFailed({ conflict: failure.status === 409, message: failure.message || 'Saving failed.' }))
     }
-  }, [doc, status, id, config.canCustomize, generation, onSaved])
+  }, [doc, status, id, config.canCustomize, generation, saveResume, dispatch])
 
   // Advanced users: save a moment after the last edit. Each edit changes `save`, which restarts the timer.
   useEffect(() => {
@@ -222,21 +194,20 @@ export default function ResumeEditor({ id, config, onClose, onSaved }: Props) {
     }
   }
 
-  if (loadError) {
-    return (
-      <div className="flex flex-col gap-4">
-        <p role="alert" className="text-error">{loadError}</p>
-        <button type="button" className="button-secondary self-start" onClick={onClose}>Back to my resumes</button>
-      </div>
-    )
-  }
-  if (!doc) {
-    return (
-      <p className="flex items-center gap-2 text-muted"><Loader2 className="animate-spin" size={18} /> Loading resume...</p>
-    )
+  if (!doc || loadedId !== id) {
+    if (resumeQuery.isError && !resumeQuery.data) {
+      const failure = resumeQuery.error && 'message' in resumeQuery.error ? resumeQuery.error.message : undefined
+      return (
+        <div className="flex flex-col gap-4">
+          <ErrorState message={failure ?? 'Could not load this resume.'} onRetry={() => void resumeQuery.refetch()} />
+          <button type="button" className="button-secondary self-start" onClick={onClose}>Back to my resumes</button>
+        </div>
+      )
+    }
+    return <SkeletonPage rows={8} label="Loading resume" />
   }
 
-  const edit = (next: Doc) => setDoc(next)
+  const edit = (next: Doc) => dispatch(edited(next))
   const sync: SyncState = status === 'saving' ? 'saving' : status === 'error' || status === 'conflict' ? 'error' : dirty ? 'dirty' : 'saved'
   const syncText =
     status === 'saving' ? 'Saving...' : status === 'conflict' ? 'Changed elsewhere' : status === 'error' ? 'Not saved' : dirty ? 'Unsaved changes' : 'All changes saved'

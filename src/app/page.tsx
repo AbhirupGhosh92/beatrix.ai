@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { isRole, type Role } from '../lib/access.ts'
+import { useGetSessionRoleQuery } from '../store/api.ts'
+import { useAppDispatch, useAppSelector } from '../store/hooks.ts'
+import { setDrawerOpen } from '../store/ui.ts'
 import { hasDrawerContent } from '../lib/drawer.ts'
 import Navbar from '../components/layout/Navbar.tsx'
 import { useProfile } from '../components/layout/ProfileProvider.tsx'
@@ -18,45 +19,32 @@ import Footer from '../components/layout/Footer.tsx'
 import BackToTop from '../components/layout/BackToTop.tsx'
 import { ScrollProgress } from '../components/ui/motion.tsx'
 
-/** The current session's role from the server, or null when logged out or unreachable. */
-async function fetchSessionRole(): Promise<Role | null> {
-  try {
-    const res = await fetch('/api/auth/me', { cache: 'no-store' })
-    const data = res.ok ? await res.json() : null
-    return isRole(data?.role) ? data.role : null
-  } catch {
-    return null
-  }
-}
-
 export default function Home() {
   // The server's session decides who is logged in and what role they hold; nothing here is trusted.
-  const [role, setRole] = useState<Role | null>(null)
+  // The role lives in the store (null when logged out or unreachable).
+  const dispatch = useAppDispatch()
+  const drawerOpen = useAppSelector((state) => state.ui.drawerOpen)
+  const { data } = useGetSessionRoleQuery()
+  const role = data ?? null
   const isLoggedIn = role !== null
   // No menu button and no drawer when there is nothing to list for this user.
   const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role)
 
-  const refreshSession = useCallback(async () => setRole(await fetchSessionRole()), [])
-
-  useEffect(() => {
-    let ignore = false
-    fetchSessionRole().then((current) => {
-      if (!ignore) setRole(current)
-    })
-    return () => {
-      ignore = true
-    }
-  }, [])
-
   return (
     <div className="drawer">
-      <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
+      <input
+        id="nav-drawer"
+        type="checkbox"
+        className="drawer-toggle"
+        checked={drawerOpen}
+        onChange={(event) => dispatch(setDrawerOpen(event.target.checked))}
+      />
       <div className="drawer-content flex flex-col min-h-screen">
         <ScrollProgress />
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
         <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">
-            <Navbar isLoggedIn={isLoggedIn} showMenu={showMenu} onLogout={() => setRole(null)} />
+            <Navbar isLoggedIn={isLoggedIn} showMenu={showMenu} />
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8 lg:py-6">
@@ -68,7 +56,7 @@ export default function Home() {
             <Skills />
             <Education />
             <BeyondCode />
-            <UpcomingProjects isLoggedIn={isLoggedIn} onLogin={refreshSession} />
+            <UpcomingProjects isLoggedIn={isLoggedIn} />
           </main>
         </div>
         <Footer />

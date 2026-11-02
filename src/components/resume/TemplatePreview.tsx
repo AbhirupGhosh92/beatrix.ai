@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ExternalLink, Loader2 } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import type { ResumeTemplate } from '../../data/resumeConfig.ts'
 import { buildDocument } from '../../lib/resume/model.ts'
 import { withSampleFallback } from '../../lib/resume/sample.ts'
@@ -76,9 +76,9 @@ export default function TemplatePreview({ template, structure, data, view }: Pro
         {failed && !url ? (
           <p className="p-4 text-meta">The preview could not be drawn. You can still generate the file.</p>
         ) : !url ? (
-          <p className="flex h-full items-center justify-center gap-2 text-muted">
-            <Loader2 className="animate-spin" size={16} /> Drawing preview...
-          </p>
+          <div role="status" aria-busy="true" className="skeleton h-full w-full rounded-none">
+            <span className="sr-only">Drawing preview</span>
+          </div>
         ) : inline ? (
           <iframe
             title={`Preview of your resume in the ${template.label} template`}

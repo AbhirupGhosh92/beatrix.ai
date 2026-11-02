@@ -1,91 +1,32 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react'
-import { getIdToken } from '../../lib/firebase.ts'
-
-interface Owner {
-  email: string
-  /** Resumes. */
-  count: number
-  applications: number
-  bytes: number
-  updatedAt: string | null
-}
-
-interface Props {
-  notify: (type: 'success' | 'error', msg: string) => void
-}
-
-// Same pattern as the other admin screens: only this site's /api/admin routes are called, with the
-// Firebase ID token. The list holds no resume or application content, only who owns data and how much.
-async function api<T>(init: { method?: string; body?: object } = {}): Promise<T> {
-  const token = await getIdToken()
-  const res = await fetch('/api/admin/resumes', {
-    method: init.method ?? 'GET',
-    headers: {
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data as T
-}
+import { useMemo, useState } from 'react'
+import { RefreshCw, Trash2 } from 'lucide-react'
+import { useAdminPurgeOwnerMutation, useListOwnersQuery } from '../../store/api.ts'
+import { ErrorState, SkeletonRows } from '../ui/Skeleton.tsx'
 
 const formatBytes = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`)
 
-export default function OrphanedResumes({ notify }: Props) {
-  const [owners, setOwners] = useState<Owner[]>([])
-  const [truncated, setTruncated] = useState(false)
-  const [loading, setLoading] = useState(true)
+// Same pattern as the other admin screens: only this site's /api/admin routes are called, through the
+// store's data layer with the Firebase ID token. The list holds no resume or application content, only
+// who owns data and how much.
+export default function OrphanedResumes() {
+  const { data, isLoading, isFetching, isError, error, refetch } = useListOwnersQuery()
+  const [purgeOwner] = useAdminPurgeOwnerMutation()
+  const owners = useMemo(() => [...(data?.owners ?? [])].sort((a, b) => a.email.localeCompare(b.email)), [data])
+  const truncated = data?.truncated ?? false
   const [confirming, setConfirming] = useState<string | null>(null)
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await api<{ owners: Owner[]; truncated: boolean }>()
-      setOwners([...data.owners].sort((a, b) => a.email.localeCompare(b.email)))
-      setTruncated(data.truncated)
-    } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Could not load data owners')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
-
-  useEffect(() => {
-    let ignore = false
-    api<{ owners: Owner[]; truncated: boolean }>()
-      .then((data) => {
-        if (ignore) return
-        setOwners([...data.owners].sort((a, b) => a.email.localeCompare(b.email)))
-        setTruncated(data.truncated)
-      })
-      .catch((err: unknown) => {
-        if (!ignore) notify('error', err instanceof Error ? err.message : 'Could not load data owners')
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false)
-      })
-    return () => {
-      ignore = true
-    }
-  }, [notify])
-
   async function purge(email: string) {
     setBusy(true)
     try {
-      const result = await api<{ deletedObjects: number; deletedApplications: number }>({ method: 'POST', body: { email, confirmEmail: typed } })
-      notify('success', `Deleted ${result.deletedObjects} stored files and ${result.deletedApplications} applications for ${email}`)
+      await purgeOwner({ email, confirmEmail: typed }).unwrap()
       setConfirming(null)
       setTyped('')
-      await load()
-    } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Delete failed')
+    } catch {
+      // Already reported by the error snackbar.
     } finally {
       setBusy(false)
     }
@@ -102,15 +43,17 @@ export default function OrphanedResumes({ notify }: Props) {
             Resumes and job applications kept for users who were revoked or removed. You can see who owns data and how much, never its content.
           </p>
         </div>
-        <button type="button" className="button-secondary btn-sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+        <button type="button" className="button-secondary btn-sm" onClick={() => void refetch()} disabled={isFetching}>
+          <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
-      {loading && owners.length === 0 ? (
-        <p className="mt-4 flex items-center gap-2 text-muted">
-          <Loader2 className="animate-spin" size={16} /> Loading...
-        </p>
+      {isLoading ? (
+        <SkeletonRows rows={3} className="mt-4" />
+      ) : isError && !data ? (
+        <div className="mt-4">
+          <ErrorState message={('message' in error! && error.message) || 'Could not load data owners.'} onRetry={() => void refetch()} />
+        </div>
       ) : owners.length === 0 ? (
         <p className="mt-4 text-muted">No resume or application data is left behind by users without access.</p>
       ) : (
@@ -154,7 +97,7 @@ export default function OrphanedResumes({ notify }: Props) {
                             disabled={busy || typed.trim().toLowerCase() !== owner.email}
                             onClick={() => void purge(owner.email)}
                           >
-                            {busy ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />} Delete permanently
+                            <Trash2 size={14} /> Delete permanently
                           </button>
                           <button
                             type="button"

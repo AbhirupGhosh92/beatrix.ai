@@ -1,18 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query/react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ExternalLink, FilePlus, FileText, Loader2, Save, Trash2, X } from 'lucide-react'
 import type { TrackerStatus } from '../../data/resumeConfig.ts'
-import { applicationApi } from '../../lib/applicationClient.ts'
 import type { ApplicationSummary, TrackerLimits } from '../../lib/applicationTypes.ts'
+import {
+  useCreateApplicationMutation,
+  useCreateTailoredResumeMutation,
+  useDeleteApplicationMutation,
+  useGetApplicationQuery,
+  useUpdateApplicationMutation,
+} from '../../store/api.ts'
+import { useAppDispatch } from '../../store/hooks.ts'
+import { notify } from '../../store/notifications.ts'
+import { ErrorState, SkeletonText } from '../ui/Skeleton.tsx'
 import LabelInput from './LabelInput.tsx'
 
 // The CMS editor component (Monaco), loaded only when an application is being edited.
 const JsonEditor = dynamic(() => import('../ui/JsonEditor.tsx').then((module) => module.JsonEditor), {
   ssr: false,
-  loading: () => <p className="text-meta">Loading editor...</p>,
+  loading: () => <SkeletonText lines={6} />,
 })
 
 interface Props {
@@ -21,8 +31,7 @@ interface Props {
   statuses: TrackerStatus[]
   limits: TrackerLimits
   suggestions: string[]
-  onSaved: (application: ApplicationSummary) => void
-  onDeleted: (id: string) => void
+  onDeleted: () => void
   onClose: () => void
 }
 
@@ -34,7 +43,8 @@ interface Draft {
   appliedAt: string
   notes: string
   labels: string[]
-  tailor: string
+  /** null until edited: the tailor JSON loaded for the application is shown until then. */
+  tailor: string | null
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -48,96 +58,84 @@ function fromApplication(a: ApplicationSummary | null, statuses: TrackerStatus[]
     appliedAt: a?.appliedAt ?? today(),
     notes: a?.notes ?? '',
     labels: a?.labels ?? [],
-    tailor: '',
+    tailor: null,
   }
 }
 
-export default function ApplicationForm({ application, statuses, limits, suggestions, onSaved, onDeleted, onClose }: Props) {
+export default function ApplicationForm({ application, statuses, limits, suggestions, onDeleted, onClose }: Props) {
+  const dispatch = useAppDispatch()
+  const [createApplication] = useCreateApplicationMutation()
+  const [updateApplication] = useUpdateApplicationMutation()
+  const [deleteApplication] = useDeleteApplicationMutation()
+  const [createTailoredResume] = useCreateTailoredResumeMutation()
   const [draft, setDraft] = useState<Draft>(() => fromApplication(application, statuses))
   const [saved, setSaved] = useState<Draft>(draft)
-  const [loadingTailor, setLoadingTailor] = useState(Boolean(application?.hasTailor))
   const [current, setCurrent] = useState<ApplicationSummary | null>(application)
   // The application as opened: the tailor JSON is loaded once for it, not after every save.
   const [opened] = useState(application)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
 
   // The tailor JSON is not in the list; load it when an application that has one is opened.
-  useEffect(() => {
-    if (!opened?.hasTailor) return
-    let ignore = false
-    applicationApi
-      .get(opened.id)
-      .then(({ application: detail }) => {
-        if (ignore) return
-        const text = detail.tailor ? JSON.stringify(detail.tailor, null, 2) : ''
-        setDraft((d) => ({ ...d, tailor: text }))
-        setSaved((d) => ({ ...d, tailor: text }))
-      })
-      .catch((err: unknown) => {
-        if (!ignore) setError(err instanceof Error ? err.message : 'Could not load the tailor JSON.')
-      })
-      .finally(() => {
-        if (!ignore) setLoadingTailor(false)
-      })
-    return () => {
-      ignore = true
-    }
-  }, [opened])
+  const detail = useGetApplicationQuery(opened?.hasTailor ? opened.id : skipToken)
+  const loadingTailor = Boolean(opened?.hasTailor) && detail.isLoading
+  // Saving while the load failed would wipe the stored JSON, so it stays blocked until it loads.
+  const tailorFailed = Boolean(opened?.hasTailor) && !detail.data && detail.isError
+  const loadedTailor = detail.data?.application.tailor ? JSON.stringify(detail.data.application.tailor, null, 2) : ''
+  const tailorText = (d: Draft) => d.tailor ?? loadedTailor
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }))
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
+  const dirty = JSON.stringify({ ...draft, tailor: tailorText(draft) }) !== JSON.stringify({ ...saved, tailor: tailorText(saved) })
 
+  // API failures raise their own error snackbar (store), so this only guards against double sends.
   async function run(action: () => Promise<void>) {
     setBusy(true)
-    setError(null)
     try {
       await action()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } catch {
+      // Already reported by the snackbar.
     } finally {
       setBusy(false)
     }
   }
 
-  const save = () =>
-    run(async () => {
-      let tailor: unknown
-      if (draft.tailor.trim() !== '') {
-        try {
-          tailor = JSON.parse(draft.tailor)
-        } catch {
-          throw new Error('The tailor JSON is not valid JSON.')
-        }
-      } else if (current?.hasTailor) {
-        tailor = null // cleared in the form: remove it
+  const save = async () => {
+    const text = tailorText(draft)
+    let tailor: unknown
+    if (text.trim() !== '') {
+      try {
+        tailor = JSON.parse(text)
+      } catch {
+        dispatch(notify('error', 'The tailor JSON is not valid JSON.'))
+        return
       }
+    } else if (current?.hasTailor) {
+      tailor = null // cleared in the form: remove it
+    }
+    await run(async () => {
       const { company, role, jobUrl, status, appliedAt, notes, labels } = draft
       const input = { company, role, jobUrl, status, appliedAt, notes, labels, tailor }
       const { application: next } = current
-        ? await applicationApi.update(current.id, input)
-        : await applicationApi.create(input)
+        ? await updateApplication({ id: current.id, input }).unwrap()
+        : await createApplication(input).unwrap()
       setCurrent(next)
-      setSaved({ ...draft, labels: next.labels })
-      setDraft((d) => ({ ...d, labels: next.labels }))
-      onSaved(next)
+      setSaved({ ...draft, labels: next.labels, tailor: text })
+      setDraft((d) => ({ ...d, labels: next.labels, tailor: text }))
     })
+  }
 
   const createResume = () =>
     run(async () => {
       if (!current) return
-      const { resumeId } = await applicationApi.createResume(current.id)
-      const next = { ...current, resumeId }
-      setCurrent(next)
-      onSaved(next)
+      const { resumeId } = await createTailoredResume(current.id).unwrap()
+      setCurrent({ ...current, resumeId })
     })
 
   const remove = () =>
     run(async () => {
       if (!current) return
-      await applicationApi.remove(current.id)
-      onDeleted(current.id)
+      await deleteApplication(current.id).unwrap()
+      onDeleted()
     })
 
   const canCreateResume = current !== null && current.hasTailor && !current.resumeId && !dirty
@@ -206,17 +204,17 @@ export default function ApplicationForm({ application, statuses, limits, suggest
           <span className="text-meta-strong font-semibold">Tailor JSON</span>
           <span className="text-meta">Resume data for this job, in the same shape as a resume. Leave empty if you have none.</span>
           {loadingTailor ? (
-            <p className="text-meta">Loading...</p>
+            <SkeletonText lines={6} />
+          ) : tailorFailed ? (
+            <ErrorState message="Could not load the tailor JSON." onRetry={() => void detail.refetch()} />
           ) : (
-            <JsonEditor label="Tailor JSON" height={280} value={draft.tailor} onChange={(value) => set('tailor', value)} />
+            <JsonEditor label="Tailor JSON" height={280} value={tailorText(draft)} onChange={(value) => set('tailor', value)} />
           )}
         </div>
       </div>
 
-      {error && <p role="alert" className="text-error">{error}</p>}
-
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" className="button-primary" disabled={busy || loadingTailor || draft.company.trim() === '' || draft.role.trim() === ''}>
+        <button type="submit" className="button-primary" disabled={busy || loadingTailor || tailorFailed || draft.company.trim() === '' || draft.role.trim() === ''}>
           {busy ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Save
         </button>
         {current?.resumeId ? (

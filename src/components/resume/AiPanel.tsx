@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Loader2, Sparkles, Target } from 'lucide-react'
+import { Sparkles, Target } from 'lucide-react'
 import type { useAiActions } from '../../hooks/useAiActions.ts'
-import { applicationApi } from '../../lib/applicationClient.ts'
-import type { ApplicationSummary } from '../../lib/applicationTypes.ts'
 import { reconcileData } from '../../lib/resumeForm.ts'
 import type { ResumeData, Structure } from '../../lib/resumeValidation.ts'
+import { useLazyListApplicationsQuery } from '../../store/api.ts'
+import { SkeletonText } from '../ui/Skeleton.tsx'
 
 interface Props {
   ai: ReturnType<typeof useAiActions>
@@ -23,18 +22,10 @@ const PLACEHOLDER_NOTE = 'Placeholder result: the AI service is not connected to
 // Skill Match and Tailor for Job. A tailored suggestion changes nothing until the user applies it,
 // and applying is an ordinary edit that the role's save mode stores.
 export default function AiPanel({ ai, structure, data, score, onApply }: Props) {
-  const [apps, setApps] = useState<ApplicationSummary[] | null>(null)
-  const [appsError, setAppsError] = useState<string | null>(null)
+  // The tracked applications are loaded on request through the store's data layer.
+  const [loadApplications, appsState] = useLazyListApplicationsQuery()
+  const apps = appsState.data?.applications ?? null
   const empty = ai.jobDescription.trim() === ''
-
-  async function loadApplications() {
-    setAppsError(null)
-    try {
-      setApps((await applicationApi.list()).applications)
-    } catch {
-      setAppsError('Your job applications are not available.')
-    }
-  }
 
   function fillFromApplication(id: string) {
     const app = apps?.find((candidate) => candidate.id === id)
@@ -65,7 +56,9 @@ export default function AiPanel({ ai, structure, data, score, onApply }: Props) 
         />
       </label>
 
-      {apps === null ? (
+      {appsState.isFetching && apps === null ? (
+        <SkeletonText lines={2} />
+      ) : apps === null ? (
         <button type="button" className="btn-sm button-secondary self-start" onClick={() => void loadApplications()}>
           Use a tracked application
         </button>
@@ -80,18 +73,24 @@ export default function AiPanel({ ai, structure, data, score, onApply }: Props) 
           </select>
         </label>
       )}
-      {appsError && <p role="alert" className="text-meta text-error">{appsError}</p>}
+      {appsState.isError && <p role="alert" className="text-meta text-error">Your job applications are not available.</p>}
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="button-primary" disabled={empty || ai.busy !== null} onClick={() => void ai.runSkillMatch(data)}>
-          {ai.busy === 'skill' ? <Loader2 size={14} className="animate-spin" /> : <Target size={14} />} Skill match
+          <Target size={14} /> Skill match
         </button>
         <button type="button" className="button-accent" disabled={empty || ai.busy !== null} onClick={() => void ai.runTailor(data)}>
-          {ai.busy === 'tailor' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Tailor for job
+          <Sparkles size={14} /> Tailor for job
         </button>
       </div>
       {empty && <p className="text-meta">Add a job description to enable these.</p>}
-      {ai.error && <p role="alert" className="text-error">{ai.error} The rest of the editor keeps working.</p>}
+
+      {ai.busy !== null && (
+        <section className="surface rounded-box flex flex-col gap-2 p-3" role="status" aria-busy="true">
+          <span className="sr-only">{ai.busy === 'skill' ? 'Matching skills' : 'Tailoring your resume'}</span>
+          <SkeletonText lines={3} />
+        </section>
+      )}
 
       {ai.skill && (
         <section className="surface rounded-box flex flex-col gap-2 p-3" aria-label="Skill match result">
