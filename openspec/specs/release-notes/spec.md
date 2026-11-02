@@ -8,7 +8,7 @@ Defines how a release branch produces a GitHub release and how the app shows the
 ### Requirement: Release branch publishes a GitHub release
 A successful prod run SHALL cut the release for its `version`, only after the prod stages and the smoke test succeeded: the branch `release/<version>` and the tag `v<version>` at the deployed commit, and a GitHub release marked Latest whose body is `RELEASE_NOTES.md` at that commit. Pushing a release branch SHALL NOT publish a release.
 
-#### Scenario: Release branch pushed
+#### Scenario: Successful prod run
 - **WHEN** a prod run for version `1.2.1` succeeds on a commit whose `RELEASE_NOTES.md` is non-empty
 - **THEN** the branch `release/1.2.1` exists at that commit, and a release `v1.2.1` marked Latest exists with those notes as its body
 

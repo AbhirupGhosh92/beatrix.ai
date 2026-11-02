@@ -117,7 +117,7 @@ Pull requests to `main` SHALL run typecheck, lint, build, the functions build an
 ### Requirement: Deploy skills
 The repository SHALL provide a `dev-deploy` skill and a `prod-deploy` skill that start the dev and prod pipelines and report each step. `prod-deploy` SHALL run only for a commit on `main` with a release version, SHALL ask for the user's explicit confirmation before starting, and SHALL NOT approve `prod-release`, set `allow_destructive` or set `redeploy_all` unless the user asks for that specific action.
 
-#### Scenario: Prod from a non-release branch
+#### Scenario: Prod from a commit not on main
 - **WHEN** `prod-deploy` is used for a commit that is not on `main`
 - **THEN** it stops and tells the user to choose a commit on `main`
 
