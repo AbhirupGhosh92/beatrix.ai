@@ -41,6 +41,32 @@ There SHALL be one pipeline for `dev` and one for `prod`. The dev pipeline SHALL
 - **WHEN** an operator starts the prod pipeline with a ref, a version and the typed confirmation
 - **THEN** the prod pipeline runs and the dev pipeline is unaffected
 
+### Requirement: Dev and prod are separate deployments
+The dev and prod pipelines SHALL be separate workflows that cannot start, target or queue behind each other: the dev pipeline SHALL target only the dev environment and run on merges to `main` and by hand, the prod pipeline SHALL target only the prod environment and run only by hand, and each environment SHALL have its own concurrency group. A check run in CI SHALL fail when the prod pipeline gains an automatic trigger or the dev pipeline can target prod.
+
+#### Scenario: Prod gains a push trigger
+- **WHEN** `deploy-prod.yml` is changed to run on a push
+- **THEN** the script check fails and the change cannot merge
+
+#### Scenario: Dev and prod at the same time
+- **WHEN** a merge deploys dev while a prod run waits for approval
+- **THEN** both proceed independently
+
+### Requirement: Prod can be started from a script
+`scripts/deploy-prod.sh` SHALL start the prod pipeline for a commit on `main` and a version, SHALL repeat the pipeline's preflight locally before starting it, SHALL require a typed confirmation unless `--yes` is passed, and SHALL NOT offer `allow_destructive` or `redeploy_all`. It SHALL start nothing when the commit is not on `main`, the version is invalid or already cut elsewhere, or the release notes are missing.
+
+#### Scenario: Started from a terminal
+- **WHEN** an operator runs the script with a version and types the confirmation
+- **THEN** the Deploy prod workflow starts with that exact commit and version
+
+#### Scenario: Refused locally
+- **WHEN** the commit is not on `main` or the version is already cut at another commit
+- **THEN** the script exits without starting the workflow
+
+#### Scenario: Not confirmed
+- **WHEN** the confirmation is wrong or missing
+- **THEN** the script exits without starting the workflow
+
 ### Requirement: Three stages in a fixed order
 Each pipeline SHALL run three stages in order. Stage 1 SHALL apply the Firebase configuration (APIs, Firestore, Storage, security rules, Auth and IAM, the App Hosting backend resource). Stage 2 SHALL apply the Cloud Functions and then deploy the Python service when its source changed. Stage 3 SHALL deploy the app (App Hosting, when app sources changed) on dev and SHALL cut the release on prod. A stage SHALL start only after the previous stage succeeded.
 
@@ -150,6 +176,32 @@ The prod pipeline SHALL NOT deploy App Hosting and SHALL NOT use the Firebase CL
 #### Scenario: Prod run
 - **WHEN** a prod run is approved
 - **THEN** the saved plans are applied, the Python service is deployed only if `ai_backend/` changed, and no App Hosting rollout is created by the pipeline
+
+### Requirement: Terraform does not manage personal data
+Terraform SHALL create infrastructure only and SHALL NOT create, update or delete the admin documents of `allowed_emails` or per-person access bindings, and the committed tfvars SHALL NOT contain personal email addresses. Admin documents and bindings that already exist SHALL be left untouched when Terraform stops managing them.
+
+#### Scenario: Plan on an environment with real admins
+- **WHEN** the stage-1 plan runs on an environment that already has admin documents
+- **THEN** the plan shows no delete or replace for them and they keep working
+
+#### Scenario: Stopping to manage existing resources
+- **WHEN** the stage-1 plan first runs after this change
+- **THEN** the existing admin document and developer binding are only forgotten from the state, not destroyed
+
+### Requirement: Missing data is announced, not blocked
+After a deploy, and at the end of environment provisioning, the pipeline and the provisioning script SHALL say when no admin user exists and name the command that adds one. The notice SHALL NOT fail the run. An admin SHALL be addable with `scripts/add-admin.sh <env> <email>`, which SHALL create or update only the admin fields of `allowed_emails/<email>`.
+
+#### Scenario: No admin yet
+- **WHEN** a deploy finishes on an environment whose `allowed_emails` is empty
+- **THEN** the run succeeds with a warning that names `./scripts/add-admin.sh <env> <email>`
+
+#### Scenario: Adding an admin
+- **WHEN** an operator runs the script for an email
+- **THEN** `allowed_emails/<email>` exists with `admin`, `allowed` and `role` set, and other fields it already had are unchanged
+
+#### Scenario: Admin already exists
+- **WHEN** a deploy finishes on an environment that has an admin
+- **THEN** no warning is shown
 
 ### Requirement: Prod targets the production project
 The `prod` environment SHALL target the GCP project `asterion-453905`, and no document, script or skill SHALL name a different prod project.

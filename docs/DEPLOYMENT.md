@@ -42,12 +42,12 @@ detection, the Terraform plan for functions and rules, backups). Section 13 list
 
 ## 2. Environments and triggers
 
-There are two pipelines, one per environment, and both run the same three stages in the same order:
+Dev and prod are **separate deployments**: two workflows, two GitHub environments, two GCP projects, two states, and a concurrency group per environment, so neither can start, block or target the other (`scripts/check-pipelines.sh` fails CI if that changes). Both run the same three stages in the same order:
 
 | Environment | GCP project | Pipeline | Started | Approval |
 |---|---|---|---|---|
-| `dev` | from `terraform/environments/dev.tfvars` | `deploy-dev.yml` | automatically on every push to `main`, or by hand for any ref | none |
-| `prod` | `asterion-453905` (`prod.tfvars`) | `deploy-prod.yml` | **only** by hand | typed confirmation + one approval by the reviewers of the `prod-release` GitHub environment |
+| `dev` | from `terraform/environments/dev.tfvars` | `deploy-dev.yml` | automatically on every merge (push) to `main`; by hand for another ref with `./scripts/deploy-dev.sh` or *Run workflow* | none |
+| `prod` | `asterion-453905` (`prod.tfvars`) | `deploy-prod.yml` | **only** by hand: `./scripts/deploy-prod.sh <version>` (a terminal, or the agent after your yes) or *Run workflow* | typed confirmation + one approval by the reviewers of the `prod-release` GitHub environment |
 
 | Stage | What it applies | Dev | Prod |
 |---|---|---|---|
@@ -236,8 +236,8 @@ unpushed tree, asks for an explicit yes in chat, and never approves `prod-releas
 |---|---|---|
 | Terraform resources | Plan diff | Terraform only changes resources whose configuration or state differs. A no-op plan applies nothing. |
 | Stateful resources | `prevent_destroy`, delete protection, plan guard | Firestore database, CMS bucket and App Hosting backend cannot be destroyed or replaced by a deploy. |
-| Firestore documents | Not touched by deploys | The only documents Terraform manages are `allowed_emails/<email>` entries listed in `allowed_admin_emails`. Removing an email from the tfvars deletes that document, which the plan guard blocks unless `allow_destructive` is set. |
-| User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). Only the seed admins in `allowed_admin_emails` are Terraform-managed: re-applying a changed seed document resets its `admin`/`allowed` fields, so manage everyone else in the panel. |
+| Firestore documents | Not touched by deploys | Terraform manages **no** Firestore documents and no personal data: it creates infrastructure only. It used to seed the `allowed_emails/<email>` admin documents from `allowed_admin_emails`; those resources are gone (stage 1 forgets them without destroying anything), so the committed tfvars hold no personal emails. Add an admin with `./scripts/add-admin.sh <env> <email>` (section 7.3b). |
+| User access data | Runtime-managed, deploys never write it | Users are registered on first sign-in (inside `sessionCreate`, role `reader`) and managed at `/admin/access` (role, revoke/restore). The first admin is added with `scripts/add-admin.sh`; after that everyone, admins included, is managed in the panel. |
 | CMS files | Not touched; backed up; versioned | The pipeline never writes `cms/`. Saves made through `/admin` keep working across deploys. `scripts/seed-data.sh` never overwrites an existing `cms/profile.json`. |
 | User resumes | Not touched; versioned 30 days; protected bucket | `gs://<project>-resumes` (Terraform `resumes_storage`: `prevent_destroy`, `force_destroy = false`, versioning, noncurrent versions deleted after 30 days, public access prevention) and the Firestore `resume_owners` index are written only by the resume functions at runtime; a deploy never writes or deletes them. Job applications (`application_owners/<email>/applications`, written only by the `application*` functions) follow the Firestore rows above: no new bucket, rule, Terraform resource or deploy component is involved, and they deploy with the `functions` component. |
 | Cloud Functions | Terraform plan + content-hashed source | A function whose code did not change has the same source object, so the plan shows nothing for it. A function removed from the source and `terraform/functions/functions.tf` is a delete that the plan guard blocks. |
@@ -298,15 +298,14 @@ gate is `src/proxy.ts`, backed by the private `sessionCreate` and `sessionVerify
 description is in `CLAUDE.md` (Access control) and the spec `openspec/specs/access-control/`.
 
 - **Roles** live in `allowed_emails/{email}.role`: `reader` (default when unset), `user-base`,
-  `user-advanced`, `admin`. Entries seeded by Terraform with `admin: true` and no `role` are admins, so
+  `user-advanced`, `admin`. Entries with `admin: true` and no `role` (the ones Terraform used to seed) are admins, so
   existing environments keep working. `allowed: false` removes access; deleting the document only resets the user to a new `reader` at their next sign-in.
 - **First sign-in:** a verified Google account with no `allowed_emails/{email}` document is registered as a
   `reader` and signed in; `allowed: false` stays refused.
 - **Promote or demote** at `/admin/access` (admins only; it refuses self-revoke, self-demote and removing the
   last active admin), or by editing the `role` field of the user's `allowed_emails/{email}` document in
   the Firebase console (Firestore). It takes effect on the user's next request, with no re-login.
-  Terraform only manages the admin documents listed in `allowed_admin_emails`; do not set a different
-  `role` on those by hand, since Terraform rewrites them on the next apply.
+  Terraform no longer touches these documents, so a role set by hand or in the panel stays.
 - **Emergency lock-out of one user:** set `allowed: false`, and optionally revoke their refresh tokens
   (`getAuth().revokeRefreshTokens(uid)` with the Admin SDK, or the console) so the session cookie dies too.
 - **Deploy order:** the functions are applied by Terraform before App Hosting is deployed (dev), so the
@@ -337,7 +336,7 @@ Do this once before the first prod deploy. Steps marked **(you)** are manual by 
 
 It stops with an `ACTION REQUIRED` list for the manual steps (GCP project `asterion-453905`, billing,
 Storage "Get started", Google sign-in provider, authorized domain). Do them in order, re-run until it
-finishes. It creates the state bucket, plans and applies Terraform (with the plan guard), seeds
+finishes. It creates the state bucket, plans and applies both Terraform stages (with the plan guard), seeds
 `cms/profile.json` only if absent, deploys, and writes the variables of the GitHub environment `prod`.
 Full runbook: `terraform/README.md`.
 
@@ -377,6 +376,33 @@ It must print at least one login. An empty result means approvals are not enforc
   pipeline creates `release/<version>` and `v<version>` with the workflow token after a successful run.
 - `CODEOWNERS` lists the owner as default reviewer for every path. To make that binding, enable *Require review from Code Owners* in the branch protection of `main`, so changes to `.github/workflows/`, `terraform/` and `scripts/` cannot merge without the owner.
 
+### 7.3b Data to fill in after provisioning **(you)**
+
+Terraform creates infrastructure only; it does not fill in people's data, and the tfvars hold no personal emails.
+Two things are yours to do once per environment, and the pipeline and `recreate-environment.sh` remind you when
+the first is missing (a warning, never a failure):
+
+1. **Add the first admin**, otherwise nobody can open `/admin`:
+
+   ```bash
+   ./scripts/add-admin.sh dev you@example.com      # or: prod
+   ```
+
+   It creates or updates `allowed_emails/<email>` with `admin`, `allowed` and `role` set, touching nothing else on
+   the document (needs `gcloud auth login` as someone who can write Firestore there). Everyone else is managed at
+   `/admin/access`. The check that prints the reminder is `scripts/deploy/check-data.sh`: after a deploy it shows as a
+   "Data to fill in" warning and a line in the run summary when `allowed_emails` is empty.
+2. **Local development access (optional):** to run the Next.js dev server against an environment you need to
+   impersonate the App Hosting account (`FUNCTIONS_CALLER_SERVICE_ACCOUNT`):
+
+   ```bash
+   gcloud iam service-accounts add-iam-policy-binding firebase-app-hosting-compute@<project>.iam.gserviceaccount.com \
+     --member user:you@example.com --role roles/iam.serviceAccountTokenCreator --project <project>
+   ```
+
+On environments that had these set by Terraform before (dev), stage 1's `removed` blocks forget them without
+destroying them, so they keep working; you do not need to run either command there.
+
 ### 7.4 First run after the two-stage split
 
 The functions moved from the stage-1 Terraform state to the new stage-2 configuration (`terraform/functions/`).
@@ -390,6 +416,7 @@ CLI deployed (`adopt_existing_functions = true` in `terraform/functions/environm
 2. After it succeeds, set `adopt_existing_functions = false` for dev in a follow-up commit. Remove the
    `removed` blocks from `terraform/main.tf` once every environment has applied them.
 3. Prod has none of these resources and `adopt_existing_functions = false`, so stage 2 creates everything.
+4. The same first stage-1 run also *forgets* the admin documents and developer bindings Terraform used to create (see 7.3b); the plan shows two `forget` lines and no delete.
 
 ## 8. Runbook: deploy to prod
 
@@ -398,10 +425,10 @@ CLI deployed (`adopt_existing_functions = true` in `terraform/functions/environm
 2. **Write the release notes** in `RELEASE_NOTES.md` on `main` (short, end-user wording) and bump the
    `package.json` version. Open the release ticket with the standard format
    (`.claude/rules/github-workflow.md`). There is no release branch to create: the pipeline cuts it.
-3. **Run the workflow:** Actions > Deploy prod > Run workflow.
-   - Use workflow from: `main`
-   - `ref`: `main` (or a commit SHA on `main`); `version`: `1.3` or `1.3.0`; `confirm`: `prod`
-   - leave `allow_destructive` and `redeploy_all` off
+3. **Start the pipeline**, either way (both start the same workflow, which does the deploying):
+   - **From a terminal (or the agent, after your explicit yes):** `./scripts/deploy-prod.sh 1.3` (add `--ref <sha-on-main>` to pin a commit). It runs the same preflight as Verify locally (commit on `main`, notes, version free), asks you to type `prod` (the agent passes `--yes` only after your yes in chat), then starts the workflow with that exact commit and version.
+   - **In GitHub:** Actions > Deploy prod > Run workflow. Use workflow from `main`; `ref`: `main` (or a commit SHA on `main`); `version`: `1.3` or `1.3.0`; `confirm`: `prod`.
+   - Leave `allow_destructive` and `redeploy_all` off. The script does not offer them; use *Run workflow* for those, after reading section 11.
 4. **Verify fails fast.** If the commit is not on `main`, the notes are missing or empty, or
    `release/<version>` or `v<version>` already exists at a different commit, the run stops in the `verify`
    job before any plan.
@@ -502,9 +529,8 @@ gcloud firestore import gs://<project>-tfstate/backups/firestore-restore/<export
   --database=restore-check --project=<project>
 ```
 
-The only Firestore data today is `allowed_emails/<email>`, which Terraform recreates from
-`allowed_admin_emails`; a fresh `terraform apply` through the pipeline restores admin access without any
-import. For a full backup beyond 7 days, run a manual `gcloud firestore export` before risky work.
+The only Firestore data today is `allowed_emails/<email>`. Terraform does not manage it, so a restore does not
+recreate it: add the admin back with `./scripts/add-admin.sh <env> <email>` (section 7.3b), or use the export above. For a full backup beyond 7 days, run a manual `gcloud firestore export` before risky work.
 
 ### 10.3 Terraform state
 
@@ -536,6 +562,7 @@ Never use `allow_destructive` to "make a failing run pass". Read the guard messa
 | Run fails in `verify` with "release/<version> already exists at ..." | That version was already cut at another commit. Use a new version, or deploy the commit it points at. |
 | Run fails in policy with "prod needs a version" | Pass `version` as `X.Y` or `X.Y.Z`. |
 | "To deploy prod, type prod in the 'confirm' input" | Type `prod` in `confirm`. |
+| Warning "No admin user exists on ..." after a deploy | Nobody can open `/admin` yet. Run `./scripts/add-admin.sh <env> you@example.com` (section 7.3b). The run itself succeeded. |
 | Plan guard: `BLOCKED ... would delete/replace protected resource` | A Terraform change would destroy data or identity. Read the resource address in the summary, fix the change (often an accidental rename or a changed immutable argument such as a location). Only use section 11 if it is intended. |
 | `Instance cannot be destroyed` from Terraform | `prevent_destroy` caught it. Same as above. |
 | `Saved plan is stale` | State changed between plan and apply (another apply, or manual change). Re-run; a new plan is made. |
@@ -565,8 +592,8 @@ Be aware of these; none of them is hidden by the pipeline:
   exercised against a real bucket.
 - **Functions in Terraform: first apply.** Dev adopts the existing functions by `import` (`adopt_existing_functions = true` in `dev.tfvars`); the first plan was checked read-only (23 imports, 23 in-place updates, 23 bindings, 1 bucket, 1 source object, no delete or replace), but the first apply and the build of the functions with pnpm by Cloud Build have to be confirmed on dev. Set the flag back to `false` afterwards.
 - **Firestore backups.** Point-in-time recovery covers 7 days. Longer-term exports are manual.
-- **Drift is reverted.** Terraform reverts manual console changes to managed resources. Admin documents
-  `allowed_emails/<email>` managed by Terraform are rewritten with `admin: true, allowed: true`.
+- **Drift is reverted** for the resources Terraform manages. It manages no people's data: the `allowed_emails`
+  admin documents and the developer access bindings are left alone.
 - **Rules have one writer.** Terraform manages rulesets and releases; the Firebase CLI no longer publishes rules.
 - **Bucket naming.** The CMS files live in the default Firebase Storage bucket
   (`<project>.firebasestorage.app`), which Firebase creates; the Terraform-managed `<project>-cms-<env>`
@@ -607,7 +634,12 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/deploy-backend.sh` | Deploys App Hosting (dev) and the Python service; refuses `functions` and `rules` (Terraform owns them) |
 | `scripts/build-functions.sh` | Builds the function source that Terraform zips (deterministic) |
 | `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions/functions.tf` and the exports of `functions/src/index.ts` differ |
+| `scripts/deploy-prod.sh` | Starts the Deploy prod workflow for a commit on `main` and a version, after the local preflight and a typed confirmation; the only scripted way to start prod |
+| `scripts/deploy-dev.sh` | Starts the Deploy dev workflow by hand for a ref (merges to `main` deploy dev by themselves) |
+| `scripts/check-pipelines.sh` | Fails when dev and prod stop being separate: prod must be manual only, dev must run on `main` and target only dev |
 | `scripts/check-terraform-stages.sh` | Fails when the two Terraform stages disagree on project, environment or region |
+| `scripts/add-admin.sh` | Adds or re-enables an admin: creates or updates `allowed_emails/<email>` (admin fields only) |
+| `scripts/deploy/check-data.sh` | After a deploy and at the end of provisioning: warns (never fails) when no admin exists |
 | `scripts/deploy/check-prod-ref.sh`, `cut-release.sh` | Prod preflight (commit on main, version, notes, no clashing release) and the release cut, with tests |
 | `scripts/deploy-functions-dev.sh` | Plans and applies stage 2 (the functions) on dev only; refuses any other project |
 | `terraform/` | Stage 1: Firebase configuration and the data protections |

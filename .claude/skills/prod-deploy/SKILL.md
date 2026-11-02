@@ -32,9 +32,11 @@ Leave `allow_destructive` and `redeploy_all` off. Set them only if the user aske
 ## 3. Start and follow
 
 ```bash
-gh workflow run deploy-prod.yml --ref main -f ref=<commit-or-main> -f version=<version> -f confirm=prod
+./scripts/deploy-prod.sh <version> [--ref <commit-on-main>] --yes
 gh run list --workflow=deploy-prod.yml --limit 1 --json databaseId,url,status
 ```
+
+The script is the entry point: it repeats the preflight locally, then starts the Deploy prod workflow with that exact commit and version. Pass `--yes` only because the user said yes in step 2; it never offers `allow_destructive` or `redeploy_all`. Do not call `gh workflow run deploy-prod.yml` directly.
 
 Narrate each job as it starts and ends: **Policy**, **Gate** (a prod run with no GCP variables fails here: tell the user to run `./scripts/recreate-environment.sh prod`), **Verify** (the prod preflight), **Plan stage 1**, **Plan stage 2**, **Approve prod**, **Apply stage 1**, **Apply stage 2**, **Stage 3** (smoke test), then **Release** (cut).
 

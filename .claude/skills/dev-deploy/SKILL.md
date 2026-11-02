@@ -7,7 +7,7 @@ description: Deploy a branch or commit to the Beatrix.ai dev environment through
 
 Dev is the project in `terraform/environments/dev.tfvars` (read `project_id` from there, never hard-code it). "Deploy everything" means the full pipeline for that project: Terraform infrastructure (Cloud Functions and the security rules are Terraform resources, so they are in the plan) and the App Hosting site, plus the Python service when `ai_backend/` changed. The pipeline only changes what the plan and the component hashes say changed; anything unchanged is left alone. Force every component only if the user asks for it (`redeploy_all`).
 
-A push to `main` already deploys dev by itself. Use this skill for a manual dev run of a branch or commit, or to follow and explain a run. To deploy only the Cloud Functions to dev from a laptop, `./scripts/deploy-functions-dev.sh` plans the stage-2 configuration (`terraform/functions/`), runs the plan guard and applies that saved plan after a confirmation; it refuses any project other than dev, and Terraform owns the functions, so never use the Firebase CLI for them.
+A merge (push) to `main` already deploys dev by itself, and prod is a separate pipeline. Use this skill for a manual dev run of a branch or commit, or to follow and explain a run. To deploy only the Cloud Functions to dev from a laptop, `./scripts/deploy-functions-dev.sh` plans the stage-2 configuration (`terraform/functions/`), runs the plan guard and applies that saved plan after a confirmation; it refuses any project other than dev, and Terraform owns the functions, so never use the Firebase CLI for them.
 
 ## 1. Check before starting
 
@@ -26,7 +26,7 @@ If the ref is not pushed, stop and ask the user to push it (the workflow deploys
 ## 2. Start the run
 
 ```bash
-gh workflow run deploy-dev.yml --ref <ref> -f ref=<ref>
+./scripts/deploy-dev.sh --ref <ref>
 ```
 
 Do not set `allow_destructive` or `redeploy_all` unless the user asked for that specific thing, and then say what it does first. Find the run:

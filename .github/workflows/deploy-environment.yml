@@ -865,6 +865,12 @@ jobs:
           url="$(terraform output -raw apphosting_url)"
           bash ../scripts/deploy/smoke-test.sh "$url"
 
+      # Terraform creates infrastructure only; people's data is filled in by the owner. This only SAYS
+      # when the first admin is missing (a warning annotation and a summary line); it never fails the run.
+      - name: Data to fill in (notice only)
+        continue-on-error: true
+        run: bash scripts/deploy/check-data.sh "$PROJECT_ID" "$ENVIRONMENT"
+
   # ----------------------------------------------------------------------------
   # 9. Summary: always, so a failed run still says what was decided and how far it got
   # ----------------------------------------------------------------------------

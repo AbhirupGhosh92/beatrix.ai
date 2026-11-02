@@ -54,6 +54,20 @@
 - [x] 9.2 Run `npm run typecheck`, `npm run lint`, `npm run build`, `npm run infra:check` and `bash scripts/check-scripts.sh`; verify all pass and record in the PR Verification only what was actually run
 - [x] 9.3 Update the docs: `docs/DEPLOYMENT.md` (two pipelines, three stages, the two configurations and the declarative move, prod commit-on-main with a version, the cut release), `CLAUDE.md`, `AGENTS.md`, `README.md` (generated sections via the pre-push hook), `terraform/README.md`, `.claude/rules/environments.md`; verify `grep -rn "deploy.yml\|functions component\|rules component\|-target" docs CLAUDE.md AGENTS.md README.md terraform .claude` finds nothing outdated
 
+## 10. Terraform stops seeding personal emails (#94; replaces the GitHub-variable workaround)
+
+- [x] 10.1 Remove the admin documents and the developer bindings from `terraform/main.tf` with `removed` blocks (`destroy = false`), remove `allowed_admin_emails`, `developer_members` and the placeholder values from `variables.tf`, both tfvars and `terraform.tfvars.example`; verify `terraform validate` passes and a read-only stage-1 plan on dev shows only `forget` for them and no delete or replace
+- [x] 10.2 Remove the email-variable workaround (`email-vars.sh`, its test, the workflow wiring, the `sync-github-env.sh` lines); verify `check-scripts.sh` passes and the workflow YAML parses
+- [x] 10.3 Add `scripts/add-admin.sh <env|project> <email>` (Firestore REST, update mask, never overwrites other fields) and `scripts/deploy/check-data.sh` (warning when `allowed_emails` is empty, always exit 0), with tests using stubs; verify the tests pass
+- [x] 10.4 Show the notice after a deploy (stage 3 step and summary row) and at the end of `scripts/recreate-environment.sh`; make `seed-data.sh` use `add-admin.sh`; verify by running the check against a stub and reading the workflow
+- [x] 10.5 Update the docs and skills (`DEPLOYMENT.md` 7.3b, 10.2, limits, troubleshooting; `CLAUDE.md`; `terraform/README.md`; the `provision-environment` skill) including the local-development access command; verify `grep -rn "allowed_admin_emails\|developer_members\|TF_ADMIN_EMAILS" docs CLAUDE.md terraform .claude` finds nothing outdated and `openspec validate --all --strict` passes
+
+## 11. Separate deployments and a script entry for prod
+
+- [x] 11.1 Add `scripts/deploy-prod.sh` (local preflight, typed confirmation or `--yes`, starts the Deploy prod workflow with the exact commit and version, no destructive or redeploy options) and `scripts/deploy-dev.sh`, with tests (`test_deploy_prod_script.py`); verify the tests pass and that a commit off `main`, a taken version, missing notes and a missing confirmation all start nothing
+- [x] 11.2 Add `scripts/check-pipelines.sh` to `check-scripts.sh` (prod manual only, dev on `main` and dev-only, shared logic callable only by the two pipelines, concurrency per environment); verify it passes and fails for four deliberate breakages
+- [x] 11.3 Point the docs, rules and the `dev-deploy` and `prod-deploy` skills at the scripts; verify `openspec validate --all --strict` passes
+
 ## Workflow follow-up
 
 - Work on branch `feature/92-terraform-functions-prod-project` (issue #92, which replaces the closed #80), then archive with `/opsx:archive` before the PR is marked ready.

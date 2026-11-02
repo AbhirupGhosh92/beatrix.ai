@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# Seed Initial CMS Profile Data & Firestore Allowed Emails
+# Seed Initial CMS Profile Data (and optionally admin users)
 # Usage: ./scripts/seed-data.sh <PROJECT_ID> <BUCKET_NAME> [ADMIN_EMAILS_COMMA_SEPARATED]
 # ==============================================================================
 
@@ -48,30 +48,14 @@ else
   echo "Manual upload required: gsutil cp ${PROFILE_SOURCE} gs://${BUCKET_NAME}/cms/profile.json"
 fi
 
-# Seed allowed_emails in Firestore
+# Optional admin emails: Terraform no longer creates admin documents, so this uses add-admin.sh
+# (Firestore REST, touches only the admin fields).
 if [[ -n "${ADMIN_EMAILS}" ]]; then
   IFS=',' read -ra EMAIL_ARRAY <<< "${ADMIN_EMAILS}"
   for raw_email in "${EMAIL_ARRAY[@]}"; do
-    email=$(echo "${raw_email}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    email=$(echo "${raw_email}" | tr -d '[:space:]')
     if [[ -n "${email}" ]]; then
-      echo "==> Authorizing admin email in Firestore: allowed_emails/${email}..."
-      if command -v gcloud &>/dev/null; then
-        if ! gcloud firestore documents create "allowed_emails/${email}" \
-          --project="${PROJECT_ID}" \
-          --database='(default)' \
-          --collection-path="allowed_emails" \
-          --document-id="${email}" \
-          --fields="admin=boolean:true" 2>/dev/null; then
-            gcloud firestore documents update "allowed_emails/${email}" \
-              --project="${PROJECT_ID}" \
-              --database='(default)' \
-              --collection-path="allowed_emails" \
-              --document-id="${email}" \
-              --fields="admin=boolean:true" || echo "Warning: Failed to create or update Firestore document for ${email}."
-        fi
-      else
-        echo "Warning: gcloud CLI not installed. Skipping Firestore document creation for ${email}."
-      fi
+      bash "$(dirname "${BASH_SOURCE[0]}")/add-admin.sh" "${PROJECT_ID}" "${email}" || echo "Warning: could not add ${email} as an admin."
     fi
   done
 fi
