@@ -377,6 +377,24 @@ It must print at least one login. An empty result means approvals are not enforc
   pipeline creates `release/<version>` and `v<version>` with the workflow token after a successful run.
 - `CODEOWNERS` lists the owner as default reviewer for every path. To make that binding, enable *Require review from Code Owners* in the branch protection of `main`, so changes to `.github/workflows/`, `terraform/` and `scripts/` cannot merge without the owner.
 
+### 7.3b Admin and developer emails per environment **(you)**
+
+`terraform/environments/<env>.tfvars` holds placeholder emails (`allowed_admin_emails`, `developer_members`) so no
+personal address has to be committed. If the placeholders differ from what an environment really has, the stage-1
+plan proposes deleting the real admin document and the plan guard stops the run. Set the real values as GitHub
+environment variables; when they are set they **replace** the tfvars values in the stage-1 plan
+(`scripts/deploy/email-vars.sh`):
+
+```bash
+gh variable set TF_ADMIN_EMAILS --env dev --body '["you@example.com"]'
+gh variable set TF_DEVELOPER_MEMBERS --env dev --body '["user:you@example.com"]'
+```
+
+The same two variables work for `prod`. A value must be a single-line list of plain quoted strings (no
+interpolation); anything else stops the run before the plan. Unset or empty means the tfvars value is used. The
+log only says how many entries were taken, never the addresses. Terraform seeds only the admins listed here; other
+users are managed at `/admin/access`.
+
 ### 7.4 First run after the two-stage split
 
 The functions moved from the stage-1 Terraform state to the new stage-2 configuration (`terraform/functions/`).
@@ -536,6 +554,7 @@ Never use `allow_destructive` to "make a failing run pass". Read the guard messa
 | Run fails in `verify` with "release/<version> already exists at ..." | That version was already cut at another commit. Use a new version, or deploy the commit it points at. |
 | Run fails in policy with "prod needs a version" | Pass `version` as `X.Y` or `X.Y.Z`. |
 | "To deploy prod, type prod in the 'confirm' input" | Type `prod` in `confirm`. |
+| Plan guard blocks deleting `allowed_emails/<your email>` and creating `dev-email@example.com` | The tfvars still hold placeholder emails. Set `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS` as GitHub environment variables (section 7.3b). |
 | Plan guard: `BLOCKED ... would delete/replace protected resource` | A Terraform change would destroy data or identity. Read the resource address in the summary, fix the change (often an accidental rename or a changed immutable argument such as a location). Only use section 11 if it is intended. |
 | `Instance cannot be destroyed` from Terraform | `prevent_destroy` caught it. Same as above. |
 | `Saved plan is stale` | State changed between plan and apply (another apply, or manual change). Re-run; a new plan is made. |
@@ -608,6 +627,7 @@ Be aware of these; none of them is hidden by the pipeline:
 | `scripts/build-functions.sh` | Builds the function source that Terraform zips (deterministic) |
 | `scripts/check-functions.sh` | Fails when `function_names` in `terraform/functions/functions.tf` and the exports of `functions/src/index.ts` differ |
 | `scripts/check-terraform-stages.sh` | Fails when the two Terraform stages disagree on project, environment or region |
+| `scripts/deploy/email-vars.sh` | Turns the GitHub variables `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS` into `-var` arguments for the stage-1 plan, after validating them |
 | `scripts/deploy/check-prod-ref.sh`, `cut-release.sh` | Prod preflight (commit on main, version, notes, no clashing release) and the release cut, with tests |
 | `scripts/deploy-functions-dev.sh` | Plans and applies stage 2 (the functions) on dev only; refuses any other project |
 | `terraform/` | Stage 1: Firebase configuration and the data protections |

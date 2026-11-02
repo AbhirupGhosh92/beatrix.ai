@@ -151,6 +151,21 @@ The prod pipeline SHALL NOT deploy App Hosting and SHALL NOT use the Firebase CL
 - **WHEN** a prod run is approved
 - **THEN** the saved plans are applied, the Python service is deployed only if `ai_backend/` changed, and no App Hosting rollout is created by the pipeline
 
+### Requirement: Personal emails come from the environment, not from git
+The admin and developer emails of an environment SHALL be settable as the GitHub environment variables `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS`. When set, they SHALL replace the values of the committed tfvars file in the stage-1 plan; when unset or empty, the tfvars values SHALL be used. A value SHALL be a single-line list of plain quoted strings, otherwise the run SHALL fail before the plan, and the run log SHALL NOT print the addresses.
+
+#### Scenario: Variables set
+- **WHEN** `TF_ADMIN_EMAILS` is set on the environment and the tfvars hold a placeholder
+- **THEN** the stage-1 plan uses the variable and the real admin document is not deleted
+
+#### Scenario: Variables unset
+- **WHEN** neither variable is set
+- **THEN** the committed tfvars values are used as before
+
+#### Scenario: Unsafe value
+- **WHEN** a variable holds an interpolation or is not a list of quoted strings
+- **THEN** the run fails before the plan
+
 ### Requirement: Prod targets the production project
 The `prod` environment SHALL target the GCP project `asterion-453905`, and no document, script or skill SHALL name a different prod project.
 

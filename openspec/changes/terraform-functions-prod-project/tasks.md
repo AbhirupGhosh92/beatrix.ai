@@ -54,6 +54,11 @@
 - [x] 9.2 Run `npm run typecheck`, `npm run lint`, `npm run build`, `npm run infra:check` and `bash scripts/check-scripts.sh`; verify all pass and record in the PR Verification only what was actually run
 - [x] 9.3 Update the docs: `docs/DEPLOYMENT.md` (two pipelines, three stages, the two configurations and the declarative move, prod commit-on-main with a version, the cut release), `CLAUDE.md`, `AGENTS.md`, `README.md` (generated sections via the pre-push hook), `terraform/README.md`, `.claude/rules/environments.md`; verify `grep -rn "deploy.yml\|functions component\|rules component\|-target" docs CLAUDE.md AGENTS.md README.md terraform .claude` finds nothing outdated
 
+## 10. Personal emails from the environment (found when the first dev run hit the plan guard)
+
+- [x] 10.1 Add `scripts/deploy/email-vars.sh` (validates `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS`, prints `-var` arguments, never logs addresses) with `test_email_vars.py`; pass them to the stage-1 plan in `deploy-environment.yml`; let `sync-github-env.sh` set them; verify the tests pass and the YAML parses
+- [x] 10.2 Document it in `docs/DEPLOYMENT.md` (section 7.3b and the troubleshooting row) and the tfvars comments; verify `openspec validate --all --strict` passes
+
 ## Workflow follow-up
 
 - Work on branch `feature/92-terraform-functions-prod-project` (issue #92, which replaces the closed #80), then archive with `/opsx:archive` before the PR is marked ready.
