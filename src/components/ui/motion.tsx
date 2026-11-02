@@ -1,7 +1,7 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { useRef } from 'react'
+import type { ReactNode, Ref } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 import {
   motion,
   useReducedMotion,
@@ -10,6 +10,18 @@ import {
   useTransform,
   type Variants,
 } from 'framer-motion'
+
+const noopSubscribe = () => () => {}
+
+/**
+ * The reduced-motion preference, read only after hydration. `useReducedMotion` can differ
+ * between the server render and the first client render, which would be a hydration mismatch.
+ */
+function useSafeReducedMotion() {
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false)
+  const reduce = useReducedMotion()
+  return mounted ? Boolean(reduce) : false
+}
 
 /** Shared easing, matching --ease-standard in tokens/motion.css. */
 const EASE = [0.2, 0, 0, 1] as const
@@ -29,7 +41,7 @@ export function Reveal({
   delay?: number
   className?: string
 }) {
-  const reduce = useReducedMotion()
+  const reduce = useSafeReducedMotion()
   if (reduce) return <div className={className}>{children}</div>
 
   return (
@@ -56,16 +68,25 @@ export function Stagger({
   children,
   className = '',
   gap = 0.1,
+  ref,
 }: {
   children: ReactNode
   className?: string
   gap?: number
+  ref?: Ref<HTMLDivElement>
 }) {
-  const reduce = useReducedMotion()
-  if (reduce) return <div className={className}>{children}</div>
+  const reduce = useSafeReducedMotion()
+  if (reduce) {
+    return (
+      <div ref={ref} className={className}>
+        {children}
+      </div>
+    )
+  }
 
   return (
     <motion.div
+      ref={ref}
       className={className}
       initial="hidden"
       whileInView="show"
@@ -78,7 +99,7 @@ export function Stagger({
 }
 
 export function StaggerItem({ children, className = '' }: { children: ReactNode; className?: string }) {
-  const reduce = useReducedMotion()
+  const reduce = useSafeReducedMotion()
   if (reduce) return <div className={className}>{children}</div>
   return (
     <motion.div className={className} variants={itemVariants}>
@@ -98,7 +119,7 @@ export function Parallax({
   /** Pixels moved over the element's trip through the viewport (+/- half of this each way). */
   distance?: number
 }) {
-  const reduce = useReducedMotion()
+  const reduce = useSafeReducedMotion()
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
   const y = useTransform(scrollYProgress, [0, 1], [distance, -distance])
@@ -113,7 +134,7 @@ export function Parallax({
 
 /** Hero-style wrapper: fades, shrinks and lifts as the page scrolls away from it, reversing on the way back. */
 export function ScrollFade({ children, className = '' }: { children: ReactNode; className?: string }) {
-  const reduce = useReducedMotion()
+  const reduce = useSafeReducedMotion()
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.15])
@@ -130,7 +151,7 @@ export function ScrollFade({ children, className = '' }: { children: ReactNode; 
 
 /** Thin bar fixed to the top of the viewport showing how much of the page has been scrolled. */
 export function ScrollProgress() {
-  const reduce = useReducedMotion()
+  const reduce = useSafeReducedMotion()
   const { scrollYProgress } = useScroll()
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 24, restDelta: 0.001 })
 
