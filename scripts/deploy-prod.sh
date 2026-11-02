@@ -40,7 +40,8 @@ done
 [[ -n "${VERSION}" ]] || fail "no version given" "run: ./scripts/deploy-prod.sh 1.3"
 
 step_start "Check the commit and the version"
-git fetch origin --tags --quiet || fail "could not fetch origin" "check your network and 'gh auth status'"
+# Branches and tags, explicitly: `main` below must be main as it is on GitHub right now, never a stale local copy.
+git fetch origin '+refs/heads/*:refs/remotes/origin/*' --tags --quiet || fail "could not fetch origin" "check your network and 'gh auth status'"
 
 # `main` means main as it is on GitHub; anything else is resolved as given (a SHA, a branch, a tag).
 if [[ "${REF}" == "main" ]]; then target="origin/main"; else target="${REF}"; fi

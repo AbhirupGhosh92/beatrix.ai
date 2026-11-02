@@ -57,6 +57,22 @@ class DeployProdScriptTest(unittest.TestCase):
         self.assertNotIn("allow_destructive", " ".join(self.gh_calls()))
         self.assertNotIn("redeploy_all", " ".join(self.gh_calls()))
 
+    def test_default_ref_is_main_as_it_is_on_github_not_a_stale_copy(self):
+        # Another clone pushes a newer main; this clone has not fetched it yet.
+        other = os.path.join(self.repo.tmp, "other")
+        sh(["git", "clone", self.repo.origin, other], self.repo.tmp)
+        git(other, "checkout", "-B", "main", "origin/main")
+        with open(os.path.join(other, "newer.txt"), "w") as fh:
+            fh.write("newer")
+        git(other, "add", "-A")
+        git(other, "commit", "-m", "newer")
+        git(other, "push", "origin", "main")
+        newest = git(other, "rev-parse", "HEAD")
+        self.assertNotEqual(git(self.repo.clone, "rev-parse", "origin/main"), newest)
+        r = self.run_script("1.3", "--yes")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"-f ref={newest} ", self.started()[0] + " ")
+
     def test_a_specific_commit_on_main_is_pinned(self):
         second = self.repo.commit("b.txt")
         git(self.repo.clone, "push", "origin", "main")
