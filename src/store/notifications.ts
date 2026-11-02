@@ -76,8 +76,10 @@ notificationListener.startListening({
     if (!arg?.endpointName || meta?.condition || meta?.aborted) return
     if (isRejected(action)) {
       if (arg.type === 'query' && QUIET_QUERIES.has(arg.endpointName)) return
+      // An API failure carries its message in the payload; an internal or serialization error has it in `error`.
       const error = (action as { payload?: ApiError }).payload
-      listenerApi.dispatch(notify('error', error?.message || 'Something went wrong. Please try again.'))
+      const internal = (action as { error?: { message?: string } }).error
+      listenerApi.dispatch(notify('error', error?.message || internal?.message || 'Something went wrong. Please try again.'))
     } else if (arg.type === 'mutation') {
       const message = SUCCESS[arg.endpointName]?.(arg.originalArgs as Arg, (action as { payload?: Result }).payload)
       if (message) listenerApi.dispatch(notify('success', message))
