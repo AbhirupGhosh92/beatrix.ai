@@ -35,7 +35,7 @@ done
 
 step_start "Check the target is the dev project"
 [[ -f "${TFVARS}" ]] || fail "terraform/environments/dev.tfvars is missing" "restore it from git"
-DEV_PROJECT="$(awk -F'"' '/^project_id[[:space:]]*=/{print $2}' "${TFVARS}")"
+DEV_PROJECT="$(awk -F'"' '/^[[:space:]]*project_id[[:space:]]*=/{print $2}' "${TFVARS}")"
 [[ -n "${DEV_PROJECT}" ]] || fail "project_id not found in dev.tfvars" "check terraform/environments/dev.tfvars"
 if [[ -n "${REQUESTED_PROJECT}" && "${REQUESTED_PROJECT}" != "${DEV_PROJECT}" ]]; then
   fail "refusing to deploy functions to '${REQUESTED_PROJECT}': this script only changes the dev project (${DEV_PROJECT})" "prod changes only through the Deploy workflow (docs/DEPLOYMENT.md)"

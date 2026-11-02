@@ -22,8 +22,8 @@ for env in dev prod; do
   done
   [[ -f "$one" && -f "$two" ]] || continue
   for key in project_id environment region; do
-    a="$(awk -F'"' -v k="$key" '$1 ~ "^"k"[[:space:]]*=" {print $2}' "$one")"
-    b="$(awk -F'"' -v k="$key" '$1 ~ "^"k"[[:space:]]*=" {print $2}' "$two")"
+    a="$(awk -F'"' -v k="$key" '$1 ~ "^[[:space:]]*"k"[[:space:]]*=" {print $2}' "$one")"
+    b="$(awk -F'"' -v k="$key" '$1 ~ "^[[:space:]]*"k"[[:space:]]*=" {print $2}' "$two")"
     if [[ -n "$a" && "$a" != "$b" ]]; then
       echo "[failed]   ${key} differs for ${env}: '${a}' in ${one}, '${b}' in ${two}"
       status=1
@@ -31,7 +31,7 @@ for env in dev prod; do
   done
 done
 
-if grep -nE '^resource "google_(cloudfunctions2_function|cloud_run_v2_service_iam_binding|storage_bucket_object)"|google_storage_bucket" "functions_src"' terraform/*.tf; then
+if grep -nE '^resource "google_(cloudfunctions2_function|cloud_run_v2_service_iam_binding|storage_bucket_object)"|^resource "google_storage_bucket" "functions_src"' terraform/*.tf; then
   echo "[failed]   stage 1 (terraform/) must not declare the Cloud Functions resources; they live in terraform/functions/"
   status=1
 fi
