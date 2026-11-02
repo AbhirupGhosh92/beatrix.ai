@@ -283,10 +283,6 @@ jobs:
       ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_DESTRUCTIVE: ${{ inputs.allow_destructive }}
       SHA: ${{ needs.verify.outputs.sha }}
-      # Personal emails stay out of git: when these GitHub environment variables are set they replace
-      # the (placeholder) values of the tfvars file. See scripts/deploy/email-vars.sh.
-      ADMIN_EMAILS: ${{ vars.TF_ADMIN_EMAILS }}
-      DEVELOPER_MEMBERS: ${{ vars.TF_DEVELOPER_MEMBERS }}
     outputs:
       has_changes: ${{ steps.plan.outputs.has_changes }}
       plan_uri: ${{ steps.save.outputs.plan_uri }}
@@ -320,14 +316,8 @@ jobs:
             fail "terraform/$tfvars does not exist." "create it from dev.tfvars (docs/DEPLOYMENT.md)"
           fi
           terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
-          # -var arguments for the admin and developer emails, only when the GitHub variables are set.
-          extra=()
-          email_args="$(bash ../scripts/deploy/email-vars.sh)"
-          if [[ -n "$email_args" ]]; then
-            while IFS= read -r line; do extra+=("$line"); done <<<"$email_args"
-          fi
           set +e
-          terraform plan -input=false -lock-timeout=5m -detailed-exitcode -no-color -out=tfplan -var-file="$tfvars" "${extra[@]}"
+          terraform plan -input=false -lock-timeout=5m -detailed-exitcode -no-color -out=tfplan -var-file="$tfvars"
           code=$?
           set -e
           case "$code" in
@@ -874,6 +864,12 @@ jobs:
           terraform init -input=false -backend-config="bucket=${STATE_BUCKET}" >/dev/null
           url="$(terraform output -raw apphosting_url)"
           bash ../scripts/deploy/smoke-test.sh "$url"
+
+      # Terraform creates infrastructure only; people's data is filled in by the owner. This only SAYS
+      # when the first admin is missing (a warning annotation and a summary line); it never fails the run.
+      - name: Data to fill in (notice only)
+        continue-on-error: true
+        run: bash scripts/deploy/check-data.sh "$PROJECT_ID" "$ENVIRONMENT"
 
   # ----------------------------------------------------------------------------
   # 9. Summary: always, so a failed run still says what was decided and how far it got

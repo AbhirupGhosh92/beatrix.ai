@@ -277,22 +277,20 @@ resource "google_project_iam_member" "server_run_invoker" {
 }
 
 # ------------------------------------------------------------------------------
-# CMS Admins (Firestore allowed_emails/{email})
+# CMS admins are data, not infrastructure
 # ------------------------------------------------------------------------------
-# `allowed` is read by the client sign-in check (src/lib/firebase.ts), `admin` by the admin
-# functions (functions/src/auth.ts). A document that already exists must be imported:
-#   terraform import -var-file=environments/<env>.tfvars 'google_firestore_document.allowed_admin["<email>"]' \
-#     'projects/<project>/databases/(default)/documents/allowed_emails/<email>'
-resource "google_firestore_document" "allowed_admin" {
-  for_each    = toset([for email in var.allowed_admin_emails : lower(trimspace(email))])
-  project     = var.project_id
-  database    = google_firestore_database.default.name
-  collection  = "allowed_emails"
-  document_id = each.key
-  fields = jsonencode({
-    admin   = { booleanValue = true }
-    allowed = { booleanValue = true }
-  })
+# Terraform used to seed one Firestore document allowed_emails/{email} per admin email. Those emails
+# are personal and drift from whatever the tfvars hold, which blocked the plan guard, so Terraform no
+# longer manages them. The block below makes this state FORGET the documents it created (destroy =
+# false): they stay in Firestore and keep working. Add an admin with ./scripts/add-admin.sh <env> <email>;
+# the pipeline and scripts/recreate-environment.sh say when none exists. Remove this block once every
+# environment has applied it.
+removed {
+  from = google_firestore_document.allowed_admin
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -312,13 +310,19 @@ resource "google_project_iam_member" "apphosting_compute_runner" {
   member  = "serviceAccount:${google_service_account.apphosting_compute.email}"
 }
 
-# Lets developers run the Next.js dev server against this environment
-# (FUNCTIONS_CALLER_SERVICE_ACCOUNT impersonates the App Hosting account).
-resource "google_service_account_iam_member" "apphosting_compute_token_creator" {
-  for_each           = toset(var.developer_members)
-  service_account_id = google_service_account.apphosting_compute.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = each.key
+# Access for developers who run the Next.js dev server against this environment
+# (FUNCTIONS_CALLER_SERVICE_ACCOUNT impersonates the App Hosting account) is a per-person grant, so it is
+# not Terraform's: it used to be created from a developer_members list. This block makes the state
+# FORGET those bindings (destroy = false); they stay in IAM. Grant yourself access with:
+#   gcloud iam service-accounts add-iam-policy-binding firebase-app-hosting-compute@<project>.iam.gserviceaccount.com \
+#     --member user:you@example.com --role roles/iam.serviceAccountTokenCreator --project <project>
+# Remove this block once every environment has applied it.
+removed {
+  from = google_service_account_iam_member.apphosting_compute_token_creator
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 # No codebase: CI deploys from source with `firebase deploy --only apphosting`, so each

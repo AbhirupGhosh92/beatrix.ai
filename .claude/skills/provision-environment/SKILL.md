@@ -10,7 +10,7 @@ The canonical runbook is `terraform/README.md`; this is the procedure to follow.
 ## 1. Confirm the target
 
 - Environment name (`dev`, `prod`) and its project ID from `terraform/environments/<env>.tfvars`.
-- If the tfvars file does not exist, create it from `dev.tfvars`. Ask the user for `allowed_admin_emails` (CMS admins) and `developer_members` (e.g. `user:name@example.com`, may run the dev server against it) instead of guessing.
+- If the tfvars file does not exist, create it from `dev.tfvars`. Do not put personal emails in it: Terraform does not manage admins or developer access. After provisioning, tell the user to add the first admin with `./scripts/add-admin.sh <env> <email>` (the script prints a notice when none exists) and, to run the dev server against the environment, to grant themselves token-creator access (`docs/DEPLOYMENT.md` section 7.3b).
 - For `prod`, say clearly that provisioning creates infrastructure only. Code is deployed there only by a manual run of the Deploy prod workflow (a commit on `main` and a version), so ask before triggering one; the App Hosting rollout is created by hand.
 
 ## 2. Run the script and loop on manual steps

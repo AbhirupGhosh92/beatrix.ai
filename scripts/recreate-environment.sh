@@ -115,6 +115,9 @@ else
 fi
 bash "${SCRIPT_DIR}/sync-github-env.sh" "${ENV_NAME}"
 
+# Terraform creates infrastructure only. Say what data is still to be filled in (never fails).
+bash "${SCRIPT_DIR}/deploy/check-data.sh" "${PROJECT_ID}" "${ENV_NAME}" || true
+
 echo "======================================================================"
 echo " Environment '${ENV_NAME}' is ready."
 echo " Site:    $(cd terraform && tf_out apphosting_url)"

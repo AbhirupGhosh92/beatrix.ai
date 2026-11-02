@@ -1,6 +1,6 @@
 # Proposal
 
-Fixes #92 (replaces the earlier issue #80, which was closed).
+Fixes #92 (replaces the earlier issue #80, which was closed). The last group (Terraform stops seeding personal emails) is tracked in #94.
 
 Builds on #79 (PR #81), which is merged; this change is refreshed against `main` after the resume workspace (#90 / PR #91), the job tracker functions and the `ai_backend/` Python service landed, and revised again for the two-pipeline, three-stage model below.
 
@@ -20,6 +20,7 @@ Cloud Functions are deployed with the Firebase CLI and tracked by hash markers, 
 - Existing dev functions are adopted in place with `import` blocks. A plan that would replace or delete a function stops the run for review.
 - **BREAKING (process):** the Firebase CLI no longer deploys functions or rules. The only Firebase CLI deploy left is App Hosting on dev. The Python service (`python` component, `ai_backend/`) stays a `gcloud` deploy in stage 2.
 - **BREAKING (process): prod deploys a commit on `main`, then cuts the release.** Prod takes `ref` (default `main`, must be reachable from `main`) and a required `version` (`X.Y` or `X.Y.Z`) instead of requiring an existing `release/*` branch or tag. It never deploys App Hosting; the rollout stays manual in the Firebase console. After stages 1 and 2 and the smoke test succeed, the pipeline creates the branch `release/<version>` at the deployed commit, the tag `v<version>` and the GitHub release (notes from `RELEASE_NOTES.md` at that commit, marked Latest). Verify fails early when the notes file is missing or empty, or when `release/<version>` or the tag already exists at a different commit. Re-running for the same commit and version updates the release. Pushing a release branch publishes nothing.
+- **Terraform stops filling in people's data (#94).** It creates the infrastructure only. The resources driven by personal email lists, the seeded `allowed_emails/<email>` admin documents and the developer `serviceAccountTokenCreator` bindings, are no longer managed: `allowed_admin_emails`, `developer_members` and the placeholder emails in the tfvars are removed, and `removed` blocks (`destroy = false`) leave what already exists untouched. `scripts/add-admin.sh <env> <email>` adds an admin; after a deploy, and at the end of `recreate-environment.sh`, a non-blocking notice says when no admin exists and how to add one. The GitHub-variable workaround for the emails (`email-vars.sh`) is removed.
 - The prod project becomes `asterion-453905` (`prod.tfvars`, docs; skills read it from the file).
 - `scripts/deploy-functions-dev.sh` plans and applies the whole `terraform/functions` configuration on dev only (no `-target`), with the plan guard, and refuses any other project.
 - A check keeps the Terraform function list equal to the exports of `functions/src/index.ts`; the decision table has one row per stage.
@@ -44,4 +45,5 @@ None.
 - `scripts/deploy/components.sh`, `scripts/deploy-backend.sh`, `scripts/check-scripts.sh`, `scripts/build-functions.sh`, `scripts/check-functions.sh`, `scripts/deploy-functions-dev.sh`, `scripts/recreate-environment.sh`, `scripts/deploy/plan_guard.py` and its tests.
 - `.github/workflows/deploy.yml` (replaced by `deploy-dev.yml` and `deploy-prod.yml`), `deploy-environment.yml`, `release.yml`, `infra-check.yml`, `ci.yml`.
 - `.claude/skills/dev-deploy`, `prod-deploy`, `.claude/rules/environments.md`, `CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/DEPLOYMENT.md`, `terraform/README.md`, `openspec/specs/deployment-pipeline`, `openspec/specs/release-notes`.
+- `scripts/add-admin.sh`, `scripts/deploy/check-data.sh`, `scripts/seed-data.sh`, `scripts/recreate-environment.sh`, `scripts/sync-github-env.sh`, removal of `scripts/deploy/email-vars.sh`, `terraform/variables.tf`, `terraform/environments/*.tfvars` and `terraform/terraform.tfvars.example`.
 - One-time effect on dev: the `removed` blocks make stage 1 forget the function resources it holds (nothing is destroyed), and stage 2 adopts them and the 22 CLI-deployed functions in place.

@@ -177,20 +177,31 @@ The prod pipeline SHALL NOT deploy App Hosting and SHALL NOT use the Firebase CL
 - **WHEN** a prod run is approved
 - **THEN** the saved plans are applied, the Python service is deployed only if `ai_backend/` changed, and no App Hosting rollout is created by the pipeline
 
-### Requirement: Personal emails come from the environment, not from git
-The admin and developer emails of an environment SHALL be settable as the GitHub environment variables `TF_ADMIN_EMAILS` and `TF_DEVELOPER_MEMBERS`. When set, they SHALL replace the values of the committed tfvars file in the stage-1 plan; when unset or empty, the tfvars values SHALL be used. A value SHALL be a single-line list of plain quoted strings, otherwise the run SHALL fail before the plan, and the run log SHALL NOT print the addresses.
+### Requirement: Terraform does not manage personal data
+Terraform SHALL create infrastructure only and SHALL NOT create, update or delete the admin documents of `allowed_emails` or per-person access bindings, and the committed tfvars SHALL NOT contain personal email addresses. Admin documents and bindings that already exist SHALL be left untouched when Terraform stops managing them.
 
-#### Scenario: Variables set
-- **WHEN** `TF_ADMIN_EMAILS` is set on the environment and the tfvars hold a placeholder
-- **THEN** the stage-1 plan uses the variable and the real admin document is not deleted
+#### Scenario: Plan on an environment with real admins
+- **WHEN** the stage-1 plan runs on an environment that already has admin documents
+- **THEN** the plan shows no delete or replace for them and they keep working
 
-#### Scenario: Variables unset
-- **WHEN** neither variable is set
-- **THEN** the committed tfvars values are used as before
+#### Scenario: Stopping to manage existing resources
+- **WHEN** the stage-1 plan first runs after this change
+- **THEN** the existing admin document and developer binding are only forgotten from the state, not destroyed
 
-#### Scenario: Unsafe value
-- **WHEN** a variable holds an interpolation or is not a list of quoted strings
-- **THEN** the run fails before the plan
+### Requirement: Missing data is announced, not blocked
+After a deploy, and at the end of environment provisioning, the pipeline and the provisioning script SHALL say when no admin user exists and name the command that adds one. The notice SHALL NOT fail the run. An admin SHALL be addable with `scripts/add-admin.sh <env> <email>`, which SHALL create or update only the admin fields of `allowed_emails/<email>`.
+
+#### Scenario: No admin yet
+- **WHEN** a deploy finishes on an environment whose `allowed_emails` is empty
+- **THEN** the run succeeds with a warning that names `./scripts/add-admin.sh <env> <email>`
+
+#### Scenario: Adding an admin
+- **WHEN** an operator runs the script for an email
+- **THEN** `allowed_emails/<email>` exists with `admin`, `allowed` and `role` set, and other fields it already had are unchanged
+
+#### Scenario: Admin already exists
+- **WHEN** a deploy finishes on an environment that has an admin
+- **THEN** no warning is shown
 
 ### Requirement: Prod targets the production project
 The `prod` environment SHALL target the GCP project `asterion-453905`, and no document, script or skill SHALL name a different prod project.
