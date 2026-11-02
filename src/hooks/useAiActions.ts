@@ -1,34 +1,32 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { aiApi, type SkillMatchResult, type TailorResult } from '../lib/aiClient.ts'
+import { useState } from 'react'
+import { useSkillMatchMutation, useTailorResumeMutation } from '../store/api.ts'
+import type { SkillMatchResult, TailorResult } from '../store/api.ts'
 import type { ResumeData } from '../lib/resumeValidation.ts'
 
 type Busy = 'skill' | 'tailor' | null
 
-/** The AI panel's state: the job description and the latest Skill Match and Tailor results. */
+/**
+ * The AI panel's state: the job description being typed and the latest Skill Match and Tailor results,
+ * which are the store's mutation results. Failures raise an error snackbar from the store; the workspace
+ * keeps working either way.
+ */
 export function useAiActions() {
   const [jobDescription, setJobDescription] = useState('')
-  const [skill, setSkill] = useState<SkillMatchResult | null>(null)
-  const [tailor, setTailor] = useState<TailorResult | null>(null)
-  const [busy, setBusy] = useState<Busy>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [runSkill, skillState] = useSkillMatchMutation()
+  const [runTailorMutation, tailorState] = useTailorResumeMutation()
 
-  const run = useCallback(async <R,>(which: Exclude<Busy, null>, call: () => Promise<R>, store: (result: R) => void) => {
-    setBusy(which)
-    setError(null)
-    try {
-      store(await call())
-    } catch (err) {
-      // The workspace keeps working; the message only says the AI part did not.
-      setError(err instanceof Error ? err.message : 'The AI service is unavailable.')
-    } finally {
-      setBusy(null)
-    }
-  }, [])
+  const skill: SkillMatchResult | null = skillState.data ?? null
+  const tailor: TailorResult | null = tailorState.data ?? null
+  const busy: Busy = skillState.isLoading ? 'skill' : tailorState.isLoading ? 'tailor' : null
 
-  const runSkillMatch = useCallback((data: ResumeData) => run('skill', () => aiApi.skillMatch(data, jobDescription), setSkill), [run, jobDescription])
-  const runTailor = useCallback((data: ResumeData) => run('tailor', () => aiApi.tailor(data, jobDescription), setTailor), [run, jobDescription])
+  const runSkillMatch = async (data: ResumeData) => {
+    await runSkill({ data, jobDescription })
+  }
+  const runTailor = async (data: ResumeData) => {
+    await runTailorMutation({ data, jobDescription })
+  }
 
-  return { jobDescription, setJobDescription, skill, tailor, clearTailor: () => setTailor(null), busy, error, runSkillMatch, runTailor }
+  return { jobDescription, setJobDescription, skill, tailor, clearTailor: tailorState.reset, busy, runSkillMatch, runTailor }
 }

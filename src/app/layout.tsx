@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import FirebaseInit from '../components/layout/FirebaseInit.tsx'
 import { ProfileProvider } from '../components/layout/ProfileProvider.tsx'
 import ReleaseNotes from '../components/layout/ReleaseNotes.tsx'
+import StoreProvider from '../components/layout/StoreProvider.tsx'
+import SnackbarHost from '../components/ui/SnackbarHost.tsx'
 import { getProfile } from '../middleware/profileService.ts'
 import { getLatestRelease } from '../middleware/releaseService.ts'
 import '../index.css'
@@ -45,8 +47,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <FirebaseInit />
-        <ProfileProvider profile={profile}>{children}</ProfileProvider>
-        <ReleaseNotes release={release} />
+        <StoreProvider>
+          <ProfileProvider profile={profile}>{children}</ProfileProvider>
+          <ReleaseNotes release={release} />
+          <SnackbarHost />
+        </StoreProvider>
       </body>
     </html>
   )

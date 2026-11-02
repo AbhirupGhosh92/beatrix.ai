@@ -1,0 +1,28 @@
+/* Snackbar stack (SnackbarHost). The host sits above the sticky header (z-30) and the drawer. */
+.snackbar-host {
+  z-index: 60;
+  max-width: min(32rem, 100vw - 1.5rem);
+}
+
+.snackbar {
+  animation: snackbar-in var(--motion-base) var(--ease-standard);
+}
+
+@keyframes snackbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+/* Plain CSS: the unlayered global `button` rule beats daisyUI's layered size and ghost utilities. */
+.snackbar-close {
+  width: 1.75rem;
+  height: 1.75rem;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: inherit;
+}

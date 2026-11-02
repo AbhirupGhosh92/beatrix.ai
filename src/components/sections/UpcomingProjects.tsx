@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { FolderKanban, Lock, CheckCircle2 } from 'lucide-react'
 import { signInWithPopup, signOut } from 'firebase/auth'
 import { getFirebaseAuth, getGoogleProvider } from '../../lib/firebase.ts'
+import { useSignInMutation } from '../../store/api.ts'
+import type { ApiError } from '../../store/api.ts'
 import { useProfile } from '../layout/ProfileProvider.tsx'
 import SectionHeading from '../ui/SectionHeading.tsx'
 import Reveal from '../ui/Reveal.tsx'
@@ -34,11 +36,11 @@ function GoogleIcon() {
 
 interface UpcomingProjectsProps {
   isLoggedIn: boolean
-  onLogin: () => void | Promise<void>
 }
 
-export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjectsProps) {
+export default function UpcomingProjects({ isLoggedIn }: UpcomingProjectsProps) {
   const profile = useProfile()
+  const [signInServer] = useSignInMutation()
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
 
@@ -59,24 +61,19 @@ export default function UpcomingProjects({ isLoggedIn, onLogin }: UpcomingProjec
       const credential = await signInWithPopup(auth, getGoogleProvider())
       const user = credential.user
 
-      // The server checks the allow list and sets the httpOnly session cookie.
-      const res = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: await user.getIdToken() }),
-      })
-      if (!res.ok) {
+      // The server checks the allow list and sets the httpOnly session cookie; on success the store
+      // refreshes the role. A failure also raises an error snackbar.
+      try {
+        await signInServer({ idToken: await user.getIdToken() }).unwrap()
+      } catch (failure) {
         await signOut(auth)
-        const data = await res.json().catch(() => ({}))
+        const { status, message } = failure as ApiError
         setLoginError(
-          res.status === 403
+          status === 403
             ? upcoming.lock.restrictedError.replace('{email}', user.email || upcoming.lock.unknownEmail)
-            : data.error || upcoming.lock.failedError,
+            : message || upcoming.lock.failedError,
         )
-        return
       }
-
-      await onLogin()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : upcoming.lock.failedError
       setLoginError(errorMsg)

@@ -1,89 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Loader2, RefreshCw, UserPlus } from 'lucide-react'
+import { RefreshCw, UserPlus } from 'lucide-react'
 import { ROLES } from '../../../lib/access.ts'
 import type { Role } from '../../../lib/access.ts'
-import { getFirebaseAuth, getIdToken } from '../../../lib/firebase.ts'
+import { getFirebaseAuth } from '../../../lib/firebase.ts'
+import { useAdminSetUserMutation, useListUsersQuery } from '../../../store/api.ts'
+import type { AccessAction } from '../../../store/api.ts'
 import OrphanedResumes from '../../../components/admin/OrphanedResumes.tsx'
-
-type Action = 'add' | 'setRole' | 'revoke' | 'restore'
-
-interface AccessUser {
-  email: string
-  displayName: string
-  role: Role
-  allowed: boolean
-  createdAt: string | null
-  lastLoginAt: string | null
-}
-
-// Like the CMS page, the browser only talks to this site's own /api/admin routes; the Firebase ID
-// token proves who is signed in and the Cloud Functions enforce the admin role and the guards.
-async function api<T>(init: { method?: string; body?: object } = {}): Promise<T> {
-  const token = await getIdToken()
-  const res = await fetch('/api/admin/users', {
-    method: init.method ?? 'GET',
-    headers: {
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data as T
-}
+import { ErrorState, SkeletonRows } from '../../../components/ui/Skeleton.tsx'
 
 const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '-')
 
 export default function AccessPage() {
-  const [users, setUsers] = useState<AccessUser[]>([])
-  const [truncated, setTruncated] = useState(false)
-  const [loading, setLoading] = useState(true)
+  // Like the CMS page, the browser only talks to this site's own /api/admin routes through the store's
+  // data layer; the Firebase ID token proves who is signed in and the Cloud Functions enforce the admin
+  // role and the guards. Outcomes raise snackbars from the store.
+  const { data, isLoading, isFetching, isError, error, refetch } = useListUsersQuery()
+  const [setUser] = useAdminSetUserMutation()
+  const users = useMemo(() => [...(data?.users ?? [])].sort((a, b) => a.email.localeCompare(b.email)), [data])
+  const truncated = data?.truncated ?? false
   const [busy, setBusy] = useState<string | null>(null)
   const [newEmail, setNewEmail] = useState('')
   const [me, setMe] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-
-  const notify = useCallback((type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg })
-    setTimeout(() => setToast(null), 4000)
-  }, [])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await api<{ users: AccessUser[]; truncated: boolean }>()
-      setUsers([...data.users].sort((a, b) => a.email.localeCompare(b.email)))
-      setTruncated(data.truncated)
-    } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Error loading users')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
-
-  useEffect(() => {
-    let ignore = false
-    async function initialLoad() {
-      try {
-        const data = await api<{ users: AccessUser[]; truncated: boolean }>()
-        if (ignore) return
-        setUsers([...data.users].sort((a, b) => a.email.localeCompare(b.email)))
-        setTruncated(data.truncated)
-      } catch (err) {
-        if (!ignore) notify('error', err instanceof Error ? err.message : 'Error loading users')
-      } finally {
-        if (!ignore) setLoading(false)
-      }
-    }
-    initialLoad()
-    return () => {
-      ignore = true
-    }
-  }, [notify])
 
   useEffect(() => {
     let ignore = false
@@ -96,14 +36,12 @@ export default function AccessPage() {
     }
   }, [])
 
-  const run = async (email: string, action: Action, role?: Role) => {
+  const run = async (email: string, action: AccessAction, role?: Role) => {
     setBusy(email)
     try {
-      await api({ method: 'POST', body: { email, action, role } })
-      notify('success', `Updated ${email}`)
-      await load()
-    } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Update failed')
+      await setUser({ email, action, role }).unwrap()
+    } catch {
+      // Already reported by the error snackbar.
     } finally {
       setBusy(null)
     }
@@ -119,14 +57,6 @@ export default function AccessPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
-      {toast && (
-        <div className="toast toast-top toast-center z-50">
-          <div className={`alert ${toast.type === 'success' ? 'alert-success' : 'alert-error'} shadow-lg`}>
-            <span>{toast.msg}</span>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col gap-4 surface p-4 rounded-xl shadow-sm md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="heading-display text-lg font-bold text-brand">Access</h2>
@@ -148,17 +78,20 @@ export default function AccessPage() {
           </button>
           <button
             type="button"
-            onClick={load}
-            disabled={loading}
+            onClick={() => void refetch()}
+            disabled={isFetching}
             className="btn btn-ghost btn-xs btn-square"
             title="Refresh users"
             aria-label="Refresh users"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin text-brand' : ''} />
+            <RefreshCw size={14} className={isFetching ? 'animate-spin text-brand' : ''} />
           </button>
         </form>
       </div>
 
+      {isError && !data && (
+        <ErrorState message={('message' in error! && error.message) || 'Could not load users.'} onRetry={() => void refetch()} />
+      )}
       <div className="surface overflow-x-auto rounded-xl shadow-sm">
         <table className="table">
           <thead>
@@ -171,14 +104,14 @@ export default function AccessPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && users.length === 0 && (
+            {isLoading && (
               <tr>
-                <td colSpan={5} className="text-center">
-                  <Loader2 className="inline animate-spin text-brand" size={18} />
+                <td colSpan={5}>
+                  <SkeletonRows rows={4} />
                 </td>
               </tr>
             )}
-            {!loading && users.length === 0 && (
+            {!isLoading && users.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-center text-muted">
                   No users yet.
@@ -245,7 +178,7 @@ export default function AccessPage() {
       </div>
       {truncated && <p className="text-meta">Showing the first 500 users only.</p>}
 
-      <OrphanedResumes notify={notify} />
+      <OrphanedResumes />
     </main>
   )
 }

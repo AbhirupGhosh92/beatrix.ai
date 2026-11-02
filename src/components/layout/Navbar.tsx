@@ -9,10 +9,9 @@ interface Props {
   isLoggedIn: boolean
   /** Whether the drawer lists anything; without entries there is no menu button. */
   showMenu: boolean
-  onLogout: () => void
 }
 
-export default function Navbar({ isLoggedIn, showMenu, onLogout }: Props) {
+export default function Navbar({ isLoggedIn, showMenu }: Props) {
   const profile = useProfile()
     return (
         <nav className="navbar px-0">
@@ -28,7 +27,7 @@ export default function Navbar({ isLoggedIn, showMenu, onLogout }: Props) {
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">
                  <ThemeToggle/>    
-               {isLoggedIn && <NavbarDropdown onLogout={onLogout} />}
+               {isLoggedIn && <NavbarDropdown />}
             </div>
         </nav>
     )

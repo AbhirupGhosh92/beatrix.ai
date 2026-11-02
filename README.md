@@ -233,6 +233,7 @@ src/
 │   │   ├── ProfileProvider.tsx
 │   │   ├── ReleaseNotes.tsx
 │   │   ├── ResumeNav.tsx
+│   │   ├── StoreProvider.tsx
 │   │   └── ThemeToggle.tsx
 │   ├── resume/
 │   │   ├── AiPanel.tsx
@@ -263,10 +264,11 @@ src/
 │       ├── JsonEditor.tsx
 │       ├── motion.tsx
 │       ├── Reveal.tsx
-│       └── SectionHeading.tsx
+│       ├── SectionHeading.tsx
+│       ├── Skeleton.tsx
+│       └── SnackbarHost.tsx
 ├── data/
 │   ├── profile.example.json
-│   ├── profile.json
 │   ├── profile.ts
 │   ├── resume-config.example.json
 │   └── resumeConfig.ts
@@ -275,14 +277,11 @@ src/
 │   └── useInView.ts
 ├── lib/
 │   ├── access.ts
-│   ├── aiClient.ts
-│   ├── applicationClient.ts
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── jsonDefaults.ts
-│   ├── resumeClient.ts
 │   ├── resumeConfigSanitize.ts
 │   ├── resumeForm.ts
 │   ├── resumeTypes.ts
@@ -310,6 +309,14 @@ src/
 │   ├── routeHelpers.ts
 │   ├── sessionService.ts
 │   └── userService.ts
+├── store/
+│   ├── api.ts
+│   ├── hooks.ts
+│   ├── notifications.ts
+│   ├── resumeWorkspace.ts
+│   ├── store.ts
+│   ├── tracker.ts
+│   └── ui.ts
 └── styles/
     ├── base/
     │   └── elements.css
@@ -320,6 +327,7 @@ src/
     │   ├── navigation.css
     │   ├── release-notes.css
     │   ├── skills-tabs.css
+    │   ├── snackbar.css
     │   ├── surfaces.css
     │   ├── text-colors.css
     │   └── typography.css

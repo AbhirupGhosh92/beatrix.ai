@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   CheckCircle2,
   AlertCircle,
@@ -13,166 +13,68 @@ import {
   Loader2,
 } from 'lucide-react'
 import { JsonEditor } from '../../../components/ui/JsonEditor.tsx'
+import { ErrorState, SkeletonText } from '../../../components/ui/Skeleton.tsx'
 import resumeConfigExample from '../../../data/resume-config.example.json'
 import { RESUME_CONFIG_FILE } from '../../../data/resumeConfig.ts'
-import { getIdToken } from '../../../lib/firebase.ts'
+import { api, useCmsSaveMutation, useGetCmsFileQuery, useListCmsFilesQuery } from '../../../store/api.ts'
+import { useAppDispatch } from '../../../store/hooks.ts'
+import { notify } from '../../../store/notifications.ts'
 
 // What an admin starts from when creating the resume builder config (opened unsaved until saved once).
 const DEFAULT_RESUME_CONFIG = JSON.stringify(resumeConfigExample, null, 2)
 
-// The browser only talks to this site's own /api/admin/cms route; the server calls the Cloud
-// Functions. The Firebase ID token proves who is signed in.
-async function cms<T>(init: { method?: string; query?: string; body?: object } = {}): Promise<T> {
-  const token = await getIdToken()
-  const res = await fetch(`/api/admin/cms${init.query ?? ''}`, {
-    method: init.method ?? 'GET',
-    headers: {
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data as T
-}
+// The browser only talks to this site's own /api/admin/cms route (through the store's data layer);
+// the server calls the Cloud Functions. The Firebase ID token proves who is signed in.
 
-interface FileContent extends FileItem {
-  content: string
-}
-
-interface SaveResult {
-  message?: string
-}
-
-interface FileItem {
-  filename: string
-  displayName: string
-  exists: boolean
-  size: number
-  updatedAt: string | null
+/** A saved file is shown pretty-printed; a resume config that was never saved opens as the default, unsaved. */
+function prepareContent(file: string, data: { exists: boolean; content: string }): { text: string; isNewResumeConfig: boolean } {
+  const isNewResumeConfig = !data.exists && file === RESUME_CONFIG_FILE
+  let text = isNewResumeConfig ? DEFAULT_RESUME_CONFIG : data.content || ''
+  try {
+    if (text) text = JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    // Keep raw string if parse fails
+  }
+  return { text, isNewResumeConfig }
 }
 
 export default function AdminPage() {
-  const [fileList, setFileList] = useState<FileItem[]>([])
+  const dispatch = useAppDispatch()
   const [selectedFile, setSelectedFile] = useState<string>('profile.json')
-  const [content, setContent] = useState<string>('')
-  const [initialContent, setInitialContent] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchingList, setFetchingList] = useState<boolean>(false)
-  const [saving, setSaving] = useState<boolean>(false)
-  const [lastSaved, setLastSaved] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  // The editor's working text: null until edited, so the loaded file is shown until then. A file created
+  // in this page that does not exist on the server yet is local only ('draftFile' with its starting text).
+  const [edit, setEdit] = useState<{ file: string; text: string } | null>(null)
+  const [localFile, setLocalFile] = useState<{ file: string; text: string } | null>(null)
   const [newFileName, setNewFileName] = useState<string>('')
   const [showNewFileModal, setShowNewFileModal] = useState<boolean>(false)
 
-  // In-memory memoisation cache for API calls (file contents)
-  const cacheRef = useRef<Map<string, FileContent>>(new Map())
+  const list = useListCmsFilesQuery()
+  const fileList = list.data?.files ?? []
+  const fetchingList = list.isFetching
+  const isLocal = localFile?.file === selectedFile && !fileList.some((f) => f.filename === selectedFile)
+  const fileQuery = useGetCmsFileQuery(selectedFile, { skip: isLocal })
+  const [saveFile, { isLoading: saving }] = useCmsSaveMutation()
 
-  const showNotification = useCallback((type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg })
-    setTimeout(() => {
-      setToast(null)
-    }, 4000)
-  }, [])
+  const loading = !isLocal && fileQuery.isLoading
+  const prepared = useMemo(
+    () => (fileQuery.data ? prepareContent(selectedFile, fileQuery.data) : null),
+    [fileQuery.data, selectedFile],
+  )
+  // The text the file holds now (the editor starts from it, and Reset returns to it).
+  const initialContent = isLocal ? '' : prepared?.isNewResumeConfig ? '' : (prepared?.text ?? '')
+  const startContent = isLocal ? localFile.text : (prepared?.text ?? '')
+  const content = edit?.file === selectedFile ? edit.text : startContent
+  const setContent = (text: string) => setEdit({ file: selectedFile, text })
+  const updatedAt = isLocal ? null : (fileQuery.data?.updatedAt ?? null)
+  const lastSaved = updatedAt ? new Date(updatedAt).toLocaleTimeString() : null
 
-  // Fetch file list
-  const fetchFileList = useCallback(async (bypassCache = false) => {
-    setFetchingList(true)
-    try {
-      const data = await cms<{ files: FileItem[] }>()
-      setFileList(data.files || [])
-      if (bypassCache) {
-        cacheRef.current.clear()
-      }
-    } catch (err) {
-      showNotification('error', err instanceof Error ? err.message : 'Error fetching files')
-    } finally {
-      setFetchingList(false)
-    }
-  }, [showNotification])
+  const showNotification = (type: 'success' | 'error', msg: string) => dispatch(notify(type, msg))
 
-  useEffect(() => {
-    let ignore = false
-    async function initFileList() {
-      setFetchingList(true)
-      try {
-        const data = await cms<{ files: FileItem[] }>()
-        if (!ignore) {
-          setFileList(data.files || [])
-        }
-      } catch (err) {
-        if (!ignore) {
-          showNotification('error', err instanceof Error ? err.message : 'Error fetching files')
-        }
-      } finally {
-        if (!ignore) {
-          setFetchingList(false)
-        }
-      }
-    }
-    initFileList()
-    return () => {
-      ignore = true
-    }
-  }, [showNotification])
-
-  useEffect(() => {
-    if (!selectedFile) return
-    let ignore = false
-
-    async function loadFile() {
-      // Check in-memory cache first for memoised response
-      const cached = cacheRef.current.get(selectedFile)
-      if (cached) {
-        setContent(cached.content)
-        setInitialContent(cached.content)
-        setLastSaved(cached.updatedAt ? new Date(cached.updatedAt).toLocaleTimeString() : null)
-        setLoading(false)
-        return
-      }
-
-      setLoading(true)
-      try {
-        const data = await cms<FileContent>({ query: `?file=${encodeURIComponent(selectedFile)}` })
-
-        // A resume config that was never saved opens as the default config, unsaved.
-        const isNewResumeConfig = !data.exists && selectedFile === RESUME_CONFIG_FILE
-        let rawContent = isNewResumeConfig ? DEFAULT_RESUME_CONFIG : data.content || ''
-        try {
-          if (rawContent) {
-            const parsed = JSON.parse(rawContent)
-            rawContent = JSON.stringify(parsed, null, 2)
-          }
-        } catch {
-          // Keep raw string if parse fails
-        }
-
-        const preparedData = { ...data, content: rawContent }
-
-        if (!ignore) {
-          // Store in memoisation cache (not the unsaved default, so it stays a draft)
-          if (!isNewResumeConfig) cacheRef.current.set(selectedFile, preparedData)
-
-          setContent(rawContent)
-          setInitialContent(isNewResumeConfig ? '' : rawContent)
-          setLastSaved(data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : null)
-        }
-      } catch (err) {
-        if (!ignore) {
-          showNotification('error', err instanceof Error ? err.message : 'Error loading file content')
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false)
-        }
-      }
-    }
-    loadFile()
-    return () => {
-      ignore = true
-    }
-  }, [selectedFile, showNotification])
+  // Refresh drops every cached file so the next view reads the server again.
+  const refreshFiles = () => {
+    dispatch(api.util.invalidateTags(['CmsFile']))
+    void list.refetch()
+  }
 
   // Compute JSON error state derived from content
   const jsonError = useMemo(() => {
@@ -193,29 +95,13 @@ export default function AdminPage() {
       return
     }
 
-    setSaving(true)
     try {
-      const data = await cms<SaveResult>({ method: 'POST', body: { file: selectedFile, content } })
-
-      const nowIso = new Date().toISOString()
-      // Update memoisation cache with saved content
-      cacheRef.current.set(selectedFile, {
-        filename: selectedFile,
-        displayName: selectedFile,
-        exists: true,
-        size: content.length,
-        updatedAt: nowIso,
-        content,
-      })
-
-      setInitialContent(content)
-      setLastSaved(new Date().toLocaleTimeString())
-      showNotification('success', data.message || `Saved ${selectedFile} successfully!`)
-      fetchFileList()
-    } catch (err) {
-      showNotification('error', err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSaving(false)
+      await saveFile({ file: selectedFile, content }).unwrap()
+      // The file now exists on the server; the refreshed file and list replace the local copy. The edit
+      // stays so the editor never flashes the previous text while the refreshed file loads.
+      setLocalFile(null)
+    } catch {
+      // Already reported by the error snackbar.
     }
   }
 
@@ -231,7 +117,7 @@ export default function AdminPage() {
   }
 
   const handleReset = () => {
-    setContent(initialContent)
+    setEdit(null)
     showNotification('success', 'Reverted changes to last saved state')
   }
 
@@ -242,10 +128,10 @@ export default function AdminPage() {
       cleanName += '.json'
     }
 
-    setSelectedFile(cleanName)
     const initialNewContent = cleanName === RESUME_CONFIG_FILE ? DEFAULT_RESUME_CONFIG : '{\n  "key": "value"\n}'
-    setContent(initialNewContent)
-    setInitialContent('')
+    setLocalFile({ file: cleanName, text: initialNewContent })
+    setEdit(null)
+    setSelectedFile(cleanName)
     setShowNewFileModal(false)
     setNewFileName('')
     showNotification('success', `Created preview for ${cleanName}. Edit and click Save to create the file.`)
@@ -259,19 +145,6 @@ export default function AdminPage() {
     <>
       {/* Main Content Area */}
       <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
-        {/* Toast Alert */}
-        {toast && (
-          <div className="toast toast-top toast-center z-50">
-            <div
-              className={`alert ${
-                toast.type === 'success' ? 'alert-success' : 'alert-error'
-              } shadow-lg`}
-            >
-              <span>{toast.msg}</span>
-            </div>
-          </div>
-        )}
-
         {/* Section Header & File Navigation */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between surface p-4 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
@@ -280,7 +153,10 @@ export default function AdminPage() {
             <select
               className="select select-bordered select-sm bg-base-100 font-mono text-sm max-w-xs focus:outline-none"
               value={selectedFile}
-              onChange={(e) => setSelectedFile(e.target.value)}
+              onChange={(e) => {
+                setEdit(null)
+                setSelectedFile(e.target.value)
+              }}
             >
               {fileList.map((f) => (
                 <option key={f.filename} value={f.filename}>
@@ -290,7 +166,7 @@ export default function AdminPage() {
             </select>
 
             <button
-              onClick={() => fetchFileList(true)}
+              onClick={refreshFiles}
               disabled={fetchingList}
               className="btn btn-ghost btn-xs btn-square"
               title="Refresh File List (Bypasses Cache)"
@@ -394,7 +270,6 @@ export default function AdminPage() {
               src/data/{selectedFile}
             </span>
             <span className="text-muted flex items-center gap-2">
-              {loading && <Loader2 size={12} className="animate-spin text-brand" />}
               {loading ? 'Loading file...' : 'JSON Content Editor'}
             </span>
           </div>
@@ -412,12 +287,17 @@ export default function AdminPage() {
 
           {/* JSON Editor Component */}
           <div className="relative flex-1 min-h-[500px]">
-            {loading ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-base-200/80 z-20 gap-3">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
-                <span className="text-xs font-mono text-base-content/70 animate-pulse">
-                  Fetching file content...
-                </span>
+            {fileQuery.isError && !fileQuery.data && !isLocal ? (
+              <div className="p-4">
+                <ErrorState
+                  message={fileQuery.error && 'message' in fileQuery.error && fileQuery.error.message ? fileQuery.error.message : 'Could not load this file.'}
+                  onRetry={() => void fileQuery.refetch()}
+                />
+              </div>
+            ) : loading ? (
+              <div role="status" aria-busy="true" className="absolute inset-0 z-20 bg-base-200 p-4">
+                <span className="sr-only">Loading file</span>
+                <SkeletonText lines={14} />
               </div>
             ) : (
               <JsonEditor value={content} onChange={setContent} />

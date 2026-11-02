@@ -3,6 +3,7 @@
 import { signOut } from 'firebase/auth'
 import { Ellipsis, LogOut, Settings, User, type LucideIcon } from 'lucide-react'
 import { getFirebaseAuth } from '../../lib/firebase.ts'
+import { useSignOutMutation } from '../../store/api.ts'
 import type { Profile } from '../../data/profile.ts'
 import { useProfile } from './ProfileProvider.tsx'
 
@@ -12,8 +13,9 @@ const ICONS: Record<Profile['nav']['dropdownItems'][number]['icon'], LucideIcon>
   'log-out': LogOut,
 }
 
-export default function NavbarDropdown({ onLogout }: { onLogout: () => void }) {
+export default function NavbarDropdown() {
   const profile = useProfile()
+  const [signOutServer] = useSignOutMutation()
   const { nav } = profile
 
   return (
@@ -37,22 +39,16 @@ export default function NavbarDropdown({ onLogout }: { onLogout: () => void }) {
 
           const handleClick = async () => {
             if (isLogout) {
-              // End the server session first (clears the cookie). If that fails, still sign out of the
-              // Firebase client session, but keep showing the user as logged in since the cookie lives.
-              let serverSessionEnded = false
-              try {
-                const res = await fetch('/api/auth/session', { method: 'DELETE' })
-                serverSessionEnded = res.ok
-              } catch (error) {
-                console.error('Server session delete failed:', error)
-              }
+              // End the server session first (clears the cookie, and the store drops the role and the
+              // cached data when it succeeds). If that fails the error snackbar says so; still sign out of
+              // the Firebase client session, but keep showing the user as logged in since the cookie lives.
+              await signOutServer()
               try {
                 const auth = getFirebaseAuth()
                 if (auth) await signOut(auth)
               } catch (error) {
                 console.error('Sign out error:', error)
               }
-              if (serverSessionEnded) onLogout()
             }
           }
 

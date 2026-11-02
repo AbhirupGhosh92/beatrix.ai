@@ -16,6 +16,7 @@
 @import "./styles/components/back-to-top.css";
 @import "./styles/components/skills-tabs.css";
 @import "./styles/components/release-notes.css";
+@import "./styles/components/snackbar.css";
 @import "./styles/effects/reveal.css";
 @import "./styles/effects/reduced-motion.css";
 @import "./styles/vendor/json-view.css";

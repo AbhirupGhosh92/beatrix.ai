@@ -23,6 +23,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@react-pdf/renderer": "^4.9.0",
+    "@reduxjs/toolkit": "^2.13.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@uiw/react-json-view": "2.0.0-alpha.44",
     "docx": "^9.15.0",
@@ -33,6 +34,7 @@
     "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-redux": "^9.3.1",
     "server-only": "^0.0.1",
     "tailwindcss": "^4.3.3"
   },
