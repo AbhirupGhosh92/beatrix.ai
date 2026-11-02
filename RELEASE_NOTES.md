@@ -1,0 +1,5 @@
+- A new, cleaner look: one clear design shared by the light and dark themes, so switching theme only changes colors.
+- Smoother scrolling: sections fade into place, the top of the page eases away as you scroll, and a thin bar shows your progress. Everything stays still if your device is set to reduce motion.
+- Buttons, cards and menus keep their hover effects, now in the new colors.
+- A new browser tab icon.
+- Easier to read: text contrast was checked in both themes, and keyboard focus is now clearly visible.

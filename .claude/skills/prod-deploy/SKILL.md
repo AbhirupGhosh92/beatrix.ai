@@ -1,6 +1,6 @@
 ---
 name: prod-deploy
-description: Deploy a commit on main to the Beatrix.ai prod environment through the Deploy prod pipeline with a release version, with explicit confirmation, and narrate every step. Use only when the user explicitly asks to deploy to prod or to release. Refuses unless the commit is on main and a version is given.
+description: Deploy a commit on main to the Asterion AI prod environment through the Deploy prod pipeline with a release version, with explicit confirmation, and narrate every step. Use only when the user explicitly asks to deploy to prod or to release. Refuses unless the commit is on main and a version is given.
 ---
 
 # Deploy a commit on main to prod and cut the release

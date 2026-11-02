@@ -1,6 +1,6 @@
 # Deployment
 
-How Beatrix.ai is deployed to `dev` and `prod`, why it is safe, and how to operate it.
+How Asterion AI is deployed to `dev` and `prod`, why it is safe, and how to operate it.
 Read this before you deploy, change a workflow, or change anything in `terraform/`.
 
 - [1. What the pipeline guarantees](#1-what-the-pipeline-guarantees)

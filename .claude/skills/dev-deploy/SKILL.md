@@ -1,6 +1,6 @@
 ---
 name: dev-deploy
-description: Deploy a branch or commit to the Beatrix.ai dev environment through the Deploy dev pipeline and narrate every step. Use when the user asks to deploy to dev, redeploy dev, try a branch on dev, or check why a dev deploy did or did not change something. Never for prod (use prod-deploy).
+description: Deploy a branch or commit to the Asterion AI dev environment through the Deploy dev pipeline and narrate every step. Use when the user asks to deploy to dev, redeploy dev, try a branch on dev, or check why a dev deploy did or did not change something. Never for prod (use prod-deploy).
 ---
 
 # Deploy to dev

@@ -34,7 +34,7 @@ Next.js App Router site (Next 16, React 19, TypeScript 6, ESLint 10 flat config 
 - Theming uses daisyUI's theme controller, with no React state: `components/layout/ThemeToggle.tsx` renders a single `swap` button around a checkbox with class `theme-controller` and `value="beatrix-dark"`; while checked daisyUI applies that theme in pure CSS via `:has()`, unchecked falls back to the default light theme. `beatrix-dark` deliberately has no `prefersdark` flag (otherwise unchecking would fall back to dark on dark-mode OSes). The choice is saved in `localStorage` key `theme` (`beatrix-light`/`beatrix-dark`) and defaults to the OS preference on first visit; the checkbox is server-rendered unchecked and synced to the saved/OS theme in the mount effect (no `window` access during SSR), and an inline script in `src/app/layout.tsx` sets `data-theme` on `<html>` before first paint (no flash) which the component removes on mount. Anything keyed on the light theme (such as `@variant theme-light` rules) uses `:root:not([data-theme="beatrix-dark"], :has(input.theme-controller[value="beatrix-dark"]:checked))`.
 - `src/index.css` only imports Tailwind and the style files in `src/styles/` (see Styling and Style files), and is imported by the layout.
 
-There are no routes, API calls, or AI/LLM integration yet, despite the `beatrix.ai` name. Check the code before assuming any architecture exists.
+There are no routes, API calls, or AI/LLM integration yet, despite the Asterion AI name. Check the code before assuming any architecture exists.
 
 ## Component layout
 
