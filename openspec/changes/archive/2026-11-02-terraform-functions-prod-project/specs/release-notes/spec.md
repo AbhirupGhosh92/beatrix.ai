@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Release branch publishes a GitHub release
-A successful prod run SHALL cut the release for its `version`: it SHALL create the branch `release/<version>` at the deployed commit, the tag `v<version>`, and a GitHub release marked Latest whose body is `RELEASE_NOTES.md` at that commit. The release SHALL be cut only after the prod stages and the smoke test succeeded. Pushing a release branch SHALL NOT publish a release. A run SHALL fail before any plan when `RELEASE_NOTES.md` is missing or empty, or when the branch or tag already exists at a different commit.
+A successful prod run SHALL cut the release for its `version`, only after the prod stages and the smoke test succeeded: the branch `release/<version>` and the tag `v<version>` at the deployed commit, and a GitHub release marked Latest whose body is `RELEASE_NOTES.md` at that commit. Pushing a release branch SHALL NOT publish a release.
 
 #### Scenario: Release branch pushed
 - **WHEN** a prod run for version `1.2.1` succeeds on a commit whose `RELEASE_NOTES.md` is non-empty
