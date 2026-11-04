@@ -1,17 +1,20 @@
 'use client'
 
 import { Menu} from 'lucide-react'
+import type { Role } from '../../lib/access.ts'
 import NavbarDropdown from './NavbarDropdown.tsx'
 import { ThemeToggle } from './ThemeToggle.tsx'
 import { useProfile } from './ProfileProvider.tsx'
 
 interface Props {
   isLoggedIn: boolean
+  /** The signed-in role, used to decide which account menu entries to list. */
+  role: Role | null
   /** Whether the drawer lists anything; without entries there is no menu button. */
   showMenu: boolean
 }
 
-export default function Navbar({ isLoggedIn, showMenu }: Props) {
+export default function Navbar({ isLoggedIn, role, showMenu }: Props) {
   const profile = useProfile()
     return (
         <nav className="navbar px-0">
@@ -27,7 +30,7 @@ export default function Navbar({ isLoggedIn, showMenu }: Props) {
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">
                  <ThemeToggle/>    
-               {isLoggedIn && <NavbarDropdown />}
+               {isLoggedIn && <NavbarDropdown role={role} />}
             </div>
         </nav>
     )

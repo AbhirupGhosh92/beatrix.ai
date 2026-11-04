@@ -23,6 +23,8 @@ export interface Application {
 
 /** What the list returns: the tailor JSON itself is only sent when one application is opened. */
 export interface ApplicationSummary extends Application {
+  /** Title of the linked resume; only the list fills it (null or missing when unlinked). */
+  resumeTitle?: string | null
   hasTailor: boolean
 }
 

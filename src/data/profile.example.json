@@ -470,16 +470,28 @@
     ],
     "dropdownItems": [
       {
+        "id": "profile",
         "label": "Profile",
-        "icon": "user"
+        "icon": "user",
+        "enabled": false,
+        "action": "link",
+        "href": ""
       },
       {
+        "id": "settings",
         "label": "Settings",
-        "icon": "settings"
+        "icon": "settings",
+        "enabled": false,
+        "action": "link",
+        "href": ""
       },
       {
+        "id": "log-out",
         "label": "Log out",
-        "icon": "log-out"
+        "icon": "log-out",
+        "enabled": true,
+        "action": "sign-out",
+        "href": ""
       }
     ],
     "backToTopLabel": "Back to top",
