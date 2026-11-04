@@ -191,7 +191,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: ${{ inputs.environment == 'prod' && 0 || 1 }}
+          fetch-depth: ${{ inputs.environment == 'prod' && '0' || '1' }}
           persist-credentials: false
 
       # Every later job checks out this exact commit, so what is verified is what is deployed,
