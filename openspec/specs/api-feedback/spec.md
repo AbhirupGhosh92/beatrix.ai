@@ -28,7 +28,7 @@ Every failed call to `/api/*` SHALL show an error snackbar with the server's mes
 - **THEN** an error snackbar shows a generic failure message
 
 ### Requirement: Snackbar behavior
-Snackbars SHALL stack without hiding each other, dismiss on their own after a few seconds and on demand, be announced to assistive technology, and not animate under reduced motion.
+Snackbars SHALL stack without hiding each other, dismiss on their own after a few seconds and on demand, be announced to assistive technology, animate in when they appear and out when they leave (the remaining snackbars moving smoothly into the freed space), and not animate under reduced motion.
 
 #### Scenario: Several outcomes at once
 - **WHEN** two calls finish within the same moment
@@ -37,6 +37,14 @@ Snackbars SHALL stack without hiding each other, dismiss on their own after a fe
 #### Scenario: Screen reader
 - **WHEN** a snackbar appears
 - **THEN** its text is announced; error snackbars are announced assertively
+
+#### Scenario: Smooth exit
+- **WHEN** a snackbar times out or the user dismisses it
+- **THEN** it fades and moves out before it is removed, and the snackbars below it slide up instead of jumping
+
+#### Scenario: Reduced motion
+- **WHEN** the user prefers reduced motion
+- **THEN** snackbars appear and disappear without animation
 
 ### Requirement: Inline error state with retry
 When a page cannot render because its data failed to load, it SHALL show an inline error state with a retry action in addition to the error snackbar.

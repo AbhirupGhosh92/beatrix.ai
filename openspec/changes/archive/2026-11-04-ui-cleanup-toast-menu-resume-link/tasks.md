@@ -19,7 +19,7 @@
 
 ## 4. Integration
 
-- [ ] 4.1 Run `npm run check`, `npm run build` and `openspec validate --all`; do one manual pass of all three behaviors in both themes at phone and desktop width. Verify the PR's Verification section lists only what was run.
+- [x] 4.1 Run `npm run check`, `npm run build` and `openspec validate --all`; do one manual pass of all three behaviors in both themes at phone and desktop width. Verify the PR's Verification section lists only what was run.
 - [x] 4.2 Docs to update: `CLAUDE.md` (done in 1.2, 2.3, 3.3); `docs/DEPLOYMENT.md` and the README need no change unless the pipeline or scripts changed (confirm, since `functions/` is touched).
 
 ## Workflow follow-up
