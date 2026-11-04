@@ -44,7 +44,7 @@ export default function Home() {
         {/* Fixed (sticky) header: full-width bar so it spans the page, content capped inside. */}
         <header className="sticky top-0 z-30 edge-b bg-base-100/80 backdrop-blur">
           <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 lg:px-8">
-            <Navbar isLoggedIn={isLoggedIn} showMenu={showMenu} />
+            <Navbar isLoggedIn={isLoggedIn} role={role} showMenu={showMenu} />
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8 lg:py-6">

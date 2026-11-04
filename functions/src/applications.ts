@@ -69,18 +69,21 @@ function withoutClaim(a: StoredApplication): Omit<StoredApplication, "resumeClai
 }
 
 /** What the list shows: everything except the (large) tailor JSON, of which only the presence is sent. */
-function summary(a: StoredApplication, resumeId: string | null) {
+function summary(a: StoredApplication, resumeId: string | null, resumeTitle: string | null = null) {
   const { tailor, ...rest } = withoutClaim(a);
-  return { ...rest, resumeId, hasTailor: tailor !== null && tailor !== undefined };
+  return { ...rest, resumeId, resumeTitle: resumeId ? resumeTitle : null, hasTailor: tailor !== null && tailor !== undefined };
 }
 
-/** Ids of the owner's resumes that still exist (one prefix listing). */
-async function liveResumeIds(email: string): Promise<Set<string>> {
+/** The owner's resumes that still exist, id to title (one prefix listing; the title is in the object metadata). */
+async function liveResumes(email: string): Promise<Map<string, string>> {
   const [files] = await resumesBucket().getFiles({ prefix: prefixOf(email) });
-  return new Set(
+  return new Map(
     files
       .filter((f) => f.name.endsWith(".json"))
-      .map((f) => f.name.slice(f.name.lastIndexOf("/") + 1, -".json".length)),
+      .map((f): [string, string] => [
+        f.name.slice(f.name.lastIndexOf("/") + 1, -".json".length),
+        String(f.metadata?.metadata?.title ?? "Untitled"),
+      ]),
   );
 }
 
@@ -95,8 +98,8 @@ export const applicationList = privateEndpoint(async (body) => {
   const snap = await items(email).limit(limits.maxApplications + 1).get();
   const all = snap.docs.map((d) => d.data() as StoredApplication);
 
-  let live: Set<string> | undefined;
-  if (all.some((a) => a.resumeId)) live = await liveResumeIds(email);
+  let live: Map<string, string> | undefined;
+  if (all.some((a) => a.resumeId)) live = await liveResumes(email);
   const stale = all.filter((a) => a.resumeId && !live?.has(a.resumeId));
   // A Firestore batch holds at most 500 writes, so clear the links in chunks.
   for (let i = 0; i < stale.length; i += BATCH_LIMIT) {
@@ -105,7 +108,7 @@ export const applicationList = privateEndpoint(async (body) => {
     await batch.commit();
   }
   const applications = all
-    .map((a) => summary(a, a.resumeId && live?.has(a.resumeId) ? a.resumeId : null))
+    .map((a) => summary(a, a.resumeId && live?.has(a.resumeId) ? a.resumeId : null, a.resumeId ? live?.get(a.resumeId) ?? null : null))
     .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt) || b.createdAt.localeCompare(a.createdAt));
   return {
     applications,

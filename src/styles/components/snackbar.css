@@ -4,17 +4,6 @@
   max-width: min(32rem, 100vw - 1.5rem);
 }
 
-.snackbar {
-  animation: snackbar-in var(--motion-base) var(--ease-standard);
-}
-
-@keyframes snackbar-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
-  }
-}
-
 /* Plain CSS: the unlayered global `button` rule beats daisyUI's layered size and ghost utilities. */
 .snackbar-close {
   width: 1.75rem;

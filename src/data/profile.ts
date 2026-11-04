@@ -49,6 +49,22 @@ export interface Achievement {
 
 export type DrawerIcon = 'file-text' | 'briefcase' | 'circle'
 
+export type DropdownIcon = 'user' | 'settings' | 'log-out'
+
+/**
+ * An account menu entry (the "..." dropdown). `enabled` is the on/off switch. A `link` goes to `href`
+ * (an internal path, gated by its route permission, or an http(s) URL that opens in a new tab);
+ * `sign-out` ends the session.
+ */
+export interface DropdownItem {
+  id: string
+  label: string
+  icon: DropdownIcon
+  enabled: boolean
+  action: 'link' | 'sign-out'
+  href: string
+}
+
 /** A drawer menu entry. `enabled` is the on/off switch; the route's permission lives in access.ts. */
 export interface DrawerItem {
   /** Stable key that feature routes are tied to (see FEATURE_ROUTES in access.ts). */
@@ -71,7 +87,7 @@ export interface Profile {
     adminTitle: string
     adminLabel: string
     adminHref: string
-    dropdownItems: { label: string; icon: 'user' | 'settings' | 'log-out' }[]
+    dropdownItems: DropdownItem[]
   }
   person: {
     name: string

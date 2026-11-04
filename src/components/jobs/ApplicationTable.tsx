@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Pencil, Plus, Search } from 'lucide-react'
 import type { TrackerStatus } from '../../data/resumeConfig.ts'
 import type { ApplicationSummary } from '../../lib/applicationTypes.ts'
@@ -119,6 +120,7 @@ export default function ApplicationTable({ total, cap, rows, statuses, labels, v
                 {COLUMNS.map(sortHeader)}
                 <th>Labels</th>
                 <th>Notes</th>
+                <th>Resume</th>
                 <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -135,6 +137,13 @@ export default function ApplicationTable({ total, cap, rows, statuses, labels, v
                     </ul>
                   </td>
                   <td className="max-w-56 truncate text-meta" title={a.notes}>{a.notes}</td>
+                  <td className="max-w-48 truncate">
+                    {a.resumeId && (
+                      <Link className="text-brand" href={`/resume-builder?open=${a.resumeId}`} title={a.resumeTitle ?? undefined}>
+                        {a.resumeTitle || 'Untitled'}
+                      </Link>
+                    )}
+                  </td>
                   <td>
                     <span className="flex items-center justify-end gap-2">
                       {a.jobUrl && (

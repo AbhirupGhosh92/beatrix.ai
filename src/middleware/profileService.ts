@@ -4,7 +4,7 @@
 import 'server-only'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { DrawerItem, Profile } from '../data/profile.ts'
+import type { DrawerItem, DropdownIcon, DropdownItem, Profile } from '../data/profile.ts'
 import defaults from '../data/profile.example.json'
 import { isObject, withDefaults, type Json } from '../lib/jsonDefaults.ts'
 import { callCloudFunction } from './cloudFunctions.ts'
@@ -34,9 +34,35 @@ function normalizeDrawerItems(items: unknown): DrawerItem[] {
   })
 }
 
+const DROPDOWN_ICONS: readonly DropdownIcon[] = ['user', 'settings', 'log-out']
+
+/**
+ * Account menu entries. Profiles stored before entries had an action only have a label and an icon:
+ * their log-out entry stays a working sign-out, the others did nothing and stay hidden until given
+ * an action and enabled.
+ */
+function normalizeDropdownItems(items: unknown): DropdownItem[] {
+  if (!Array.isArray(items)) return []
+  return items.map((item, index): DropdownItem => {
+    const o = isObject(item) ? item : {}
+    const icon = DROPDOWN_ICONS.find((i) => i === o.icon) ?? 'user'
+    const legacy = o.action === undefined
+    const action = o.action === 'link' || o.action === 'sign-out' ? o.action : icon === 'log-out' ? 'sign-out' : 'link'
+    return {
+      id: typeof o.id === 'string' ? o.id : `menu-${index}`,
+      label: typeof o.label === 'string' ? o.label : '',
+      icon,
+      enabled: legacy ? icon === 'log-out' : o.enabled === true,
+      action,
+      href: typeof o.href === 'string' ? o.href : '',
+    }
+  })
+}
+
 function parse(content: string): Profile {
   const profile = withDefaults(defaults as Json, JSON.parse(content) as Json) as unknown as Profile
   profile.nav.drawerItems = normalizeDrawerItems(profile.nav.drawerItems)
+  profile.nav.dropdownItems = normalizeDropdownItems(profile.nav.dropdownItems)
   return profile
 }
 

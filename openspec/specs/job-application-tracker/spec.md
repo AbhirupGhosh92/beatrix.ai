@@ -93,7 +93,7 @@ A user SHALL be able to give an application several labels for quick lookup. A l
 - **THEN** that label is offered as a suggestion
 
 ### Requirement: Table with notes, search, sort and filter
-The list SHALL be a table whose columns include company, role, status, applied date, labels and notes, with the newest applied date first by default. The user SHALL be able to search, sort and filter the list, and the page SHALL show how many applications match.
+The list SHALL be a table whose columns include company, role, status, applied date, labels, notes and the linked resume, with the newest applied date first by default. The user SHALL be able to search, sort and filter the list, and the page SHALL show how many applications match.
 
 #### Scenario: Notes column
 - **WHEN** an application has notes
@@ -118,6 +118,14 @@ The list SHALL be a table whose columns include company, role, status, applied d
 #### Scenario: Filter by status
 - **WHEN** a user filters by Interview
 - **THEN** only applications with that status are listed
+
+#### Scenario: Linked resume shown
+- **WHEN** an application is linked to a resume that still exists
+- **THEN** its row shows that resume's title as a link that opens the resume in the builder
+
+#### Scenario: No linked resume
+- **WHEN** an application has no linked resume, or the linked resume was deleted
+- **THEN** its resume cell is blank
 
 ### Requirement: Private per user
 Applications SHALL be readable and changeable only by the user who owns them, where the owner is the verified session's email and never a request field. An id that belongs to another user SHALL answer 404.
