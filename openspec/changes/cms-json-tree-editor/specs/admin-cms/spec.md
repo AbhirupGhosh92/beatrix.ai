@@ -37,11 +37,26 @@ Both views SHALL edit the same JSON text. Switching between them SHALL keep the 
 - **WHEN** a user enters full screen from the Tree view
 - **THEN** the Tree view stays selected with the same content
 
+### Requirement: Changing a type never silently discards entries
+Changing a non-empty map or array to another type in the Tree view SHALL ask the user to confirm first, because the entries inside would be removed.
+
+#### Scenario: Confirm the loss
+- **WHEN** a user changes a map with entries to string
+- **THEN** a confirmation names the loss, and the type changes only if the user confirms
+
+#### Scenario: Decline
+- **WHEN** the user declines the confirmation
+- **THEN** the map keeps its type and entries
+
 ### Requirement: Tree view refuses invalid input
-The Tree view SHALL not apply a key that already exists in the same map, and SHALL not render while the text is not valid JSON.
+The Tree view SHALL not apply an empty, whitespace-only or already used key in the same map, and SHALL not render while the text is not valid JSON.
 
 #### Scenario: Duplicate key
 - **WHEN** a user renames a key to one that already exists in the same map
+- **THEN** an inline error is shown and the JSON text is not changed
+
+#### Scenario: Empty key
+- **WHEN** a user clears a key or enters only spaces
 - **THEN** an inline error is shown and the JSON text is not changed
 
 #### Scenario: Invalid JSON text

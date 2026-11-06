@@ -103,7 +103,7 @@ export function renameKey(root: JsonValue, path: JsonPath, newKey: string): Rena
     return { ok: false, error: 'This entry has no key.' }
   }
   if (newKey === oldKey) return { ok: true, root }
-  if (newKey === '') return { ok: false, error: 'A key cannot be empty.' }
+  if (newKey.trim() === '') return { ok: false, error: 'A key cannot be empty.' }
   if (Object.prototype.hasOwnProperty.call(parent, newKey)) return { ok: false, error: `The key "${newKey}" already exists.` }
   const renamed: { [key: string]: JsonValue } = {}
   for (const [k, v] of Object.entries(parent as { [key: string]: JsonValue })) renamed[k === oldKey ? newKey : k] = v
