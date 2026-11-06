@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Editor, { type BeforeMount, type Monaco } from '@monaco-editor/react'
 import JsonView from '@uiw/react-json-view'
+import { JsonTreeEditor } from './JsonTreeEditor.tsx'
+import { parseDocument } from '../../lib/jsonTree.ts'
 import { defineMonacoThemes, MONACO_DARK_THEME, MONACO_LIGHT_THEME } from '../../styles/vendor/monaco.ts'
 import { Code, GitFork, Maximize2, Minimize2, Search, MinusSquare, PlusSquare } from 'lucide-react'
 
@@ -15,15 +17,21 @@ interface JsonEditorProps {
   height?: number
   /** Accessible name of the whole editor. */
   label?: string
+  /** View shown first; Tree only applies while the text is valid JSON. Defaults to the code editor. */
+  defaultView?: 'code' | 'tree'
 }
 
-export function JsonEditor({ value, onChange, readOnly = false, height = 500, label }: JsonEditorProps) {
-  const [viewMode, setViewMode] = useState<'code' | 'tree'>('code')
+export function JsonEditor({ value, onChange, readOnly = false, height = 500, label, defaultView = 'code' }: JsonEditorProps) {
+  const [viewMode, setViewMode] = useState<'code' | 'tree'>(() =>
+    defaultView === 'tree' && parseDocument(value).ok ? 'tree' : 'code',
+  )
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(false)
   const monacoRef = useRef<Monaco | null>(null)
   const [treeSearch, setTreeSearch] = useState<string>('')
   const [collapsedDepth, setCollapsedDepth] = useState<number | boolean>(1)
   const [full, setFull] = useState(false)
+  // Bumped by Collapse / Expand so the tree rows reopen to the chosen depth.
+  const [treeEpoch, setTreeEpoch] = useState(0)
 
   // Full screen: Escape leaves it, and the page behind does not scroll meanwhile.
   useEffect(() => {
@@ -92,13 +100,8 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
   }, [isDarkTheme])
 
   // Parse JSON for tree view
-  const parsedJson = useMemo(() => {
-    try {
-      return JSON.parse(value)
-    } catch {
-      return null
-    }
-  }, [value])
+  const parsed = useMemo(() => parseDocument(value), [value])
+  const parsedJson = parsed.ok ? parsed.value : null
 
   const editor = (
     <div role="group" aria-label={label} className={`flex flex-col w-full border border-base-300 rounded-xl overflow-hidden bg-base-100 ${full ? 'flex-1 min-h-0' : 'h-full'}`}>
@@ -119,11 +122,11 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
           <button
             type="button"
             onClick={() => setViewMode('tree')}
-            disabled={parsedJson === null}
+            disabled={!parsed.ok}
             className={`btn btn-xs gap-1.5 ${
               viewMode === 'tree' ? 'btn-primary font-bold shadow-sm' : 'btn-ghost text-base-content/70'
             }`}
-            title={parsedJson === null ? 'Tree view requires valid JSON' : 'Switch to Tree View'}
+            title={!parsed.ok ? 'Tree view requires valid JSON' : 'Switch to Tree View'}
           >
             <GitFork size={13} />
             Tree View
@@ -146,7 +149,10 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setCollapsedDepth(1)}
+                onClick={() => {
+                  setCollapsedDepth(1)
+                  setTreeEpoch((n) => n + 1)
+                }}
                 className="btn btn-ghost btn-xs gap-1"
                 title="Collapse all top-level nodes"
               >
@@ -155,7 +161,10 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
               </button>
               <button
                 type="button"
-                onClick={() => setCollapsedDepth(false)}
+                onClick={() => {
+                  setCollapsedDepth(false)
+                  setTreeEpoch((n) => n + 1)
+                }}
                 className="btn btn-ghost btn-xs gap-1"
                 title="Expand all nodes"
               >
@@ -168,7 +177,7 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
 
         {/* Info hint */}
         <div className="text-muted font-mono hidden sm:block">
-          {viewMode === 'code' ? 'Press Ctrl+F to Search / Replace' : 'Interactive JSON Tree'}
+          {viewMode === 'code' ? 'Press Ctrl+F to Search / Replace' : (readOnly ? 'JSON Tree' : 'Edit keys and values')}
         </div>
 
         <button
@@ -213,9 +222,18 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
           />
         ) : (
           <div className="p-4 h-full overflow-auto bg-base-100 font-mono text-sm" style={full ? undefined : { minHeight: height }}>
-            {parsedJson !== null ? (
+            {parsed.ok && !readOnly ? (
+              <JsonTreeEditor
+                value={value}
+                onChange={onChange}
+                openDepth={collapsedDepth === false ? Infinity : 1}
+                search={treeSearch}
+                label={label ? `${label} (tree)` : 'JSON tree'}
+                key={treeEpoch}
+              />
+            ) : parsed.ok ? (
               <JsonView
-                value={parsedJson}
+                value={parsedJson as object | undefined}
                 collapsed={collapsedDepth}
                 shortenTextAfterLength={100}
                 displayDataTypes={true}
@@ -225,7 +243,7 @@ export function JsonEditor({ value, onChange, readOnly = false, height = 500, la
               />
             ) : (
               <div className="flex items-center justify-center h-64 text-error font-sans">
-                Cannot display Tree View: JSON contains syntax errors.
+                Cannot display Tree View: fix the syntax in the Code view first.
               </div>
             )}
           </div>

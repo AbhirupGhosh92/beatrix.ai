@@ -262,6 +262,7 @@ src/
 │       ├── Avatar.tsx
 │       ├── CopyEmailButton.tsx
 │       ├── JsonEditor.tsx
+│       ├── JsonTreeEditor.tsx
 │       ├── motion.tsx
 │       ├── Reveal.tsx
 │       ├── SectionHeading.tsx
@@ -282,6 +283,7 @@ src/
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── jsonDefaults.ts
+│   ├── jsonTree.ts
 │   ├── resumeConfigSanitize.ts
 │   ├── resumeForm.ts
 │   ├── resumeTypes.ts
