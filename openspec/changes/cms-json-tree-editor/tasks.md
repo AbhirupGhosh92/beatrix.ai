@@ -2,8 +2,8 @@
 
 ## 1. Tree editor component
 
-- [ ] 1.1 Add `src/components/ui/JsonTreeEditor.tsx` (rows with key, type selector and value input; add, remove, array move up/down; duplicate-key rejection; Collapse / Expand and search props). Verify `npm run typecheck` and `npm run lint` pass.
-- [ ] 1.2 Add the value-type conversion and path-update helpers in a pure module under `src/lib/` and verify with a short script run through `node --experimental-strip-types` that string to number keeps a number, key order is preserved, and a duplicate rename is refused.
+- [x] 1.1 Add `src/components/ui/JsonTreeEditor.tsx` (rows with key, type selector and value input; add, remove, array move up/down; duplicate-key rejection; Collapse / Expand and search props). Verify `npm run typecheck` and `npm run lint` pass.
+- [x] 1.2 Add the value-type conversion and path-update helpers in a pure module under `src/lib/` and verify with a short script run through `node --experimental-strip-types` that string to number keeps a number, key order is preserved, and a duplicate rename is refused.
 
 ## 2. Wire into the JSON editor and CMS page
 

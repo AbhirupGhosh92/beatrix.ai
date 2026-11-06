@@ -300,7 +300,7 @@ export default function AdminPage() {
                 <SkeletonText lines={14} />
               </div>
             ) : (
-              <JsonEditor value={content} onChange={setContent} />
+              <JsonEditor value={content} onChange={setContent} defaultView="tree" />
             )}
           </div>
         </div>
