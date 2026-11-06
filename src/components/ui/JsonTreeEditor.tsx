@@ -150,7 +150,12 @@ function TreeNode({ value, path, keyName, parentKind, index, siblings, depth, op
           aria-label={`Type of ${label}`}
           className="select select-bordered select-xs bg-base-100 w-24"
           value={kind}
-          onChange={(event) => update((r) => setAt(r, path, convert(value, event.target.value as JsonKind)))}
+          onChange={(event) => {
+            const next = event.target.value as JsonKind
+            // Entries inside a map or array are removed by a type change, and there is no undo.
+            if (container && entries.length > 0 && !window.confirm(`Changing "${label}" to ${next} removes its ${entries.length} entries. Continue?`)) return
+            update((r) => setAt(r, path, convert(value, next)))
+          }}
         >
           {JSON_KINDS.map((k) => (
             <option key={k} value={k}>
