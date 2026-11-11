@@ -233,6 +233,7 @@ src/
 │   │   ├── ProfileProvider.tsx
 │   │   ├── ReleaseNotes.tsx
 │   │   ├── ResumeNav.tsx
+│   │   ├── RouteProgress.tsx
 │   │   ├── StoreProvider.tsx
 │   │   └── ThemeToggle.tsx
 │   ├── resume/
@@ -284,6 +285,7 @@ src/
 │   ├── firebase.ts
 │   ├── jsonDefaults.ts
 │   ├── jsonTree.ts
+│   ├── navigationProgress.ts
 │   ├── resumeConfigSanitize.ts
 │   ├── resumeForm.ts
 │   ├── resumeTypes.ts
