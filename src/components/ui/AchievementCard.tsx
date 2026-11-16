@@ -48,8 +48,8 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   }
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const next =
-      e.key === 'ArrowLeft' ? position - KEY_STEP
-      : e.key === 'ArrowRight' ? position + KEY_STEP
+      e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? position - KEY_STEP
+      : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? position + KEY_STEP
       : e.key === 'Home' ? 0
       : e.key === 'End' ? 100
       : null
@@ -99,6 +99,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
+          onLostPointerCapture={endDrag}
           onKeyDown={onKeyDown}
         >
           <GripVertical size={16} aria-hidden="true" />
