@@ -5,3 +5,6 @@
 - Clear feedback everywhere: a short message confirms each save, delete or sign-in, explains anything that went wrong, and loading screens now show placeholders instead of spinners.
 - Messages slide in and out smoothly.
 - The Job Tracker now shows which resume each application is linked to, with a link that opens it.
+- A thin progress bar now shows at the top while you move between pages, so you can see the next page is on its way.
+- The before/after cards in Experience now work by touch on phones and tablets: drag the handle to compare.
+- Site editors get an editable tree view in the JSON editor, so content can be changed field by field instead of as raw text.
