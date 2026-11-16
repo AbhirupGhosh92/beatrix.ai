@@ -16,7 +16,7 @@
 ## Decisions
 
 - **Own pointer handler instead of CSS resize.** A grip button with `onPointerDown` + `setPointerCapture`, `onPointerMove` and `onPointerUp` sets a `position` state (0..100, clamped) from `clientX` relative to the card's bounding rect. Alternatives: keep daisyUI and add `tabIndex` on `diff-item-1` (only two snap positions, rejected); a hidden `<input type="range">` (works everywhere but the thumb is hard to style and drag area is not the grip, rejected).
-- **Keep daisyUI's two layers, drop its resizer.** Render `diff-item-1`/`diff-item-2` inside the card and size the red layer by the state (`width: position%` via a CSS variable), omitting `.diff-resizer` so no CSS resize or `:focus` snap can apply. Verify the layers still size correctly; if daisyUI's grid fights this, fall back to absolutely positioned layers in the same card.
+- **Drop daisyUI's `diff` entirely (as built).** Two absolutely positioned layers in a `container-type: inline-size` figure; the red layer's width is `--position` and its content keeps `100cqi` width so it does not squash. This avoids daisyUI's grid and its `:focus` snap altogether.
 - **`touch-action: pan-y` on the grip only**, so horizontal drags go to the handler and vertical swipes still scroll; the card body keeps the browser default. Remove `tabIndex` from the figure.
 - **Keyboard on the grip** with `role="slider"`, `aria-valuenow/min/max`, arrow steps of 5, Home/End.
 - **Mode derived from state**, not an observer: pain when `position > 55`, solution when `< 45`, else hint, keeping the current 5% margin. Because the red side is the left side, `position` is the red share.

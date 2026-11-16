@@ -13,7 +13,7 @@ On phones (iOS Safari, touch Firefox) the before/after achievement cards cannot 
 - The pain point and solution lists are derived from the handle position instead of a `ResizeObserver`.
 - Keep the visual result (red before side, green after side, dominant-side lists, reduced-motion behavior).
 
-Fixes #TBD (issue to be created before the branch, per `.claude/rules/github-workflow.md`).
+Fixes #116.
 
 Out of scope: card content or copy, the Experience section layout, other draggable or hover components, changes to `profile.json` shape.
 
