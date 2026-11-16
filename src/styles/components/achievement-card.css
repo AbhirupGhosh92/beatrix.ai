@@ -1,0 +1,63 @@
+/* Before/after achievement card (AchievementCard.tsx). `--position` is the red (before) share. */
+.achievement-diff {
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.achievement-diff-after,
+.achievement-diff-before {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.achievement-diff-after {
+  width: 100%;
+}
+
+.achievement-diff-before {
+  width: var(--position);
+  border-right: 2px solid var(--color-base-100);
+}
+
+/* Both layers keep the full card width so the content does not squash while the divider moves. */
+.achievement-diff-after > *,
+.achievement-diff-before > * {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 100cqi;
+  pointer-events: none;
+}
+
+.achievement-diff-grip {
+  position: absolute;
+  top: 50%;
+  left: var(--position);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  translate: -50% -50%;
+  border-radius: 9999px;
+  border: 1px solid var(--color-base-300);
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  cursor: ew-resize;
+  touch-action: pan-y;
+  transition: box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.achievement-diff-grip:focus-visible {
+  outline: 2px solid var(--color-base-content);
+  outline-offset: 2px;
+}
+
+.achievement-diff[data-dragging] .achievement-diff-grip {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-base-content) 15%, transparent);
+}
