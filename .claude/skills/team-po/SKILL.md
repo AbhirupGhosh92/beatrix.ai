@@ -17,7 +17,7 @@ If an issue or change is named, rebuild state from it (`gh issue view`, `openspe
 1. Understand the feature from the owner's words and the code. Ask the owner only what no spec, code or issue establishes (tier 2).
 2. Search for duplicates (`gh issue list --state all --search ...`), then create the issue in the matching `.github/ISSUE_TEMPLATE/` format with every section filled.
 3. Create the feature worktree and enter it:
-   `git fetch origin main && git worktree add .claude/worktrees/<summary> -b <feature|bug|spike|hotfix>/<id>-<summary> origin/main && git -C .claude/worktrees/<summary> branch --unset-upstream`, then `EnterWorktree` with that `path`.
+   `git fetch origin '+refs/heads/main:refs/remotes/origin/main' && git worktree add .claude/worktrees/<summary> -b <feature|bug|spike|hotfix>/<id>-<summary> origin/main && git -C .claude/worktrees/<summary> branch --unset-upstream`, then `EnterWorktree` with that `path`.
 4. `openspec new change <summary>`, then write `proposal.md` (Fixes #<id>, out of scope) and the spec delta(s) following `openspec instructions <artifact> --change <summary> --json`. Do not write `design.md` or `tasks.md`.
 5. Start the Architect session: `start_session` with `initiation: "user_asked"` (the owner's feature request is the ask), `context: "fresh"`, `use_worktree: false`, and a brief whose first line is `/team-architect` (load the `team-architect` skill), then the **absolute worktree path** (the Architect's first action is `EnterWorktree` with it; a new session may open in the main checkout even when you are in the worktree), the issue URL, branch, change name, your session id for replies, and the owner's constraints. Report stage **Defined**.
 
