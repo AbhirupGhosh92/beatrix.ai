@@ -25,10 +25,10 @@ After a successful Google sign-in of a user whose email is verified and who is n
 - **THEN** no session is created and the user stays anonymous
 
 ### Requirement: Default-deny route gating
-Every route SHALL require a valid session except `/` and static assets. A request without a valid session SHALL be redirected to `/` for pages and answered with 401 for `/api/*`. A route that is not listed as public MUST therefore be protected.
+Every route SHALL require a valid session except `/`, `/about` and static assets. A request without a valid session SHALL be redirected to `/` for pages and answered with 401 for `/api/*`. A route that is not listed as public MUST therefore be protected.
 
 #### Scenario: Anonymous page request
-- **WHEN** a request without a valid session asks for `/admin`, or any path other than `/`
+- **WHEN** a request without a valid session asks for `/admin`, or any path other than `/` or `/about`
 - **THEN** the response is a redirect to `/` and no page content is served
 
 #### Scenario: Anonymous API request
@@ -37,6 +37,10 @@ Every route SHALL require a valid session except `/` and static assets. A reques
 
 #### Scenario: Landing page stays public
 - **WHEN** an anonymous visitor requests `/`
+- **THEN** the page is served normally
+
+#### Scenario: About page is public
+- **WHEN** an anonymous visitor requests `/about`
 - **THEN** the page is served normally
 
 #### Scenario: Expired or tampered session
