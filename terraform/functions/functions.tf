@@ -16,6 +16,7 @@ locals {
   function_names = [
     "getProfile",
     "getResumeConfig",
+    "getHomeConfig",
     "adminListFiles",
     "adminGetFile",
     "adminSaveFile",

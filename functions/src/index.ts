@@ -20,6 +20,7 @@ export const status = onRequest({ invoker: [SITE_SERVER_ACCOUNT] }, (request, re
 // add every new export to `function_names` in terraform/functions.tf (scripts/check-functions.sh).
 export { getProfile } from "./profile";
 export { getResumeConfig } from "./resumeConfig";
+export { getHomeConfig } from "./homeConfig";
 export { resumeList, resumeGet, resumeCreate, resumeSave, resumeDelete } from "./resumes";
 export {
   applicationList,

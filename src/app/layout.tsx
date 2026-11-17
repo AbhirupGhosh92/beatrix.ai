@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 import FirebaseInit from '../components/layout/FirebaseInit.tsx'
+import { HomeConfigProvider } from '../components/layout/HomeConfigProvider.tsx'
 import { ProfileProvider } from '../components/layout/ProfileProvider.tsx'
 import RouteProgress from '../components/layout/RouteProgress.tsx'
 import ReleaseNotes from '../components/layout/ReleaseNotes.tsx'
 import StoreProvider from '../components/layout/StoreProvider.tsx'
 import SnackbarHost from '../components/ui/SnackbarHost.tsx'
+import { getHomeConfig } from '../middleware/homeConfigService.ts'
 import { getProfile } from '../middleware/profileService.ts'
 import { getLatestRelease } from '../middleware/releaseService.ts'
 import '../index.css'
@@ -31,7 +33,7 @@ export const viewport: Viewport = {
 const themeScript = `try{var t=localStorage.getItem('theme');if(t!=='beatrix-dark'&&t!=='beatrix-light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'beatrix-dark':'beatrix-light'}document.documentElement.setAttribute('data-theme',t)}catch(e){}`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [profile, release] = await Promise.all([getProfile(), getLatestRelease()])
+  const [profile, homeConfig, release] = await Promise.all([getProfile(), getHomeConfig(), getLatestRelease()])
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before React hydrates.
@@ -50,7 +52,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <FirebaseInit />
         <RouteProgress />
         <StoreProvider>
-          <ProfileProvider profile={profile}>{children}</ProfileProvider>
+          <ProfileProvider profile={profile}>
+            <HomeConfigProvider config={homeConfig}>{children}</HomeConfigProvider>
+          </ProfileProvider>
           <ReleaseNotes release={release} />
           <SnackbarHost />
         </StoreProvider>
