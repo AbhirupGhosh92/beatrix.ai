@@ -1,6 +1,7 @@
 {
-  "title": "Welcome",
-  "tagline": "Sign in to continue to the site.",
+  "eyebrow": "AI career platform",
+  "title": "Build, tailor and track every application",
+  "tagline": "Create a polished resume, tailor it to each job with AI and keep every application in one place.",
   "signInLabel": "Sign in with Google",
   "signingInLabel": "Signing in...",
   "restrictedError": "Access restricted: {email} is not in the allowed emails datastore.",
@@ -10,5 +11,93 @@
   "signedInMessage": "Open the menu to get started, or read more about me.",
   "openMenuLabel": "Open menu",
   "aboutLabel": "About me",
-  "aboutHref": "/about"
+  "aboutHref": "/about",
+  "previewLabel": "Early preview",
+  "features": {
+    "heading": "Everything for your job search",
+    "intro": "Tools that take you from a first draft to a tracked application.",
+    "items": [
+      {
+        "id": "resume-builder",
+        "title": "Resume builder",
+        "description": "Fill in a structured form and watch a live preview update as you type.",
+        "icon": "file-text",
+        "preview": false
+      },
+      {
+        "id": "templates",
+        "title": "Templates and export",
+        "description": "Pick a template and download your resume as PDF, DOCX or Markdown.",
+        "icon": "layout-template",
+        "preview": false
+      },
+      {
+        "id": "resume-score",
+        "title": "Resume score",
+        "description": "See how complete your resume is and what to improve next.",
+        "icon": "gauge",
+        "preview": false
+      },
+      {
+        "id": "ai-tailor",
+        "title": "AI tailor for a job",
+        "description": "Get suggested changes for a specific job posting and apply only the ones you like.",
+        "icon": "sparkles",
+        "preview": true
+      },
+      {
+        "id": "skill-match",
+        "title": "Skill match",
+        "description": "Compare your skills with a job description to spot what matches and what is missing.",
+        "icon": "target",
+        "preview": true
+      },
+      {
+        "id": "job-tracker",
+        "title": "Job tracker",
+        "description": "Search, sort and filter your applications by status and label, and create a tailored resume for each one.",
+        "icon": "kanban",
+        "preview": false
+      },
+      {
+        "id": "private-storage",
+        "title": "Private by default",
+        "description": "Your resumes and applications are stored per user and only you can open them.",
+        "icon": "lock",
+        "preview": false
+      },
+      {
+        "id": "roles",
+        "title": "Role-based access",
+        "description": "Access is limited to signed-in users, with features unlocked by role.",
+        "icon": "users",
+        "preview": false
+      }
+    ]
+  },
+  "howItWorks": {
+    "heading": "How it works",
+    "intro": "Three steps from blank page to organized search.",
+    "steps": [
+      {
+        "title": "Build",
+        "description": "Create your resume with the guided form, choose a template and export it.",
+        "icon": "file-text"
+      },
+      {
+        "title": "Tailor",
+        "description": "Match your resume to a job posting and review the AI suggestions before applying them.",
+        "icon": "sparkles"
+      },
+      {
+        "title": "Track",
+        "description": "Log each application with its status and labels, and keep the tailored resume next to it.",
+        "icon": "kanban"
+      }
+    ]
+  },
+  "closing": {
+    "title": "Ready to start?",
+    "message": "Sign in with Google to build your first resume."
+  }
 }
