@@ -29,8 +29,8 @@ export default function Navbar({ isLoggedIn, role, showMenu }: Props) {
                 </div>
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">
-                 <ThemeToggle/>    
-               {isLoggedIn && <NavbarDropdown role={role} />}
+                <ThemeToggle />
+                {isLoggedIn && <NavbarDropdown role={role} />}
             </div>
         </nav>
     )
