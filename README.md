@@ -258,6 +258,10 @@ src/
 │   │   ├── Education.tsx
 │   │   ├── Experience.tsx
 │   │   ├── Hero.tsx
+│   │   ├── LandingClosing.tsx
+│   │   ├── LandingFeatures.tsx
+│   │   ├── LandingHero.tsx
+│   │   ├── LandingSteps.tsx
 │   │   ├── Skills.tsx
 │   │   ├── Stats.tsx
 │   │   └── UpcomingProjects.tsx
@@ -268,6 +272,7 @@ src/
 │       ├── GoogleSignIn.tsx
 │       ├── JsonEditor.tsx
 │       ├── JsonTreeEditor.tsx
+│       ├── landingIcons.ts
 │       ├── motion.tsx
 │       ├── Reveal.tsx
 │       ├── SectionHeading.tsx
@@ -339,6 +344,7 @@ src/
     │   ├── back-to-top.css
     │   ├── buttons.css
     │   ├── google-signin.css
+    │   ├── landing.css
     │   ├── navigation.css
     │   ├── release-notes.css
     │   ├── skills-tabs.css
