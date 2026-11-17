@@ -27,8 +27,12 @@ export function configLoader<T>({ file, parse, fallback }: Options<T>): () => Pr
       const { content } = await callCloudFunction<{ content: string | null }>('getConfig', { file })
       value = content ? parse(content) : undefined
     } catch (err) {
-      // Keep serving the last good copy if the function hiccups.
-      if (cache) return cache.value
+      // Keep serving the last good copy if the function hiccups, and count it as fresh for another
+      // TTL so an outage costs one failed call per TTL instead of one per request.
+      if (cache) {
+        cache = { at: Date.now(), value: cache.value }
+        return cache.value
+      }
       console.warn(`getConfig(${file}) unavailable, using the fallback:`, err instanceof Error ? err.message : err)
     }
     value ??= fallback()

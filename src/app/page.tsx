@@ -51,10 +51,14 @@ export default function Landing() {
                 <p className="text-muted">{home.signedInMessage}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-3">
                   {showMenu && (
-                    <label htmlFor="nav-drawer" className="button-primary flex items-center gap-2 cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={() => dispatch(setDrawerOpen(true))}
+                      className="button-primary flex items-center gap-2"
+                    >
                       <Menu size={18} aria-hidden="true" />
                       {home.openMenuLabel}
-                    </label>
+                    </button>
                   )}
                   <Link href={home.aboutHref} className="button-secondary">
                     {home.aboutLabel}
