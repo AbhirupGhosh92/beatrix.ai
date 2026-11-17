@@ -271,6 +271,7 @@ src/
 │       └── SnackbarHost.tsx
 ├── data/
 │   ├── profile.example.json
+│   ├── profile.json
 │   ├── profile.ts
 │   ├── resume-config.example.json
 │   └── resumeConfig.ts
@@ -325,6 +326,7 @@ src/
     ├── base/
     │   └── elements.css
     ├── components/
+    │   ├── achievement-card.css
     │   ├── back-to-top.css
     │   ├── buttons.css
     │   ├── google-signin.css

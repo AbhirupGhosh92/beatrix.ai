@@ -32,7 +32,6 @@ const themeScript = `try{var t=localStorage.getItem('theme');if(t!=='beatrix-dar
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [profile, release] = await Promise.all([getProfile(), getLatestRelease()])
-
   return (
     // suppressHydrationWarning: the inline script sets data-theme before React hydrates.
     <html lang="en" suppressHydrationWarning>
