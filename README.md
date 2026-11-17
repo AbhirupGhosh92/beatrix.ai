@@ -173,6 +173,8 @@ src/
 ├── app/
 │   ├── layout.tsx
 │   ├── page.tsx
+│   ├── about/
+│   │   └── page.tsx
 │   ├── admin/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
@@ -228,6 +230,7 @@ src/
 │   │   ├── DrawerMenu.tsx
 │   │   ├── FirebaseInit.tsx
 │   │   ├── Footer.tsx
+│   │   ├── HomeConfigProvider.tsx
 │   │   ├── Navbar.tsx
 │   │   ├── NavbarDropdown.tsx
 │   │   ├── ProfileProvider.tsx
@@ -262,6 +265,7 @@ src/
 │       ├── AchievementCard.tsx
 │       ├── Avatar.tsx
 │       ├── CopyEmailButton.tsx
+│       ├── GoogleSignIn.tsx
 │       ├── JsonEditor.tsx
 │       ├── JsonTreeEditor.tsx
 │       ├── motion.tsx
@@ -270,6 +274,9 @@ src/
 │       ├── Skeleton.tsx
 │       └── SnackbarHost.tsx
 ├── data/
+│   ├── configFiles.ts
+│   ├── home-config.example.json
+│   ├── homeConfig.ts
 │   ├── profile.example.json
 │   ├── profile.ts
 │   ├── resume-config.example.json
@@ -283,6 +290,7 @@ src/
 │   ├── applicationView.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
+│   ├── homeConfigSanitize.ts
 │   ├── jsonDefaults.ts
 │   ├── jsonTree.ts
 │   ├── navigationProgress.ts
@@ -305,6 +313,8 @@ src/
 │   ├── aiService.ts
 │   ├── applicationService.ts
 │   ├── cloudFunctions.ts
+│   ├── configService.ts
+│   ├── homeConfigService.ts
 │   ├── profileService.ts
 │   ├── releaseService.ts
 │   ├── resumeAdminService.ts
@@ -325,6 +335,7 @@ src/
     ├── base/
     │   └── elements.css
     ├── components/
+    │   ├── achievement-card.css
     │   ├── back-to-top.css
     │   ├── buttons.css
     │   ├── google-signin.css
@@ -367,6 +378,8 @@ openspec validate --all                      # check specs and in-flight changes
 ```
 
 Open a GitHub issue first (its number names the branch: `feature/12-add-login`), then run `/opsx:propose <name>`, `/opsx:apply` and `/opsx:archive` in Claude Code. The rules are in [`.claude/rules/`](.claude/rules/).
+
+An optional agent team (Product Owner, Architect, Builders, Tester, DevOps) can run this workflow for you, keeping you in charge of the proposal, the merge and releases: type `/team-po` in Claude Code and describe the feature. See [`docs/AGENT_TEAM.md`](docs/AGENT_TEAM.md).
 
 A versioned `pre-push` hook regenerates the **Scripts** and **Project structure** sections above. Enable it once per clone:
 
