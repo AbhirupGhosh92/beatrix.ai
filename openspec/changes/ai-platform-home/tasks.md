@@ -2,9 +2,9 @@
 
 File set: `src/data/homeConfig.ts`, `src/data/home-config.example.json`, `src/lib/homeConfigSanitize.ts`
 
-- [ ] 1.1 Extend `HomeConfig` per design decision 1 (`eyebrow`, `previewLabel`, `features`, `howItWorks`, `closing`); export `HOME_ICONS`, `HomeIcon`, `FeatureItem`, `StepItem` and the limit constants. Verify: `npm run typecheck`.
-- [ ] 1.2 Write the example copy (real capabilities only; steps Build, Tailor, Track; AI tailor and skill match `preview: true`; no bio, numbers, pricing or testimonials; 6 to 8 features). Verify: throwaway script shows `sanitizeHomeConfig(example, example)` returns it with no warnings.
-- [ ] 1.3 Extend `sanitizeHomeConfig` with the all-or-nothing list rules of design decision 3, keeping the existing string and `aboutHref` checks. Verify with a throwaway script (not committed): a valid list is kept; a non-array, unknown icon, 13 items, duplicate id and over-long text each fall back to the example and warn once; missing keys fall back; `npm run check`.
+- [x] 1.1 Extend `HomeConfig` per design decision 1 (`eyebrow`, `previewLabel`, `features`, `howItWorks`, `closing`); export `HOME_ICONS`, `HomeIcon`, `FeatureItem`, `StepItem` and the limit constants. Verify: `npm run typecheck`.
+- [x] 1.2 Write the example copy (real capabilities only; steps Build, Tailor, Track; AI tailor and skill match `preview: true`; no bio, numbers, pricing or testimonials; 6 to 8 features). Verify: throwaway script shows `sanitizeHomeConfig(example, example)` returns it with no warnings.
+- [x] 1.3 Extend `sanitizeHomeConfig` with the all-or-nothing list rules of design decision 3, keeping the existing string and `aboutHref` checks. Verify with a throwaway script (not committed): a valid list is kept; a non-array, unknown icon, 13 items, duplicate id and over-long text each fall back to the example and warn once; missing keys fall back; `npm run check`.
 
 ## 2. Product page UI (owner: builder-2, starts after group 1 is merged)
 
