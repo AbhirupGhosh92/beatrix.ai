@@ -1,0 +1,14 @@
+{
+  "title": "Welcome",
+  "tagline": "Sign in to continue to the site.",
+  "signInLabel": "Sign in with Google",
+  "signingInLabel": "Signing in...",
+  "restrictedError": "Access restricted: {email} is not in the allowed emails datastore.",
+  "unknownEmail": "unknown",
+  "failedError": "Google authentication failed. Please try again.",
+  "signedInTitle": "You're signed in",
+  "signedInMessage": "Open the menu to get started, or read more about me.",
+  "openMenuLabel": "Open menu",
+  "aboutLabel": "About me",
+  "aboutHref": "/about"
+}

@@ -450,9 +450,17 @@
   },
   "nav": {
     "closeSidebarLabel": "close sidebar",
+    "mainSiteLabel": "Main site",
     "moreLabel": "More",
     "toggleThemeLabel": "Toggle dark theme",
     "drawerItems": [
+      {
+        "id": "about-me",
+        "label": "About me",
+        "href": "/about",
+        "icon": "user",
+        "enabled": true
+      },
       {
         "id": "resume-builder",
         "label": "Resume builder",

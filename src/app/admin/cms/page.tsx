@@ -15,27 +15,32 @@ import {
 import { JsonEditor } from '../../../components/ui/JsonEditor.tsx'
 import { ErrorState, SkeletonText } from '../../../components/ui/Skeleton.tsx'
 import resumeConfigExample from '../../../data/resume-config.example.json'
-import { RESUME_CONFIG_FILE } from '../../../data/resumeConfig.ts'
+import homeConfigExample from '../../../data/home-config.example.json'
+import { HOME_CONFIG_FILE, RESUME_CONFIG_FILE } from '../../../data/configFiles.ts'
 import { api, useCmsSaveMutation, useGetCmsFileQuery, useListCmsFilesQuery } from '../../../store/api.ts'
 import { useAppDispatch } from '../../../store/hooks.ts'
 import { notify } from '../../../store/notifications.ts'
 
-// What an admin starts from when creating the resume builder config (opened unsaved until saved once).
-const DEFAULT_RESUME_CONFIG = JSON.stringify(resumeConfigExample, null, 2)
+// What an admin starts from when creating a config file that has its own example (opened unsaved until
+// saved once).
+const DEFAULT_CONTENT: Record<string, string> = {
+  [RESUME_CONFIG_FILE]: JSON.stringify(resumeConfigExample, null, 2),
+  [HOME_CONFIG_FILE]: JSON.stringify(homeConfigExample, null, 2),
+}
 
 // The browser only talks to this site's own /api/admin/cms route (through the store's data layer);
 // the server calls the Cloud Functions. The Firebase ID token proves who is signed in.
 
-/** A saved file is shown pretty-printed; a resume config that was never saved opens as the default, unsaved. */
-function prepareContent(file: string, data: { exists: boolean; content: string }): { text: string; isNewResumeConfig: boolean } {
-  const isNewResumeConfig = !data.exists && file === RESUME_CONFIG_FILE
-  let text = isNewResumeConfig ? DEFAULT_RESUME_CONFIG : data.content || ''
+/** A saved file is shown pretty-printed; a config that was never saved opens as its default, unsaved. */
+function prepareContent(file: string, data: { exists: boolean; content: string }): { text: string; isNewConfig: boolean } {
+  const isNewConfig = !data.exists && file in DEFAULT_CONTENT
+  let text = isNewConfig ? DEFAULT_CONTENT[file] : data.content || ''
   try {
     if (text) text = JSON.stringify(JSON.parse(text), null, 2)
   } catch {
     // Keep raw string if parse fails
   }
-  return { text, isNewResumeConfig }
+  return { text, isNewConfig }
 }
 
 export default function AdminPage() {
@@ -61,7 +66,7 @@ export default function AdminPage() {
     [fileQuery.data, selectedFile],
   )
   // The text the file holds now (the editor starts from it, and Reset returns to it).
-  const initialContent = isLocal ? '' : prepared?.isNewResumeConfig ? '' : (prepared?.text ?? '')
+  const initialContent = isLocal ? '' : prepared?.isNewConfig ? '' : (prepared?.text ?? '')
   const startContent = isLocal ? localFile.text : (prepared?.text ?? '')
   const content = edit?.file === selectedFile ? edit.text : startContent
   const setContent = (text: string) => setEdit({ file: selectedFile, text })
@@ -128,7 +133,7 @@ export default function AdminPage() {
       cleanName += '.json'
     }
 
-    const initialNewContent = cleanName === RESUME_CONFIG_FILE ? DEFAULT_RESUME_CONFIG : '{\n  "key": "value"\n}'
+    const initialNewContent = DEFAULT_CONTENT[cleanName] ?? '{\n  "key": "value"\n}'
     setLocalFile({ file: cleanName, text: initialNewContent })
     setEdit(null)
     setSelectedFile(cleanName)

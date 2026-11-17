@@ -53,8 +53,8 @@ export function resolveRole(entry: AllowedEmailEntry | null | undefined): Role |
   return 'reader'
 }
 
-/** Routes anyone may request without a session: the landing page and the sign-in endpoints. */
-const PUBLIC_PATHS = ['/', '/api/auth/session']
+/** Routes anyone may request without a session: the landing page, the shareable About page and the sign-in endpoints. */
+const PUBLIC_PATHS = ['/', '/about', '/api/auth/session']
 /** Framework assets and the files in public/ (an extension from this list). */
 const PUBLIC_PREFIXES = ['/_next/']
 const PUBLIC_FILE = /\.(?:svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|txt|xml|webmanifest|map|css|js)$/i

@@ -8,6 +8,9 @@ const FILE_NAME = /^[a-zA-Z0-9_-]+\.json$/;
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const PROFILE_FILE = "profile.json";
 export const RESUME_CONFIG_FILE = "resume-config.json";
+export const HOME_CONFIG_FILE = "home-config.json";
+/** The config files `getConfig` may serve; mirrors CONFIG_FILES in src/data/configFiles.ts. */
+export const CONFIG_FILES = [PROFILE_FILE, RESUME_CONFIG_FILE, HOME_CONFIG_FILE] as const;
 
 export interface FileInfo {
   filename: string;
@@ -30,7 +33,9 @@ export async function fileInfo(file: StorageFile, filename: string): Promise<Fil
       ? "profile.json (Active Profile)"
       : filename === RESUME_CONFIG_FILE
         ? "resume-config.json (Resume builder)"
-        : filename;
+        : filename === HOME_CONFIG_FILE
+          ? "home-config.json (Landing page)"
+          : filename;
   const [exists] = await file.exists();
   if (!exists) return { filename, displayName, exists: false, size: 0, updatedAt: null };
   const [meta] = await file.getMetadata();
@@ -48,8 +53,8 @@ export async function listFiles(): Promise<FileInfo[]> {
   const found = files
     .map((f) => f.name.slice(CMS_PREFIX.length))
     .filter((name) => FILE_NAME.test(name));
-  // The resume builder config is always listed so an admin can create it from the CMS.
-  const names = Array.from(new Set([PROFILE_FILE, RESUME_CONFIG_FILE, ...found]));
+  // The resume builder and landing page configs are always listed so an admin can create them from the CMS.
+  const names = Array.from(new Set([PROFILE_FILE, RESUME_CONFIG_FILE, HOME_CONFIG_FILE, ...found]));
   return Promise.all(names.map((name) => fileInfo(cmsFile(name), name)));
 }
 

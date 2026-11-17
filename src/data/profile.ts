@@ -47,7 +47,7 @@ export interface Achievement {
   solutions: string[]
 }
 
-export type DrawerIcon = 'file-text' | 'briefcase' | 'circle'
+export type DrawerIcon = 'file-text' | 'briefcase' | 'user' | 'circle'
 
 export type DropdownIcon = 'user' | 'settings' | 'log-out'
 
@@ -79,6 +79,8 @@ export interface Profile {
   site: { brand: string }
   nav: {
     closeSidebarLabel: string
+    /** Label of the link back to the landing page shown on /about. */
+    mainSiteLabel: string
     moreLabel: string
     toggleThemeLabel: string
     backToTopLabel: string
