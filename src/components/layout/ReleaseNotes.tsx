@@ -21,16 +21,19 @@ export default function ReleaseNotes({ release }: { release: LatestRelease | nul
   const lines = noteLines(release.notes)
 
   return (
-    // pb-24 keeps the version clear of the floating back-to-top button (same as the footer).
-    <div className="flex justify-center bg-neutral pb-24 text-neutral-content">
-      <button
-        type="button"
-        className="release-version"
-        onClick={() => dialog.current?.showModal()}
-        aria-haspopup="dialog"
-      >
-        {release.version}
-      </button>
+    // Even py-4 spacing, start-aligned inside the same capped gutter as the page content; the
+    // centered back-to-top button sits at the bottom center, clear of the start-aligned version.
+    <div className="bg-neutral text-neutral-content">
+      <div className="mx-auto flex w-full max-w-screen-2xl justify-start px-3 py-4 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          className="release-version"
+          onClick={() => dialog.current?.showModal()}
+          aria-haspopup="dialog"
+        >
+          {release.version}
+        </button>
+      </div>
       <dialog ref={dialog} className="modal" aria-labelledby="release-notes-title">
         <div className="modal-box text-base-content">
           <form method="dialog">
