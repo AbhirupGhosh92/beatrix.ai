@@ -1,0 +1,17 @@
+/* Landing page product cards and the early-preview badge. Colors are theme tokens only. */
+.feature-card {
+  @apply bg-base-200 border border-base-300 rounded-box p-5;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard);
+}
+
+.feature-card:hover {
+  background-color: color-mix(in oklab, var(--color-primary) 6%, var(--color-base-200));
+  border-color: color-mix(in oklab, var(--color-primary) 40%, var(--color-base-300));
+}
+
+.preview-badge {
+  @apply rounded-full border border-base-300 bg-base-300/60 px-2 py-0.5 text-xs font-medium;
+  color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+}

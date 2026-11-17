@@ -10,7 +10,10 @@ import Navbar from '../components/layout/Navbar.tsx'
 import DrawerMenu from '../components/layout/DrawerMenu.tsx'
 import { useHomeConfig } from '../components/layout/HomeConfigProvider.tsx'
 import { useProfile } from '../components/layout/ProfileProvider.tsx'
-import GoogleSignIn from '../components/ui/GoogleSignIn.tsx'
+import LandingHero from '../components/sections/LandingHero.tsx'
+import LandingFeatures from '../components/sections/LandingFeatures.tsx'
+import LandingSteps from '../components/sections/LandingSteps.tsx'
+import LandingClosing from '../components/sections/LandingClosing.tsx'
 import { Reveal } from '../components/ui/motion.tsx'
 
 /**
@@ -43,9 +46,17 @@ export default function Landing() {
             <Navbar isLoggedIn={isLoggedIn} role={role} showMenu={showMenu} />
           </div>
         </header>
+        {!isLoggedIn ? (
+          <main className="flex w-full flex-1 flex-col">
+            <LandingHero />
+            <LandingFeatures />
+            <LandingSteps />
+            <LandingClosing />
+          </main>
+        ) : (
         <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col items-center justify-center px-3 py-16 text-center sm:px-6 lg:px-8">
           <Reveal className="flex max-w-xl flex-col items-center gap-4">
-            {isLoggedIn ? (
+            {isLoggedIn && (
               <>
                 <h1 className="heading-display text-3xl sm:text-5xl">{home.signedInTitle}</h1>
                 <p className="text-muted">{home.signedInMessage}</p>
@@ -65,23 +76,10 @@ export default function Landing() {
                   </Link>
                 </div>
               </>
-            ) : (
-              <>
-                <h1 className="heading-display text-3xl sm:text-5xl">{home.title}</h1>
-                <p className="text-muted">{home.tagline}</p>
-                <div className="mt-4 flex flex-col items-center">
-                  <GoogleSignIn
-                    signInLabel={home.signInLabel}
-                    signingInLabel={home.signingInLabel}
-                    restrictedError={home.restrictedError}
-                    unknownEmail={home.unknownEmail}
-                    failedError={home.failedError}
-                  />
-                </div>
-              </>
             )}
           </Reveal>
         </main>
+        )}
       </div>
       {showMenu && role && <DrawerMenu role={role} />}
     </div>
