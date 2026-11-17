@@ -26,7 +26,7 @@
 - [ ] Manually checked in the browser (both themes for UI changes)
 
 ## Screenshots / recordings
-<!-- Required for UI changes; write "n/a" otherwise. -->
+<!-- User-visible change: embed screenshots (light and dark, narrow and desktop width) committed under docs/pr-assets/<issue-id>/ and linked by commit SHA; never "n/a". Other changes: attach relevant evidence (logs, command output, scenario results) and say why no screenshot applies. State what could not be captured. -->
 
 ## Risks and rollout
 <!-- Side effects, migrations, env or Terraform changes, deploy order. Write "none" if none. -->

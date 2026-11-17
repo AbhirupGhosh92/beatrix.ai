@@ -70,7 +70,7 @@ Why two lead sessions: a subagent cannot start other agents and cannot be talked
 |---|---|
 | Purpose | Decide what is built and why, keep the owner informed, and run the gates. |
 | Owns | GitHub issue, `proposal.md`, spec scenarios (acceptance criteria), project board status, PR description, status reports. |
-| Does | Intake and clarification; duplicate search; issue in the template; feature branch and worktree; `proposal.md` and spec deltas; starts the Architect; answers business questions; asks the owner at the gates; starts the Tester and triages its verdict; archives the change; updates docs; pushes and opens the PR; binds the PR for CI and review events; starts DevOps after merge and for failures; asks the prod confirmation when the owner wants a release. |
+| Does | Intake and clarification; duplicate search; issue in the template; feature branch and worktree; `proposal.md` and spec deltas; starts the Architect; answers business questions; asks the owner at the gates; starts the Tester and triages its verdict; archives the change; updates docs; captures PR evidence (screenshots or other relevant evidence); pushes and opens the PR; binds the PR for CI and review events; starts DevOps after merge and for failures; asks the prod confirmation when the owner wants a release. |
 | Inputs | The owner's request, the codebase, existing specs, the Architect's design, the Tester's verdict, DevOps reports. |
 | Outputs | Issue, proposal, spec scenarios, status reports, PR. |
 | Cannot | Edit `design.md`, `tasks.md` or code; start Builders; merge or approve; decide an owner-only matter. |
@@ -173,10 +173,14 @@ Why two lead sessions: a subagent cannot start other agents and cannot be talked
 | Gate 1 | PO asks the owner to approve the proposal | PO | Owner reviews |
 | Building | Owner approved | Architect | Builders implement, Architect merges |
 | Testing | All tasks merged, check and build pass | PO (starts the Tester) | Verdict, fix loop |
-| Gate 2 | Tester PASS, change archived, PR open | PO | Owner reviews and merges; CI and review comments handled |
+| Gate 2 | Tester PASS, change archived, evidence attached, PR open | PO | Owner reviews and merges; CI and review comments handled |
 | Deploying | Owner merged | PO (starts DevOps) | Deploy dev runs |
 | Live on dev | Deploy dev succeeded, smoke test passed | PO | |
 | Gate 3 | Owner asks for a release | PO, then DevOps | `prod-deploy` |
+
+### PR evidence (Gate 2)
+
+Before opening the PR the PO captures evidence and fills "Screenshots / recordings"; it is never "n/a" for a user-visible change (worked example: PR #129 for issue #128). Visible change: screenshots in the light and dark themes at a narrow and a desktop width (headless Chrome; its minimum width is about 500px, so 320px is reported from measured results), each opened and checked before attaching, committed under `docs/pr-assets/<issue-id>/` and linked by commit SHA, plus text evidence. Non-visual change: other relevant evidence (logs, command output, scenario results) and why no screenshot applies. The PR always states what could not be captured. The exact steps are in `.claude/skills/team-po/SKILL.md`.
 
 ## 6. Who decides what
 
