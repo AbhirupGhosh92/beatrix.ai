@@ -862,7 +862,14 @@ jobs:
         run: |
           set -euo pipefail
           terraform init -input=false -backend-config="bucket=${STATE_BUCKET}" >/dev/null
-          url="$(terraform output -raw apphosting_url)"
+          # An environment whose live backend is not the Terraform one names the serving URL in its tfvars.
+          url="$(awk -F'"' '/^[[:space:]]*smoke_test_url[[:space:]]*=/{print $2}' "environments/${ENVIRONMENT}.tfvars")"
+          if [[ -n "$url" ]]; then
+            echo "[decision] smoke test URL: smoke_test_url from environments/${ENVIRONMENT}.tfvars"
+          else
+            url="$(terraform output -raw apphosting_url)"
+            echo "[decision] smoke test URL: the Terraform apphosting_url output"
+          fi
           bash ../scripts/deploy/smoke-test.sh "$url"
 
       # Terraform creates infrastructure only; people's data is filled in by the owner. This only SAYS

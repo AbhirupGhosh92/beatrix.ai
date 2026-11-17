@@ -4,3 +4,6 @@ project_id            = "asterion-453905"
 environment           = "prod"
 region                = "us-central1"
 firestore_location_id = "us-central1"
+# The live prod site is the App Hosting backend created by hand in the console, not the Terraform one.
+# The pipeline's smoke test requests this URL instead of the apphosting_url output.
+smoke_test_url = "https://asterion-ai-backend--asterion-453905.us-central1.hosted.app"

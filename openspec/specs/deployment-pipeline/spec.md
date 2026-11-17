@@ -329,3 +329,14 @@ The standalone dev functions script SHALL plan and apply only the stage-2 config
 #### Scenario: Pointed at prod
 - **WHEN** the script is run with the prod project
 - **THEN** it exits without planning or applying anything
+
+### Requirement: Smoke test target is configurable per environment
+The smoke test SHALL request the `smoke_test_url` set in the environment's tfvars file when it is not empty, and otherwise the Terraform `apphosting_url` output. Setting `smoke_test_url` SHALL NOT change any Terraform plan.
+
+#### Scenario: URL set
+- **WHEN** `terraform/environments/prod.tfvars` sets `smoke_test_url`
+- **THEN** the smoke test requests that URL
+
+#### Scenario: URL not set
+- **WHEN** the environment's tfvars does not set `smoke_test_url`
+- **THEN** the smoke test requests the Terraform `apphosting_url` output
