@@ -203,7 +203,10 @@ fails before this point and no approval is requested.
 - **dev:** the App Hosting rollout (`scripts/deploy-backend.sh --components apphosting`, Firebase CLI
   pinned to an exact version) only when the app sources changed; the marker is recorded after success.
 - **both:** the smoke test (`scripts/deploy/smoke-test.sh`): `GET /` returns 200 and HTML;
-  `GET /api/admin/cms` without a token returns 401. Read-only.
+  `GET /api/admin/cms` without a token returns 401. Read-only. The URL is the optional `smoke_test_url` in
+  `terraform/environments/<env>.tfvars` when set (prod: the live `asterion-ai-backend` site, created by hand),
+  otherwise the Terraform `apphosting_url` output. The variable is declared in `terraform/variables.tf` and used
+  by no resource, so setting it changes no plan.
 - **prod:** no App Hosting deploy. After the smoke test, `deploy-prod.yml` calls `release.yml`, which cuts
   the release (section "GitHub releases"). A run that failed at any stage cuts nothing.
 - **Summary** (job `summary`, always): the decision table, how far each stage got, the commit and the

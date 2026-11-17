@@ -27,6 +27,12 @@ variable "apphosting_backend_id" {
   default     = "beatrix-web"
 }
 
+variable "smoke_test_url" {
+  type        = string
+  description = "Optional. URL the post-deploy smoke test requests when the live App Hosting backend is not the one Terraform manages. Empty uses the apphosting_url output. Read by the pipeline; no resource uses it."
+  default     = ""
+}
+
 variable "github_repository" {
   type        = string
   description = "GitHub repository (owner/name) whose Actions may deploy to this environment."
