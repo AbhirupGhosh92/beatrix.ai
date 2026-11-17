@@ -9,7 +9,8 @@
 ## 2. Home config
 
 - [x] 2.1 Add `src/data/homeConfig.ts` (type), `src/data/home-config.example.json` (placeholder keys) and a sanitizer in `src/lib/`
-- [x] 2.2 Add the `homeConfig` Cloud Function (`functions/src/`), export it in `functions/src/index.ts` and add it to `function_names` in `terraform/functions/functions.tf`
+- [x] 2.2 Replace `getProfile` and `getResumeConfig` with one `getConfig` Cloud Function that takes an allow-listed file name (`functions/src/config.ts`), export it in `functions/src/index.ts` and list only it in `function_names` in `terraform/functions/functions.tf`
+- [x] 2.5 Add the file-name constants (`src/data/configFiles.ts`) and one shared `configLoader` (`src/middleware/configService.ts`) used by the profile, resume config and home config services
 - [x] 2.3 Add `src/middleware/homeConfigService.ts` (cache, example fallback) and expose the config to components (`useHomeConfig()`)
 - [x] 2.4 List `home-config.json` in `/admin/cms` (always listed, example opened as unsaved until first save) in `functions/src/cms.ts`
 

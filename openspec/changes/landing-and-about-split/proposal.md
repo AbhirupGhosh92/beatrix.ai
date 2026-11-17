@@ -12,7 +12,7 @@ The bio page is the only public page and doubles as the front door. The owner wa
 - The bio page (today's `/`) moves to `/about`, which is public. Nothing links to it for anonymous visitors; anyone with the URL can open it. It carries a visible link back to `/`.
 - The sidebar and hamburger stay hidden for anonymous visitors on every page. Signed-in users get an "About me" entry in the drawer, configured like the other entries.
 - Release notes show on `/` and no longer on `/about`.
-- A new `home-config.json` drives the landing page: stored in the CMS bucket, read through a private Cloud Function, with an example file as fallback for missing keys, listed in `/admin/cms`, and shipped with placeholder items to edit later.
+- A new `home-config.json` drives the landing page: stored in the CMS bucket, read through the single private `getConfig` Cloud Function that also serves the profile and resume config (replacing `getProfile` and `getResumeConfig`; file names are shared constants), with an example file as fallback for missing keys, listed in `/admin/cms`, and shipped with placeholder items to edit later.
 - All other gating (default-deny, roles, feature routes, the sign-in overlay on the About page's upcoming projects) is unchanged. Denied pages still redirect to `/`.
 
 ## Capabilities
@@ -28,7 +28,7 @@ The bio page is the only public page and doubles as the front door. The owner wa
 
 - Code: `src/app/page.tsx` (landing), new `src/app/about/page.tsx`, `src/lib/access.ts`, `src/components/layout/` (Navbar, ReleaseNotes, AdminNav, ResumeNav), new landing component, `src/data/` (home config type, example), `src/middleware/` (home config service), `functions/src/` (new function and CMS listing), `terraform/functions/functions.tf` (`function_names`), `profile.example.json` (About me item).
 - Docs: `CLAUDE.md`, `docs/DEPLOYMENT.md`, README.
-- Deployment: one new Cloud Function, deployed through the existing stage 2.
+- Deployment: `getConfig` replaces `getProfile` and `getResumeConfig` in stage 2 (a function delete, see design.md Risks).
 
 ## Out of Scope
 

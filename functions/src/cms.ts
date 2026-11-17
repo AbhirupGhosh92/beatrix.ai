@@ -9,6 +9,8 @@ export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const PROFILE_FILE = "profile.json";
 export const RESUME_CONFIG_FILE = "resume-config.json";
 export const HOME_CONFIG_FILE = "home-config.json";
+/** The config files `getConfig` may serve; mirrors CONFIG_FILES in src/data/configFiles.ts. */
+export const CONFIG_FILES = [PROFILE_FILE, RESUME_CONFIG_FILE, HOME_CONFIG_FILE] as const;
 
 export interface FileInfo {
   filename: string;

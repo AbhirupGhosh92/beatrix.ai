@@ -1,9 +1,6 @@
 // Shape of the landing page config (cms/home-config.json), kept apart from the bio profile.
 // Keep home-config.example.json in step: it supplies every key a stored file lacks.
 
-/** The CMS file (under cms/ in Storage) that holds the landing page config. */
-export const HOME_CONFIG_FILE = 'home-config.json'
-
 export interface HomeConfig {
   /** Headline of the landing page. */
   title: string
