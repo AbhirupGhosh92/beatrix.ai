@@ -69,7 +69,7 @@
       {
         "id": "roles",
         "title": "Role-based access",
-        "description": "Access is limited to signed-in users, with features unlocked by role.",
+        "description": "Each person sees only the features their role allows.",
         "icon": "users",
         "preview": false
       }
