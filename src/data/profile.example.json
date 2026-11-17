@@ -450,7 +450,6 @@
   },
   "nav": {
     "closeSidebarLabel": "close sidebar",
-    "mainSiteLabel": "Main site",
     "moreLabel": "More",
     "toggleThemeLabel": "Toggle dark theme",
     "drawerItems": [
