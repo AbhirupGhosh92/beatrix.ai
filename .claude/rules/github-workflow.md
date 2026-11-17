@@ -18,5 +18,6 @@ Sections, in order:
 Sections, in order: Summary, Linked issue (`Fixes #<id>`), Type, Problem / Context, Changes, How to test, Verification, Screenshots / recordings, Risks and rollout, Checklist.
 
 - Verification lists only the checks actually run (`npm run typecheck`, `npm run lint`, `npm run build`, manual browser check) with their results. State plainly what was not run; never claim a check that was not run.
+- Screenshots / recordings is never left "n/a" for a user-visible change: embed screenshots in both themes at a narrow and a desktop width, committed under `docs/pr-assets/<issue-id>/` and linked by commit SHA, with text evidence. For other changes attach relevant evidence (logs, command output, scenario results) and say why no screenshot applies. Always state what could not be captured. The Product Owner's steps are in `.claude/skills/team-po/SKILL.md`.
 - Open a PR only when asked. `main` is protected; never push to it.
 - AI agents append the attribution lines required by their session (commit trailer, PR footer) after the template content.

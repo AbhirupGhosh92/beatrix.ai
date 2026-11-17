@@ -44,9 +44,15 @@ Start the `tester` subagent (no isolation; it runs in this worktree) with the ch
 1. Ask the Architect to confirm no Builder work is left unmerged.
 2. Run `/opsx:archive` (the `openspec-archive-change` skill) for the change and commit the result.
 3. Update `CLAUDE.md`, `docs/DEPLOYMENT.md` and the README where the change makes them inaccurate (ask the Architect if a technical doc needs a technical author).
-4. Push the branch and open the PR with `.github/pull_request_template.md` filled: Verification lists only checks actually run (from the Tester's verdict). Bind it with the `ccd_pr` tools so CI failures and review comments wake you.
-5. CI failure: start `devops` to diagnose, then route (code to the Architect, environment or gate to the owner). Review comments: business ones you answer, technical ones go to the Architect.
-6. Report **PR gate** and ask the owner to review and merge. Push notification. Never merge.
+4. **Capture PR evidence** (rule: OpenSpec requirement "PR evidence"; the worked example is PR #129 for issue #128). The "Screenshots / recordings" section is never "n/a" for a user-visible change.
+   - *Visible change:* run the app and capture the changed page in the light and dark themes at a narrow and a desktop width, with headless Chrome: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --window-size=W,H --blink-settings=preferredColorScheme=1 --virtual-time-budget=10000 --screenshot=<file> <URL>` (`preferredColorScheme=1` dark, `0` light). Its minimum width is about 500px, so state that and use measured results for 320px.
+   - **Open every image with `Read` before attaching it**: light and dark came out swapped once and a 375px shot was cropped.
+   - Commit the images under `docs/pr-assets/<issue-id>/` on the feature branch and link them in the PR by commit SHA: `https://github.com/<owner>/<repo>/blob/<sha>/docs/pr-assets/<id>/<file>.png?raw=true`. Add the text evidence too (copy, command output).
+   - *Non-visual change:* attach the relevant evidence (logs, command output, scenario results) and say why no screenshot applies.
+   - Always state what could not be captured.
+5. Push the branch and open the PR with `.github/pull_request_template.md` filled, including the evidence above: Verification lists only checks actually run (from the Tester's verdict). Bind it with the `ccd_pr` tools so CI failures and review comments wake you.
+6. CI failure: start `devops` to diagnose, then route (code to the Architect, environment or gate to the owner). Review comments: business ones you answer, technical ones go to the Architect.
+7. Report **PR gate** and ask the owner to review and merge. Push notification. Never merge.
 
 ## 7. Deploying and live on dev
 
