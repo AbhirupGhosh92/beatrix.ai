@@ -1,7 +1,6 @@
 'use client'
 
-import Link from 'next/link'
-import { House, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import type { Role } from '../../lib/access.ts'
 import NavbarDropdown from './NavbarDropdown.tsx'
 import { ThemeToggle } from './ThemeToggle.tsx'
@@ -13,11 +12,9 @@ interface Props {
   role: Role | null
   /** Whether the drawer lists anything; without entries there is no menu button. */
   showMenu: boolean
-  /** When set, a link to the main site (the landing page) is shown before the theme toggle. */
-  mainSiteHref?: string
 }
 
-export default function Navbar({ isLoggedIn, role, showMenu, mainSiteHref }: Props) {
+export default function Navbar({ isLoggedIn, role, showMenu }: Props) {
   const profile = useProfile()
     return (
         <nav className="navbar px-0">
@@ -32,15 +29,8 @@ export default function Navbar({ isLoggedIn, role, showMenu, mainSiteHref }: Pro
                 </div>
             </div>
             <div className="navbar-end w-auto flex-none gap-2 sm:gap-3">
-                {mainSiteHref && (
-                    <Link href={mainSiteHref} className="button-accent flex items-center gap-2 text-sm">
-                        <House size={16} aria-hidden="true" />
-                        <span className="hidden sm:inline">{profile.nav.mainSiteLabel}</span>
-                        <span className="sm:hidden sr-only">{profile.nav.mainSiteLabel}</span>
-                    </Link>
-                )}
-                 <ThemeToggle/>    
-               {isLoggedIn && <NavbarDropdown role={role} />}
+                <ThemeToggle />
+                {isLoggedIn && <NavbarDropdown role={role} />}
             </div>
         </nav>
     )

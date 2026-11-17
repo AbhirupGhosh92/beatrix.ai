@@ -95,15 +95,15 @@ Each entry of the account menu (the "..." dropdown in the top bar) SHALL be an e
 - **THEN** the "..." button is not rendered
 
 ### Requirement: Bio page is served at /about
-The bio page (hero, stats, about, experience, skills, education, beyond code and upcoming projects) SHALL be served at `/about` with content from the stored profile, and SHALL NOT be served at `/`. It SHALL show a visible link to `/`.
+The bio page (hero, stats, about, experience, skills, education, beyond code and upcoming projects) SHALL be served at `/about` with content from the stored profile, and SHALL NOT be served at `/`. It SHALL NOT show a link or redirect to `/`.
 
 #### Scenario: Shared resume link
 - **WHEN** anyone, signed in or not, opens `/about`
-- **THEN** the bio page renders from the profile and shows a link to the main site at `/`
+- **THEN** the bio page renders from the profile and no control on the page navigates to `/`
 
 #### Scenario: Link back to the main site
-- **WHEN** a visitor uses the link to the main site on `/about`
-- **THEN** they arrive at `/`
+- **WHEN** a visitor looks at the navbar on `/about`
+- **THEN** there is no "Main site" button or other link to `/`
 
 ### Requirement: About page is not linked for anonymous visitors
 No page SHALL link to `/about` for an anonymous visitor, and the sidebar and its menu button SHALL stay hidden for anonymous visitors on every page. A signed-in user SHALL see an "About me" drawer entry, configured as a drawer item in the profile, that opens `/about`.
