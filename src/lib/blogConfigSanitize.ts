@@ -33,6 +33,22 @@ export function sanitizeBlogConfig(value: unknown, example: BlogConfig, warn?: W
     }
   }
 
+  // Deprecated key: a character is at least one byte, so the old byte limit is never stricter as a
+  // character limit. Used only when maxBodyLength is absent or invalid.
+  const legacy = source.maxBodyBytes
+  if (legacy !== undefined) {
+    const { min, max } = BLOG_LIMITS.maxBodyLength
+    const validNew = typeof source.maxBodyLength === 'number' && Number.isInteger(source.maxBodyLength) && source.maxBodyLength >= min && source.maxBodyLength <= max
+    if (!validNew) {
+      if (typeof legacy === 'number' && Number.isInteger(legacy) && legacy >= min) {
+        out.maxBodyLength = Math.min(legacy, max)
+        warn?.('blog-config.json: "maxBodyBytes" is deprecated, use "maxBodyLength" (characters); derived it from the old value.')
+      } else {
+        warn?.('blog-config.json: "maxBodyBytes" is deprecated and invalid, using the example value.')
+      }
+    }
+  }
+
   const list = source.writeRoles
   if (list !== undefined) {
     if (Array.isArray(list) && list.every(isRole)) {
