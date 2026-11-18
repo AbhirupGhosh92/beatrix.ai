@@ -35,6 +35,7 @@ locals {
     "applicationCreateResume",
     "adminListResumeOwners",
     "adminPurgeResumeOwner",
+    "blog",
     "status",
   ]
 
