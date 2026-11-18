@@ -29,17 +29,17 @@ Files: `src/data/blogConfig.ts`, `src/data/blog-config.example.json`, `src/lib/b
 
 Files: `package.json`, lockfiles, `src/components/blog/BlogEditor.tsx`, `src/components/blog/RichEditor.tsx` (new), `src/components/blog/EditorToolbar.tsx` (new), `src/components/blog/BlogView.tsx` (new), `src/components/blog/BlogList.tsx`, `src/components/blog/BlogPage.tsx`, `src/components/blog/CharCounter.tsx` (new), `src/lib/blogMarkdownImport.ts` (new), `src/styles/components/blog-editor.css` (new, imported in `src/index.css`).
 
-- [ ] 3.1 Install Tiptap (D4) with pnpm and npm lockfiles current; `RichEditor` loaded by `next/dynamic` inside `BlogEditor` only; schema limited to the D2 nodes and marks. Verify: `/blog` bundle size before and after recorded; `/` and `/posts/*` do not load Tiptap (network check).
-- [ ] 3.2 Toolbar (headings, bold, italic, underline, strike, bullet, numbered, quote, inline code, code block, link, horizontal rule, image, undo, redo) with `aria-label`s and active state, bubble menu on selection, keyboard shortcuts and Markdown input rules. Verify in the browser: each action formats while typing; after Save and reopen the same formatting shows.
-- [ ] 3.3 Image button uploads through the existing mutation and inserts an `image` node with `imageId`; removed images are sent in `removeImageIds` on save as today. Verify: upload, reopen, remove.
-- [ ] 3.4 Legacy Markdown import (D2): convert on open, pre-scan and show the notice for tables, task lists, raw HTML and remote images; save sends `content`. Verify: open a seeded Markdown post, confirm content intact and the notice, save, reopen.
-- [ ] 3.5 `CharCounter` for title, body, tags per post and the tag being typed (D5); Save disabled when over a limit with a message naming it; image limit shown in MB/KB. Verify: type past each limit.
-- [ ] 3.6 `BlogView` read-only view with Edit and "Open public page"; View and Edit on `BlogList` rows; `BlogPage` state for view and edit. Verify in the browser: a draft is visible to its author only.
+- [x] 3.1 Install Tiptap (D4) with pnpm and npm lockfiles current; `RichEditor` loaded by `next/dynamic` inside `BlogEditor` only; schema limited to the D2 nodes and marks. Verify: `/blog` bundle size before and after recorded; `/` and `/posts/*` do not load Tiptap (network check).
+- [x] 3.2 Toolbar (headings, bold, italic, underline, strike, bullet, numbered, quote, inline code, code block, link, horizontal rule, image, undo, redo) with `aria-label`s and active state, bubble menu on selection, keyboard shortcuts and Markdown input rules. Verify in the browser: each action formats while typing; after Save and reopen the same formatting shows.
+- [x] 3.3 Image button uploads through the existing mutation and inserts an `image` node with `imageId`; removed images are sent in `removeImageIds` on save as today. Verify: upload, reopen, remove.
+- [x] 3.4 Legacy Markdown import (D2): convert on open, pre-scan and show the notice for tables, task lists, raw HTML and remote images; save sends `content`. Verify: open a seeded Markdown post, confirm content intact and the notice, save, reopen.
+- [x] 3.5 `CharCounter` for title, body, tags per post and the tag being typed (D5); Save disabled when over a limit with a message naming it; image limit shown in MB/KB. Verify: type past each limit.
+- [x] 3.6 `BlogView` read-only view with Edit and "Open public page"; View and Edit on `BlogList` rows; `BlogPage` state for view and edit. Verify in the browser: a draft is visible to its author only.
 - Done when: `npm run check` and `npm run build` pass; light/dark and 375 px screenshots for the PR.
 
 ## 4. Docs, specs and final checks (owner: architect; after groups 1-3 are merged)
 
 Files: `CLAUDE.md`, `README.md` (generated sections via `scripts/update-readme.mjs`), `docs/DEPLOYMENT.md` only if a pipeline fact changed (not expected), `openspec/changes/blog-reader-and-rich-editor/**`.
 
-- [ ] 4.1 Update the `CLAUDE.md` blog, landing and access-control passages (rich-text storage, `/posts` public routes, characters, author name) and the README structure sections.
+- [x] 4.1 Update the `CLAUDE.md` blog, landing and access-control passages (rich-text storage, `/posts` public routes, characters, author name) and the README structure sections.
 - [ ] 4.2 Run `openspec validate --all`, `npm run check`, `npm run build`, `npm run check:blog`; report to the PO that the change is ready for testing. Archive with `/opsx:archive` when the PO asks (before the PR is ready).

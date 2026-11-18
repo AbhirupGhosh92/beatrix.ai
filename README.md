@@ -217,6 +217,11 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── headers/
 │   │   │       └── route.ts
+│   │   ├── posts/
+│   │   │   └── [id]/
+│   │   │       └── images/
+│   │   │           └── [imageId]/
+│   │   │               └── route.ts
 │   │   └── resumes/
 │   │       ├── route.ts
 │   │       ├── [id]/
@@ -229,6 +234,9 @@ src/
 │   ├── job-tracker/
 │   │   ├── layout.tsx
 │   │   └── page.tsx
+│   ├── posts/
+│   │   └── [id]/
+│   │       └── page.tsx
 │   └── resume-builder/
 │       ├── layout.tsx
 │       └── page.tsx
@@ -236,10 +244,15 @@ src/
 │   ├── admin/
 │   │   └── OrphanedResumes.tsx
 │   ├── blog/
+│   │   ├── BlogContent.tsx
 │   │   ├── BlogEditor.tsx
 │   │   ├── BlogList.tsx
 │   │   ├── BlogPage.tsx
-│   │   └── BlogPreview.tsx
+│   │   ├── BlogPreview.tsx
+│   │   ├── BlogView.tsx
+│   │   ├── CharCounter.tsx
+│   │   ├── EditorToolbar.tsx
+│   │   └── RichEditor.tsx
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
 │   │   ├── ApplicationTable.tsx
@@ -319,6 +332,8 @@ src/
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
 │   ├── blogConfigSanitize.ts
+│   ├── blogDoc.ts
+│   ├── blogMarkdownImport.ts
 │   ├── blogResponses.ts
 │   ├── blogTypes.ts
 │   ├── drawer.ts
@@ -372,6 +387,7 @@ src/
     ├── components/
     │   ├── achievement-card.css
     │   ├── back-to-top.css
+    │   ├── blog-editor.css
     │   ├── blog.css
     │   ├── buttons.css
     │   ├── google-signin.css
