@@ -149,6 +149,7 @@ The deploy pipeline never destroys data (plans that delete or replace stateful r
 | `npm run start` | `next start` |
 | `npm run typecheck` | `next typegen && tsc --noEmit` |
 | `npm run lint:fix` | `eslint . --fix` |
+| `npm run check:blog` | `npm run functions:build && node --experimental-strip-types --no-warnings scripts/check-blog-contract.mjs` |
 | `npm run check` | `npm run typecheck && npm run lint` |
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
 | `npm run functions:build` | `pnpm --prefix functions run build` |
@@ -318,6 +319,7 @@ src/
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
 │   ├── blogConfigSanitize.ts
+│   ├── blogResponses.ts
 │   ├── blogTypes.ts
 │   ├── drawer.ts
 │   ├── firebase.ts

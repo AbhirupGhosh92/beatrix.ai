@@ -4,6 +4,7 @@
 // (src/lib/blogTypes.ts belongs to the editor group).
 import 'server-only'
 import type { BlogConfig, BlogHeader } from '../data/blogConfig.ts'
+import { unwrapHeaders, unwrapImage, unwrapPost } from '../lib/blogResponses.ts'
 import { callCloudFunction } from './cloudFunctions.ts'
 import { getBlogConfig } from './blogConfigService.ts'
 
@@ -74,17 +75,18 @@ async function call<Response>(action: string, cookie: string | null, fields: obj
 export const listBlogPosts = (cookie: string, scope: unknown) =>
   call<{ posts: BlogPostSummary[]; canSeeAll: boolean }>('list', cookie, { scope: scope === 'all' ? 'all' : undefined })
 
-export const getBlogPost = (cookie: string, id: string) => call<BlogPost>('get', cookie, { id })
+export const getBlogPost = async (cookie: string, id: string) =>
+  unwrapPost<BlogPost>(await call<unknown>('get', cookie, { id }))
 
-export const saveBlogPost = (cookie: string, input: BlogSaveInput) => {
+export const saveBlogPost = async (cookie: string, input: BlogSaveInput) => {
   const { id, title, body, tags, status, version, removeImageIds } = input
-  return call<BlogPost>('save', cookie, { id, title, body, tags, status, version, removeImageIds })
+  return unwrapPost<BlogPost>(await call<unknown>('save', cookie, { id, title, body, tags, status, version, removeImageIds }))
 }
 
 export const deleteBlogPost = (cookie: string, id: string) => call<{ success: boolean }>('delete', cookie, { id })
 
-export const uploadBlogImage = (cookie: string, id: string, input: { name: unknown; dataBase64: unknown }) =>
-  call<BlogImage>('imageUpload', cookie, { id, name: input.name, dataBase64: input.dataBase64 })
+export const uploadBlogImage = async (cookie: string, id: string, input: { name: unknown; dataBase64: unknown }) =>
+  unwrapImage<BlogImage>(await call<unknown>('imageUpload', cookie, { id, name: input.name, dataBase64: input.dataBase64 }))
 
 export const getBlogImage = (cookie: string, id: string, imageId: string) =>
   call<{ contentType: string; dataBase64: string }>('imageGet', cookie, { id, imageId })
@@ -97,16 +99,10 @@ let poolInFlight: Promise<BlogHeader[]> | undefined
 
 async function loadPool(): Promise<BlogHeader[]> {
   if (pool && Date.now() - pool.at < POOL_TTL_MS) return pool.headers
-  poolInFlight ??= call<BlogHeader[]>('headers', null)
-    .then((rows) => {
-      // Defence in depth: copy only the public fields, whatever the function returned.
-      const headers = rows.map(({ id, title, excerpt, tags, publishedAt }) => ({
-        id,
-        title,
-        excerpt,
-        tags,
-        publishedAt,
-      }))
+  poolInFlight ??= call<unknown>('headers', null)
+    .then((response) => {
+      // unwrapHeaders copies only the public fields, whatever the function returned.
+      const headers = unwrapHeaders(response)
       pool = { at: Date.now(), headers }
       return headers
     })

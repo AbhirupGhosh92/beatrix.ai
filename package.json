@@ -10,6 +10,7 @@
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint:fix": "eslint . --fix",
+    "check:blog": "npm run functions:build && node --experimental-strip-types --no-warnings scripts/check-blog-contract.mjs",
     "check": "npm run typecheck && npm run lint",
     "clean": "rm -rf .next out next-env.d.ts *.tsbuildinfo",
     "functions:build": "pnpm --prefix functions run build",
