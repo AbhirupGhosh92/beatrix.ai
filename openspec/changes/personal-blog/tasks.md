@@ -40,4 +40,4 @@ File set: `src/app/blog/**`, `src/components/blog/**`, `src/components/sections/
 File set: `CLAUDE.md`, `docs/DEPLOYMENT.md`, `README.md` (generated sections via `scripts/update-readme.mjs`).
 
 - [x] 5.1 `CLAUDE.md`: blog capability (config, `blog:write`, routes, storage, the 30 s pool, the stored-profile drawer entry note). `docs/DEPLOYMENT.md`: new bucket, the single `blog` function, data protections and recovery. README structure section via the script. Verify: `node scripts/update-readme.mjs` leaves no diff.
-- [ ] 5.2 Merge all Builder branches, run `npm run check`, `npm run build`, `npm run infra:check`, `scripts/check-functions.sh`, `openspec validate personal-blog --strict`, and report ready for testing.
+- [x] 5.2 Merge all Builder branches, run `npm run check`, `npm run build`, `npm run infra:check`, `scripts/check-functions.sh`, `openspec validate personal-blog --strict`, and report ready for testing.
