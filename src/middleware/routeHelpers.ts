@@ -1,10 +1,11 @@
 // Shared plumbing for the API routes that forward a Firebase ID token to the Cloud Functions.
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { isFeatureEnabled } from '../lib/access.ts'
+import { can, isFeatureEnabled, type Role } from '../lib/access.ts'
 import { CloudFunctionError } from './cloudFunctions.ts'
+import { getBlogConfig } from './blogConfigService.ts'
 import { getProfile } from './profileService.ts'
-import { SESSION_COOKIE } from './sessionService.ts'
+import { SESSION_COOKIE, verifySession } from './sessionService.ts'
 
 export const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' }
 
@@ -35,3 +36,26 @@ export async function featureOff(itemId: string): Promise<NextResponse | null> {
 }
 
 export const sessionCookie = (request: NextRequest): string | null => request.cookies.get(SESSION_COOKIE)?.value ?? null
+
+/**
+ * Defence in depth for the blog routes next to src/proxy.ts: 404 while the blog is off, 403 when the
+ * role may not write. Null when the request may go on.
+ */
+export async function blogOff(role: Role | null): Promise<NextResponse | null> {
+  const config = await getBlogConfig()
+  if (!config.enabled) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE })
+  if (!can(role, 'blog:write', { blogWriteRoles: config.writeRoles })) {
+    return NextResponse.json({ error: 'Not allowed.' }, { status: 403, headers: NO_STORE })
+  }
+  return null
+}
+
+/** The checks every authenticated blog route starts with: cookie, session, blog on, role may write. */
+export async function blogGuard(request: NextRequest): Promise<{ cookie: string; role: Role } | NextResponse> {
+  const cookie = sessionCookie(request)
+  if (!cookie) return unauthorized('Sign-in required.')
+  const session = await verifySession(cookie)
+  if (!session) return unauthorized('Sign-in required.')
+  const denied = await blogOff(session.role)
+  return denied ?? { cookie, role: session.role }
+}

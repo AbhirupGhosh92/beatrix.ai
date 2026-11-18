@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from 'next'
 import FirebaseInit from '../components/layout/FirebaseInit.tsx'
+import { BlogConfigProvider } from '../components/layout/BlogConfigProvider.tsx'
 import { HomeConfigProvider } from '../components/layout/HomeConfigProvider.tsx'
 import { ProfileProvider } from '../components/layout/ProfileProvider.tsx'
 import RouteProgress from '../components/layout/RouteProgress.tsx'
 import ReleaseNotes from '../components/layout/ReleaseNotes.tsx'
 import StoreProvider from '../components/layout/StoreProvider.tsx'
 import SnackbarHost from '../components/ui/SnackbarHost.tsx'
+import { publicBlogConfig } from '../lib/blogConfigSanitize.ts'
+import { getBlogConfig } from '../middleware/blogConfigService.ts'
 import { getHomeConfig } from '../middleware/homeConfigService.ts'
 import { getProfile } from '../middleware/profileService.ts'
 import { getLatestRelease } from '../middleware/releaseService.ts'
@@ -33,7 +36,12 @@ export const viewport: Viewport = {
 const themeScript = `try{var t=localStorage.getItem('theme');if(t!=='beatrix-dark'&&t!=='beatrix-light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'beatrix-dark':'beatrix-light'}document.documentElement.setAttribute('data-theme',t)}catch(e){}`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [profile, homeConfig, release] = await Promise.all([getProfile(), getHomeConfig(), getLatestRelease()])
+  const [profile, homeConfig, blogConfig, release] = await Promise.all([
+    getProfile(),
+    getHomeConfig(),
+    getBlogConfig(),
+    getLatestRelease(),
+  ])
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before React hydrates.
@@ -53,7 +61,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RouteProgress />
         <StoreProvider>
           <ProfileProvider profile={profile}>
-            <HomeConfigProvider config={homeConfig}>{children}</HomeConfigProvider>
+            <HomeConfigProvider config={homeConfig}>
+              <BlogConfigProvider config={publicBlogConfig(blogConfig)}>{children}</BlogConfigProvider>
+            </HomeConfigProvider>
           </ProfileProvider>
           <ReleaseNotes release={release} />
           <SnackbarHost />
