@@ -28,6 +28,7 @@ export {
   applicationDelete,
   applicationCreateResume,
 } from "./applications";
+export { blog } from "./blog";
 export { adminListResumeOwners, adminPurgeResumeOwner } from "./resumeAdmin";
 export { adminListFiles, adminGetFile, adminSaveFile } from "./admin";
 export { sessionCreate, sessionVerify } from "./session";
