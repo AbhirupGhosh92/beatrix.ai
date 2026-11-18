@@ -12,9 +12,9 @@ File set: `functions/src/blog.ts`, `functions/src/blogValidation.ts`, `functions
 
 File set: `terraform/main.tf`, `terraform/outputs.tf`, `terraform/functions/functions.tf`, `scripts/deploy/test_plan_guard.py`.
 
-- [ ] 2.1 `main.tf`/`outputs.tf`: bucket `blog_storage` (`${var.project_id}-blog`), same protections as `resumes_storage` (private, public access prevention, versioning, 30-day noncurrent delete, `prevent_destroy`, `force_destroy=false`), output for its name. Verify: `npm run infra:check`.
-- [ ] 2.2 `functions.tf`: add the single name `blog` to `function_names`. Verify: `scripts/check-functions.sh` passes once group 1 is merged (run it after the merge; before that it reports the missing exports).
-- [ ] 2.3 `test_plan_guard.py`: delete and replace of `blog_storage` are blocked, update is allowed. Verify: `python3 scripts/deploy/test_plan_guard.py`.
+- [x] 2.1 `main.tf`/`outputs.tf`: bucket `blog_storage` (`${var.project_id}-blog`), same protections as `resumes_storage` (private, public access prevention, versioning, 30-day noncurrent delete, `prevent_destroy`, `force_destroy=false`), output for its name. Verify: `npm run infra:check`.
+- [x] 2.2 `functions.tf`: add the single name `blog` to `function_names`. Verify: `scripts/check-functions.sh` passes once group 1 is merged (run it after the merge; before that it reports the missing exports).
+- [x] 2.3 `test_plan_guard.py`: delete and replace of `blog_storage` are blocked, update is allowed. Verify: `python3 scripts/deploy/test_plan_guard.py`.
 
 ## 3. Policy, config and server (owner: builder-3)
 
