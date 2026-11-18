@@ -204,6 +204,18 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── session/
 │   │   │       └── route.ts
+│   │   ├── blog/
+│   │   │   ├── route.ts
+│   │   │   ├── [id]/
+│   │   │   │   ├── route.ts
+│   │   │   │   └── images/
+│   │   │   │       ├── route.ts
+│   │   │   │       └── [imageId]/
+│   │   │   │           └── route.ts
+│   │   │   ├── config/
+│   │   │   │   └── route.ts
+│   │   │   └── headers/
+│   │   │       └── route.ts
 │   │   └── resumes/
 │   │       ├── route.ts
 │   │       ├── [id]/
@@ -227,6 +239,7 @@ src/
 │   ├── layout/
 │   │   ├── AdminNav.tsx
 │   │   ├── BackToTop.tsx
+│   │   ├── BlogConfigProvider.tsx
 │   │   ├── DrawerMenu.tsx
 │   │   ├── FirebaseInit.tsx
 │   │   ├── Footer.tsx
@@ -279,6 +292,8 @@ src/
 │       ├── Skeleton.tsx
 │       └── SnackbarHost.tsx
 ├── data/
+│   ├── blog-config.example.json
+│   ├── blogConfig.ts
 │   ├── configFiles.ts
 │   ├── home-config.example.json
 │   ├── homeConfig.ts
@@ -293,6 +308,7 @@ src/
 │   ├── access.ts
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
+│   ├── blogConfigSanitize.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── homeConfigSanitize.ts
@@ -317,6 +333,8 @@ src/
 │   ├── adminService.ts
 │   ├── aiService.ts
 │   ├── applicationService.ts
+│   ├── blogConfigService.ts
+│   ├── blogService.ts
 │   ├── cloudFunctions.ts
 │   ├── configService.ts
 │   ├── homeConfigService.ts
