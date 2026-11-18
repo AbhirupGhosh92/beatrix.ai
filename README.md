@@ -149,6 +149,7 @@ The deploy pipeline never destroys data (plans that delete or replace stateful r
 | `npm run start` | `next start` |
 | `npm run typecheck` | `next typegen && tsc --noEmit` |
 | `npm run lint:fix` | `eslint . --fix` |
+| `npm run check:blog` | `npm run functions:build && node --experimental-strip-types --no-warnings scripts/check-blog-contract.mjs` |
 | `npm run check` | `npm run typecheck && npm run lint` |
 | `npm run clean` | `rm -rf .next out next-env.d.ts *.tsbuildinfo` |
 | `npm run functions:build` | `pnpm --prefix functions run build` |
@@ -204,12 +205,27 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── session/
 │   │   │       └── route.ts
+│   │   ├── blog/
+│   │   │   ├── route.ts
+│   │   │   ├── [id]/
+│   │   │   │   ├── route.ts
+│   │   │   │   └── images/
+│   │   │   │       ├── route.ts
+│   │   │   │       └── [imageId]/
+│   │   │   │           └── route.ts
+│   │   │   ├── config/
+│   │   │   │   └── route.ts
+│   │   │   └── headers/
+│   │   │       └── route.ts
 │   │   └── resumes/
 │   │       ├── route.ts
 │   │       ├── [id]/
 │   │       │   └── route.ts
 │   │       └── config/
 │   │           └── route.ts
+│   ├── blog/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── job-tracker/
 │   │   ├── layout.tsx
 │   │   └── page.tsx
@@ -219,6 +235,11 @@ src/
 ├── components/
 │   ├── admin/
 │   │   └── OrphanedResumes.tsx
+│   ├── blog/
+│   │   ├── BlogEditor.tsx
+│   │   ├── BlogList.tsx
+│   │   ├── BlogPage.tsx
+│   │   └── BlogPreview.tsx
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
 │   │   ├── ApplicationTable.tsx
@@ -227,6 +248,7 @@ src/
 │   ├── layout/
 │   │   ├── AdminNav.tsx
 │   │   ├── BackToTop.tsx
+│   │   ├── BlogConfigProvider.tsx
 │   │   ├── DrawerMenu.tsx
 │   │   ├── FirebaseInit.tsx
 │   │   ├── Footer.tsx
@@ -258,6 +280,7 @@ src/
 │   │   ├── Education.tsx
 │   │   ├── Experience.tsx
 │   │   ├── Hero.tsx
+│   │   ├── LandingBlog.tsx
 │   │   ├── LandingClosing.tsx
 │   │   ├── LandingFeatures.tsx
 │   │   ├── LandingHero.tsx
@@ -279,6 +302,8 @@ src/
 │       ├── Skeleton.tsx
 │       └── SnackbarHost.tsx
 ├── data/
+│   ├── blog-config.example.json
+│   ├── blogConfig.ts
 │   ├── configFiles.ts
 │   ├── home-config.example.json
 │   ├── homeConfig.ts
@@ -293,6 +318,9 @@ src/
 │   ├── access.ts
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
+│   ├── blogConfigSanitize.ts
+│   ├── blogResponses.ts
+│   ├── blogTypes.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── homeConfigSanitize.ts
@@ -317,6 +345,8 @@ src/
 │   ├── adminService.ts
 │   ├── aiService.ts
 │   ├── applicationService.ts
+│   ├── blogConfigService.ts
+│   ├── blogService.ts
 │   ├── cloudFunctions.ts
 │   ├── configService.ts
 │   ├── homeConfigService.ts
@@ -342,6 +372,7 @@ src/
     ├── components/
     │   ├── achievement-card.css
     │   ├── back-to-top.css
+    │   ├── blog.css
     │   ├── buttons.css
     │   ├── google-signin.css
     │   ├── landing.css

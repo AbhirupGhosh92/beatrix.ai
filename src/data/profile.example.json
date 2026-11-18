@@ -473,6 +473,13 @@
         "href": "/job-tracker",
         "icon": "briefcase",
         "enabled": false
+      },
+      {
+        "id": "blog",
+        "label": "Blog",
+        "href": "/blog",
+        "icon": "pen-line",
+        "enabled": true
       }
     ],
     "dropdownItems": [

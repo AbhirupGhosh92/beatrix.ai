@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "writeRoles": ["admin"],
+  "homeSampleSize": 3,
+  "maxTitleLength": 120,
+  "maxBodyBytes": 100000,
+  "maxTagsPerPost": 8,
+  "maxTagLength": 30,
+  "maxImageBytes": 2097152,
+  "maxImagesPerPost": 10,
+  "maxPostsPerAuthor": 200,
+  "excerptLength": 160,
+  "home": {
+    "heading": "From the blog",
+    "intro": "Notes and write-ups, picked at random."
+  }
+}

@@ -7,6 +7,8 @@ export const PROFILE_FILE = 'profile.json'
 export const RESUME_CONFIG_FILE = 'resume-config.json'
 /** The landing page config. */
 export const HOME_CONFIG_FILE = 'home-config.json'
+/** The blog config. */
+export const BLOG_CONFIG_FILE = 'blog-config.json'
 
-export const CONFIG_FILES = [PROFILE_FILE, RESUME_CONFIG_FILE, HOME_CONFIG_FILE] as const
+export const CONFIG_FILES = [PROFILE_FILE, RESUME_CONFIG_FILE, HOME_CONFIG_FILE, BLOG_CONFIG_FILE] as const
 export type ConfigFile = (typeof CONFIG_FILES)[number]

@@ -79,6 +79,11 @@ output "resumes_bucket" {
   description = "Cloud Storage bucket name for user resumes."
 }
 
+output "blog_bucket" {
+  value       = google_storage_bucket.blog_storage.name
+  description = "Cloud Storage bucket name for blog post images."
+}
+
 output "python_service_account" {
   value       = google_service_account.python_runtime.email
   description = "Runtime service account of the Python AI service (Cloud Run)."

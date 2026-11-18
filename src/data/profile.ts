@@ -47,7 +47,7 @@ export interface Achievement {
   solutions: string[]
 }
 
-export type DrawerIcon = 'file-text' | 'briefcase' | 'user' | 'circle'
+export type DrawerIcon = 'file-text' | 'briefcase' | 'user' | 'circle' | 'pen-line'
 
 export type DropdownIcon = 'user' | 'settings' | 'log-out'
 

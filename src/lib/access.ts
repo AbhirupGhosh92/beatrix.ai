@@ -7,7 +7,16 @@
 export const ROLES = ['reader', 'user-base', 'user-advanced', 'admin'] as const
 export type Role = (typeof ROLES)[number]
 
-export type Permission = 'site:view' | 'features:basic' | 'features:advanced' | 'cms:write'
+export type Permission = 'site:view' | 'features:basic' | 'features:advanced' | 'cms:write' | 'blog:write'
+
+/**
+ * Extra facts `can` needs for permissions that are not part of the role hierarchy. `blog:write` is
+ * config-driven (blog-config.json `writeRoles`); the admin always holds it, and without a list (or
+ * with an unreadable config) only the admin does. Every other permission ignores the context.
+ */
+export interface AccessContext {
+  blogWriteRoles?: readonly Role[]
+}
 
 /** What each role adds on top of the role below it. */
 const ROLE_GRANTS: Record<Role, readonly Permission[]> = {
@@ -26,8 +35,10 @@ export function permissionsOf(role: Role): ReadonlySet<Permission> {
 }
 
 /** Whether `role` holds `permission`. No role (anonymous) holds nothing. */
-export function can(role: Role | null | undefined, permission: Permission): boolean {
-  return role ? permissionsOf(role).has(permission) : false
+export function can(role: Role | null | undefined, permission: Permission, ctx?: AccessContext): boolean {
+  if (!role) return false
+  if (permission === 'blog:write') return role === 'admin' || (ctx?.blogWriteRoles ?? []).includes(role)
+  return permissionsOf(role).has(permission)
 }
 
 export function isRole(value: unknown): value is Role {
@@ -54,7 +65,7 @@ export function resolveRole(entry: AllowedEmailEntry | null | undefined): Role |
 }
 
 /** Routes anyone may request without a session: the landing page, the shareable About page and the sign-in endpoints. */
-const PUBLIC_PATHS = ['/', '/about', '/api/auth/session']
+const PUBLIC_PATHS = ['/', '/about', '/api/auth/session', '/api/blog/headers']
 /** Framework assets and the files in public/ (an extension from this list). */
 const PUBLIC_PREFIXES = ['/_next/']
 const PUBLIC_FILE = /\.(?:svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|txt|xml|webmanifest|map|css|js)$/i
@@ -68,6 +79,8 @@ const ROUTE_PERMISSIONS: readonly (readonly [prefix: string, permission: Permiss
   ['/api/ai', 'features:basic'],
   ['/job-tracker', 'features:basic'],
   ['/api/applications', 'features:basic'],
+  ['/blog', 'blog:write'],
+  ['/api/blog', 'blog:write'],
 ]
 
 /**
@@ -110,6 +123,15 @@ export function requiredPermission(pathname: string): Permission | null {
     }
   }
   return best?.permission ?? DEFAULT_PERMISSION
+}
+
+/**
+ * Whether a path belongs to the blog authoring feature (page or API) that blog-config.json can
+ * switch off. The public headers endpoint is excluded: it does its own config check.
+ */
+export function isBlogRoute(pathname: string): boolean {
+  if (isPublicPath(pathname)) return false
+  return matchesPrefix(pathname, '/blog') || matchesPrefix(pathname, '/api/blog')
 }
 
 /** The menu item id a path is tied to, or null when the path is not a switchable feature. */

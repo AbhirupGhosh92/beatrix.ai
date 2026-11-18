@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Briefcase, Circle, FileText, Sliders, User } from 'lucide-react'
+import { Briefcase, Circle, FileText, PenLine, Sliders, User } from 'lucide-react'
 import type { DrawerIcon } from '../../data/profile.ts'
 import { can, type Role } from '../../lib/access.ts'
 import { visibleDrawerItems } from '../../lib/drawer.ts'
+import { useBlogAccess } from './BlogConfigProvider.tsx'
 import { useProfile } from './ProfileProvider.tsx'
 
 const ICONS: Record<DrawerIcon, typeof Circle> = {
@@ -12,11 +13,13 @@ const ICONS: Record<DrawerIcon, typeof Circle> = {
   briefcase: Briefcase,
   user: User,
   circle: Circle,
+  'pen-line': PenLine,
 }
 
 export default function DrawerMenu({ role }: { role: Role }) {
   const profile = useProfile()
   const { nav } = profile
+  const blogAccess = useBlogAccess()
 
   return (
     <div className="drawer-side z-40">
@@ -25,7 +28,7 @@ export default function DrawerMenu({ role }: { role: Role }) {
         <div className="px-3 py-2 font-display text-sm uppercase tracking-wider text-brand font-bold edge-b mb-2">
           {nav.drawerTitle}
         </div>
-        {visibleDrawerItems(nav.drawerItems, role)
+        {visibleDrawerItems(nav.drawerItems, role, blogAccess)
           .map((item) => {
             const Icon = ICONS[item.icon]
             return (

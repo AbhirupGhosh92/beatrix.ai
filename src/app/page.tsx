@@ -6,6 +6,7 @@ import { useGetSessionRoleQuery } from '../store/api.ts'
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts'
 import { setDrawerOpen } from '../store/ui.ts'
 import { hasDrawerContent } from '../lib/drawer.ts'
+import { useBlogAccess } from '../components/layout/BlogConfigProvider.tsx'
 import Navbar from '../components/layout/Navbar.tsx'
 import DrawerMenu from '../components/layout/DrawerMenu.tsx'
 import { useHomeConfig } from '../components/layout/HomeConfigProvider.tsx'
@@ -13,6 +14,7 @@ import { useProfile } from '../components/layout/ProfileProvider.tsx'
 import LandingHero from '../components/sections/LandingHero.tsx'
 import LandingFeatures from '../components/sections/LandingFeatures.tsx'
 import LandingSteps from '../components/sections/LandingSteps.tsx'
+import LandingBlog from '../components/sections/LandingBlog.tsx'
 import BackToTop from '../components/layout/BackToTop.tsx'
 import LandingClosing from '../components/sections/LandingClosing.tsx'
 import { Reveal } from '../components/ui/motion.tsx'
@@ -30,7 +32,7 @@ export default function Landing() {
   const role = data ?? null
   const isLoggedIn = role !== null
   const home = useHomeConfig()
-  const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role)
+  const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role, useBlogAccess())
 
   return (
     <div className="drawer">
@@ -52,6 +54,7 @@ export default function Landing() {
             <LandingHero />
             <LandingFeatures />
             <LandingSteps />
+            <LandingBlog />
             <LandingClosing />
           </main>
         ) : (

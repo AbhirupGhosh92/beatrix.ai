@@ -7,6 +7,7 @@ import { hasDrawerContent } from '../../lib/drawer.ts'
 import Navbar from '../../components/layout/Navbar.tsx'
 import { useProfile } from '../../components/layout/ProfileProvider.tsx'
 import DrawerMenu from '../../components/layout/DrawerMenu.tsx'
+import { useBlogAccess } from '../../components/layout/BlogConfigProvider.tsx'
 import Hero from '../../components/sections/Hero.tsx'
 import Stats from '../../components/sections/Stats.tsx'
 import About from '../../components/sections/About.tsx'
@@ -28,7 +29,7 @@ export default function AboutPage() {
   const role = data ?? null
   const isLoggedIn = role !== null
   // No menu button and no drawer when there is nothing to list for this user.
-  const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role)
+  const showMenu = hasDrawerContent(useProfile().nav.drawerItems, role, useBlogAccess())
 
   return (
     <div className="drawer">

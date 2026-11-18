@@ -1,0 +1,90 @@
+/* Blog: home teaser cards, tags and the Markdown preview. Colors are theme tokens only. */
+.blog-card {
+  @apply bg-base-200 border border-base-300 rounded-box p-5;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard);
+}
+
+.blog-card:hover {
+  background-color: color-mix(in oklab, var(--color-primary) 6%, var(--color-base-200));
+  border-color: color-mix(in oklab, var(--color-primary) 40%, var(--color-base-300));
+}
+
+.blog-tag {
+  @apply rounded-full border border-base-300 bg-base-300/60 px-2 py-0.5 text-xs font-medium;
+  color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+}
+
+.blog-prose {
+  @apply min-w-0 break-words leading-relaxed;
+}
+
+.blog-prose > * + * {
+  @apply mt-3;
+}
+
+.blog-prose h1,
+.blog-prose h2,
+.blog-prose h3,
+.blog-prose h4 {
+  @apply font-semibold mt-5;
+}
+
+.blog-prose h1 {
+  @apply text-2xl;
+}
+
+.blog-prose h2 {
+  @apply text-xl;
+}
+
+.blog-prose h3 {
+  @apply text-lg;
+}
+
+.blog-prose ul {
+  @apply list-disc pl-6;
+}
+
+.blog-prose ol {
+  @apply list-decimal pl-6;
+}
+
+.blog-prose a {
+  @apply underline;
+  color: var(--color-primary);
+}
+
+.blog-prose img {
+  @apply h-auto max-w-full rounded-box border border-base-300;
+}
+
+.blog-prose blockquote {
+  @apply border-l-4 border-base-300 pl-4 text-base-content/60;
+}
+
+.blog-prose code {
+  @apply rounded bg-base-300/60 px-1 py-0.5 text-sm;
+}
+
+.blog-prose pre {
+  @apply overflow-x-auto rounded-box border border-base-300 bg-base-200 p-3;
+}
+
+.blog-prose pre code {
+  @apply bg-transparent p-0;
+}
+
+.blog-prose table {
+  @apply block max-w-full overflow-x-auto;
+}
+
+.blog-prose th,
+.blog-prose td {
+  @apply border border-base-300 px-2 py-1;
+}
+
+.blog-prose hr {
+  @apply border-base-300;
+}
