@@ -23,12 +23,6 @@ const RichEditor = dynamic(() => import('./RichEditor.tsx'), {
   loading: () => <p className="text-muted">Loading the editor...</p>,
 })
 
-/** The limit for the post text, in characters (config key maxBodyLength; 50 000 until the config has it). */
-const DEFAULT_BODY_LENGTH = 50_000
-
-/** A post as the server returns it, with the rich-text fields that arrive with the document format. */
-type StoredPost = BlogPost & { format?: 'markdown' | 'doc'; content?: unknown }
-
 interface Props {
   /** null for a new post. */
   id: string | null
@@ -94,14 +88,14 @@ function readBase64(file: File): Promise<string> {
   })
 }
 
-function initialContent(post: StoredPost | null): EditorInitial {
+function initialContent(post: BlogPost | null): EditorInitial {
   if (!post) return { kind: 'empty' }
   if (post.format === 'doc' && post.content && typeof post.content === 'object') return { kind: 'doc', doc: post.content as JSONContent }
   return post.body ? { kind: 'markdown', markdown: prepareLegacyMarkdown(post.body) } : { kind: 'empty' }
 }
 
 interface FormProps extends Omit<Props, 'id'> {
-  post: StoredPost | null
+  post: BlogPost | null
   onReload: () => void
 }
 
@@ -129,7 +123,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   const [converted, setConverted] = useState(initial.kind === 'markdown')
   const losses = useMemo(() => scanLegacyMarkdown(post?.body ?? ''), [post])
 
-  const bodyMax = (config as BlogEditorConfig & { maxBodyLength?: number }).maxBodyLength ?? DEFAULT_BODY_LENGTH
+  const bodyMax = config.maxBodyLength
 
   const checked = useMemo((): { doc: BlogDoc } | { error: string } | null => {
     if (!doc) return null
@@ -164,11 +158,11 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
       title: title.trim(),
       content: validDoc,
       tags,
-      status: published ? 'published' : 'draft',
+      status: (published ? 'published' : 'draft') as BlogSaveArg['status'],
       ...(removed.length > 0 ? { removeImageIds: removed } : {}),
     }
     try {
-      const saved = await saveBlogPost(arg as unknown as BlogSaveArg).unwrap()
+      const saved = await saveBlogPost(arg).unwrap()
       setConflict(false)
       setVersion(saved.version)
       setImages(saved.images)

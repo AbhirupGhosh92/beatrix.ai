@@ -1,13 +1,9 @@
 'use client'
 
 import { ArrowLeft, ExternalLink, PenLine } from 'lucide-react'
-import type { BlogPost } from '../../lib/blogTypes.ts'
 import { useGetBlogPostQuery } from '../../store/api.ts'
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import BlogContent from './BlogContent.tsx'
-
-/** A post as the server returns it, with the rich-text fields that arrive with the document format. */
-type StoredPost = BlogPost & { format?: 'markdown' | 'doc'; content?: unknown }
 
 interface Props {
   id: string
@@ -19,7 +15,7 @@ interface Props {
 // author-gated /api/blog/<id>, so only its author, or an admin, ever receives it).
 export default function BlogView({ id, onEdit, onClose }: Props) {
   const query = useGetBlogPostQuery(id)
-  const post = query.data as StoredPost | undefined
+  const post = query.data
 
   if (query.isLoading || (query.isFetching && !post)) return <SkeletonPage label="Loading the post" />
   if (!post) {
