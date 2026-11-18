@@ -14,6 +14,7 @@ import { useProfile } from '../components/layout/ProfileProvider.tsx'
 import LandingHero from '../components/sections/LandingHero.tsx'
 import LandingFeatures from '../components/sections/LandingFeatures.tsx'
 import LandingSteps from '../components/sections/LandingSteps.tsx'
+import LandingBlog from '../components/sections/LandingBlog.tsx'
 import BackToTop from '../components/layout/BackToTop.tsx'
 import LandingClosing from '../components/sections/LandingClosing.tsx'
 import { Reveal } from '../components/ui/motion.tsx'
@@ -53,6 +54,7 @@ export default function Landing() {
             <LandingHero />
             <LandingFeatures />
             <LandingSteps />
+            <LandingBlog />
             <LandingClosing />
           </main>
         ) : (
