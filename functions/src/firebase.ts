@@ -16,3 +16,7 @@ export type StorageFile = ReturnType<ReturnType<typeof bucket>["file"]>;
  */
 export const resumesBucket = () =>
   getStorage().bucket(`${process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT}-resumes`);
+
+/** Private bucket of blog post images (`<project id>-blog`, created by Terraform). */
+export const blogBucket = () =>
+  getStorage().bucket(`${process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT}-blog`);

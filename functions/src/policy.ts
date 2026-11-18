@@ -5,7 +5,7 @@
 export const ROLES = ["reader", "user-base", "user-advanced", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
-export type Permission = "site:view" | "features:basic" | "features:advanced" | "cms:write";
+export type Permission = "site:view" | "features:basic" | "features:advanced" | "cms:write" | "blog:write";
 
 const ROLE_GRANTS: Record<Role, readonly Permission[]> = {
   reader: ["site:view"],
@@ -14,8 +14,16 @@ const ROLE_GRANTS: Record<Role, readonly Permission[]> = {
   admin: ["cms:write"],
 };
 
-export function can(role: Role | null | undefined, permission: Permission): boolean {
+/** Context for permissions that depend on config. */
+export interface PolicyContext {
+  /** Roles that hold `blog:write` besides admin (blog-config.json `writeRoles`); default admin only. */
+  blogWriteRoles?: readonly Role[];
+}
+
+/** `blog:write` is not in ROLE_GRANTS: admin always holds it, others only when listed in the config. */
+export function can(role: Role | null | undefined, permission: Permission, ctx?: PolicyContext): boolean {
   if (!role) return false;
+  if (permission === "blog:write") return role === "admin" || (ctx?.blogWriteRoles ?? ["admin"]).includes(role);
   return ROLES.slice(0, ROLES.indexOf(role) + 1).some((r) => ROLE_GRANTS[r].includes(permission));
 }
 
