@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useGetBlogConfigQuery, useListBlogPostsQuery } from '../../store/api.ts'
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
@@ -11,10 +12,10 @@ type Editing = string | 'new' | null
 
 // The blog page: the author's posts, and the editor for the one that is open (?open=<id> deep link).
 export default function BlogPage() {
-  // ?open=<id> deep link; the first render is the loading skeleton on server and client alike.
-  const [editing, setEditing] = useState<Editing>(() =>
-    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('open'),
-  )
+  // ?open=<id> deep link, read with Next's hook (the same value on server and client) and used only
+  // to seed local state, so opening, closing and "New post" keep working without a navigation.
+  const initialId = useSearchParams().get('open')
+  const [editing, setEditing] = useState<Editing>(initialId)
   const [showAll, setShowAll] = useState(false)
   const configQuery = useGetBlogConfigQuery()
   const listQuery = useListBlogPostsQuery({ all: showAll })
