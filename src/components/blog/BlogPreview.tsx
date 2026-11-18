@@ -1,11 +1,9 @@
-'use client'
-
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { BLOG_IMAGE_SCHEME } from '../../lib/blogTypes.ts'
 
-// Markdown preview of a post body (design D5). Raw HTML is not rendered (skipHtml, no rehype-raw),
+// Markdown renderer of a legacy post body (design D5, D6); no hooks, so server components use it too. Raw HTML is not rendered (skipHtml, no rehype-raw),
 // `blog-image:<id>` maps to the image API route of this post, every other image source is dropped,
 // and links are limited to http, https and mailto.
 const SAFE_LINK = /^(https?:|mailto:)/i
@@ -18,10 +16,25 @@ export function resolveBlogImage(src: string | undefined, postId: string | null)
   return IMAGE_ID.test(id) ? `/api/blog/${encodeURIComponent(postId)}/images/${id}` : null
 }
 
-export default function BlogPreview({ body, postId }: { body: string; postId: string | null }) {
+interface Props {
+  body: string
+  /** Author preview: images resolve to this post's authenticated image route. */
+  postId?: string | null
+  /** Reader views: images resolve through this function instead (the public route for readers). */
+  imageUrl?: (imageId: string) => string
+}
+
+export default function BlogPreview({ body, postId = null, imageUrl }: Props) {
   const components: Components = {
     img: ({ src, alt }) => {
-      const url = resolveBlogImage(typeof src === 'string' ? src : undefined, postId)
+      const source = typeof src === 'string' ? src : undefined
+      let url: string | null = null
+      if (imageUrl) {
+        const id = source?.startsWith(BLOG_IMAGE_SCHEME) ? source.slice(BLOG_IMAGE_SCHEME.length) : ''
+        url = IMAGE_ID.test(id) ? imageUrl(id) : null
+      } else {
+        url = resolveBlogImage(source, postId)
+      }
       // eslint-disable-next-line @next/next/no-img-element
       return url ? <img src={url} alt={alt ?? ''} loading="lazy" /> : null
     },

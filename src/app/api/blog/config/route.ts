@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const config = await getBlogConfig()
     const body: BlogEditorConfig = {
       maxTitleLength: config.maxTitleLength,
-      maxBodyBytes: config.maxBodyBytes,
+      maxBodyLength: config.maxBodyLength,
       maxTagsPerPost: config.maxTagsPerPost,
       maxTagLength: config.maxTagLength,
       maxImageBytes: config.maxImageBytes,
