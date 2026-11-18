@@ -18,10 +18,10 @@ export async function PUT(request: NextRequest, { params }: Context) {
   try {
     const guard = await blogGuard(request)
     if (guard instanceof NextResponse) return guard
-    const { title, body, tags, status, version, removeImageIds } = await request.json()
+    const { title, body, content, tags, status, version, removeImageIds } = await request.json()
     const id = (await params).id
     return NextResponse.json(
-      await saveBlogPost(guard.cookie, { id, title, body, tags, status, version, removeImageIds }),
+      await saveBlogPost(guard.cookie, { id, title, body, content, tags, status, version, removeImageIds }),
       { headers: NO_STORE },
     )
   } catch (err) {

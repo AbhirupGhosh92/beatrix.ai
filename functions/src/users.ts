@@ -20,7 +20,10 @@ export async function registerIfAbsent(email: string, displayName: string): Prom
   await db().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (snap.exists) {
-      tx.update(ref, { lastLoginAt: FieldValue.serverTimestamp() });
+      // Only an empty display name is filled (admin-added users); role and allowed are never touched.
+      const current = snap.get("displayName");
+      const fill = displayName.trim() !== "" && (typeof current !== "string" || current.trim() === "");
+      tx.update(ref, { lastLoginAt: FieldValue.serverTimestamp(), ...(fill ? { displayName } : {}) });
     } else {
       tx.create(ref, {
         email,

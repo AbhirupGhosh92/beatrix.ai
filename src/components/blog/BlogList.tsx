@@ -1,6 +1,6 @@
 'use client'
 
-import { FilePlus, PenLine } from 'lucide-react'
+import { Eye, FilePlus, PenLine } from 'lucide-react'
 import type { BlogPostSummary } from '../../lib/blogTypes.ts'
 
 interface Props {
@@ -9,11 +9,12 @@ interface Props {
   canSeeAll: boolean
   showAll: boolean
   onToggleAll: (all: boolean) => void
+  onView: (id: string) => void
   onOpen: (id: string) => void
   onNew: () => void
 }
 
-export default function BlogList({ posts, canSeeAll, showAll, onToggleAll, onOpen, onNew }: Props) {
+export default function BlogList({ posts, canSeeAll, showAll, onToggleAll, onView, onOpen, onNew }: Props) {
   const sorted = [...posts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   return (
     <div className="flex flex-col gap-6">
@@ -54,9 +55,14 @@ export default function BlogList({ posts, canSeeAll, showAll, onToggleAll, onOpe
                   </ul>
                 )}
               </div>
-              <button type="button" className="button-secondary flex items-center gap-2" onClick={() => onOpen(post.id)}>
-                <PenLine size={16} aria-hidden="true" /> Edit
-              </button>
+              <div className="flex gap-2">
+                <button type="button" className="button-secondary flex items-center gap-2" onClick={() => onView(post.id)}>
+                  <Eye size={16} aria-hidden="true" /> View
+                </button>
+                <button type="button" className="button-secondary flex items-center gap-2" onClick={() => onOpen(post.id)}>
+                  <PenLine size={16} aria-hidden="true" /> Edit
+                </button>
+              </div>
             </li>
           ))}
         </ul>

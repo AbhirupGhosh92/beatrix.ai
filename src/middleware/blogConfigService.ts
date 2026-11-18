@@ -13,7 +13,13 @@ const example = defaults as unknown as BlogConfig
 
 function parse(content: string): BlogConfig {
   const stored: unknown = JSON.parse(content)
-  const merged = withDefaults(defaults as Json, isObject(stored) ? stored : {})
+  const storedObject = isObject(stored) ? stored : {}
+  const merged = withDefaults(defaults as Json, storedObject)
+  // A stored file that still has the former byte limit and no character limit must not be shadowed by
+  // the example's maxBodyLength: let the sanitizer derive it from maxBodyBytes (design D5).
+  if (storedObject.maxBodyLength === undefined && storedObject.maxBodyBytes !== undefined) {
+    delete (merged as Record<string, unknown>).maxBodyLength
+  }
   return sanitizeBlogConfig(merged, example, (message) => console.warn(message))
 }
 

@@ -22,7 +22,12 @@ export interface BlogPostSummary {
 }
 
 export interface BlogPost extends BlogPostSummary {
-  body: string
+  /** Absent on posts saved before the rich-text editor: those are Markdown. */
+  format: 'markdown' | 'doc'
+  /** Always present: the Markdown source, or for a doc post the original kept as a rollback copy. */
+  body?: string
+  /** The rich-text document, only on doc posts. */
+  content?: unknown
   images: BlogImage[]
   version: number
 }
@@ -36,7 +41,9 @@ export interface BlogList {
 export interface BlogSaveArg {
   id?: string
   title: string
-  body: string
+  /** Legacy Markdown save. A doc post is saved with `content` instead (the server refuses a body save onto it). */
+  body?: string
+  content?: unknown
   tags: string[]
   status: BlogStatus
   version?: number

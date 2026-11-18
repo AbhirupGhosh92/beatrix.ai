@@ -10,7 +10,8 @@ export interface BlogConfig {
   /** How many published headers the home page shows per request. */
   homeSampleSize: number
   maxTitleLength: number
-  maxBodyBytes: number
+  /** Characters (Unicode code points) of the visible post text. */
+  maxBodyLength: number
   maxTagsPerPost: number
   maxTagLength: number
   maxImageBytes: number
@@ -34,7 +35,7 @@ export interface PublicBlogConfig {
 export const BLOG_LIMITS = {
   homeSampleSize: { min: 1, max: 12 },
   maxTitleLength: { min: 1, max: 300 },
-  maxBodyBytes: { min: 1, max: 500_000 },
+  maxBodyLength: { min: 1, max: 200_000 },
   maxTagsPerPost: { min: 0, max: 30 },
   maxTagLength: { min: 1, max: 60 },
   maxImageBytes: { min: 1, max: 5_242_880 },
@@ -49,7 +50,7 @@ export const BLOG_TEXT_MAX = 160
 /** What the editor gets from GET /api/blog/config. */
 export interface BlogEditorConfig {
   maxTitleLength: number
-  maxBodyBytes: number
+  maxBodyLength: number
   maxTagsPerPost: number
   maxTagLength: number
   maxImageBytes: number
@@ -65,4 +66,6 @@ export interface BlogHeader {
   excerpt: string
   tags: string[]
   publishedAt: string
+  /** Display name of the author (never an email). */
+  authorName: string
 }

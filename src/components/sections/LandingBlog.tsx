@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useBlogConfig } from '../layout/BlogConfigProvider.tsx'
 import { useGetBlogHeadersQuery } from '../../store/api.ts'
 import { Reveal, Stagger, StaggerItem } from '../ui/motion.tsx'
@@ -22,10 +23,15 @@ export default function LandingBlog() {
         {data.map((post) => (
           <StaggerItem key={post.id} className="h-full">
             <article className="blog-card flex h-full flex-col gap-3">
-              <time className="text-meta" dateTime={post.publishedAt}>
-                {new Date(post.publishedAt).toLocaleDateString()}
-              </time>
-              <h3 className="break-words text-lg font-semibold">{post.title}</h3>
+              <p className="text-meta">
+                {post.authorName} ·{' '}
+                <time dateTime={post.publishedAt}>{new Date(post.publishedAt).toLocaleDateString()}</time>
+              </p>
+              <h3 className="break-words text-lg font-semibold">
+                <Link href={`/posts/${post.id}`} className="blog-card-link">
+                  {post.title}
+                </Link>
+              </h3>
               <p className="text-muted break-words">{post.excerpt}</p>
               {post.tags.length > 0 && (
                 <ul className="mt-auto flex flex-wrap gap-1" aria-label="Tags">

@@ -6,6 +6,7 @@ import { useGetBlogConfigQuery, useListBlogPostsQuery } from '../../store/api.ts
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import BlogEditor from './BlogEditor.tsx'
 import BlogList from './BlogList.tsx'
+import BlogView from './BlogView.tsx'
 
 /** `null` shows the list, `'new'` a blank editor, anything else the post with that id. */
 type Editing = string | 'new' | null
@@ -16,6 +17,8 @@ export default function BlogPage() {
   // to seed local state, so opening, closing and "New post" keep working without a navigation.
   const initialId = useSearchParams().get('open')
   const [editing, setEditing] = useState<Editing>(initialId)
+  // The post open in the read-only view (null when none); editing takes precedence.
+  const [viewing, setViewing] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
   const configQuery = useGetBlogConfigQuery()
   const listQuery = useListBlogPostsQuery({ all: showAll })
@@ -50,12 +53,27 @@ export default function BlogPage() {
     )
   }
 
+  if (viewing) {
+    return (
+      <BlogView
+        key={viewing}
+        id={viewing}
+        onEdit={() => {
+          setEditing(viewing)
+          setViewing(null)
+        }}
+        onClose={() => setViewing(null)}
+      />
+    )
+  }
+
   return (
     <BlogList
       posts={list.posts}
       canSeeAll={list.canSeeAll || config.isAdmin}
       showAll={showAll}
       onToggleAll={setShowAll}
+      onView={setViewing}
       onOpen={setEditing}
       onNew={() => setEditing('new')}
     />

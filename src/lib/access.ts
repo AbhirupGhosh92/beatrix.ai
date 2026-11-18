@@ -102,9 +102,23 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
 
+// Any single safe segment reaches the handler, which answers 404 for an id that is not a published
+// post (a malformed id is a 404 like an unknown one, never a redirect).
+const POST_ID = '[A-Za-z0-9_-]{1,100}'
+/** The published-post page and its image route: exact anchored shapes, nothing else under /posts or /api/posts. */
+const PUBLIC_POST_PATHS = [
+  new RegExp(`^/posts/${POST_ID}$`),
+  new RegExp(`^/api/posts/${POST_ID}/images/[A-Za-z0-9_-]{1,100}$`),
+]
+
+export function isPublicPostPath(pathname: string): boolean {
+  return PUBLIC_POST_PATHS.some((pattern) => pattern.test(pathname))
+}
+
 export function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PATHS.includes(pathname) ||
+    isPublicPostPath(pathname) ||
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
     PUBLIC_FILE.test(pathname)
   )

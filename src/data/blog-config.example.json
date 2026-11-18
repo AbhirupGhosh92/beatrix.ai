@@ -3,7 +3,7 @@
   "writeRoles": ["admin"],
   "homeSampleSize": 3,
   "maxTitleLength": 120,
-  "maxBodyBytes": 100000,
+  "maxBodyLength": 50000,
   "maxTagsPerPost": 8,
   "maxTagLength": 30,
   "maxImageBytes": 2097152,

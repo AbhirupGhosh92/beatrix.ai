@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     if (guard instanceof NextResponse) return guard
     // Only these fields are forwarded; an owner or author sent by the client is never read, and a
     // create never carries an id.
-    const { title, body, tags, status, removeImageIds } = await request.json()
-    return NextResponse.json(await saveBlogPost(guard.cookie, { title, body, tags, status, removeImageIds }), {
+    const { title, body, content, tags, status, removeImageIds } = await request.json()
+    return NextResponse.json(await saveBlogPost(guard.cookie, { title, body, content, tags, status, removeImageIds }), {
       headers: NO_STORE,
     })
   } catch (err) {
