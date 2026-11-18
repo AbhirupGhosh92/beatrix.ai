@@ -3,10 +3,12 @@ import type { DocumentReference } from "firebase-admin/firestore";
 import { requireSession } from "./auth";
 import { blogBucket, db } from "./firebase";
 import { ApiError, privateEndpoint } from "./http";
+import { docExcerpt, validateDoc, type BlogDoc } from "./blogDoc";
 import { can, type Role } from "./policy";
 import {
   buildExcerpt,
   checkBody,
+  checkContent,
   checkImage,
   checkStatus,
   checkTags,
@@ -25,10 +27,12 @@ import {
  *
  * Every request:   { action, cookie?, config?, ...fields }
  *   cookie   the user's `__session` cookie (all actions except `headers`)
- *   config   { writeRoles, maxTitleLength, maxBodyBytes, maxTagsPerPost, maxTagLength,
+ *   config   { writeRoles, maxTitleLength, maxBodyLength, maxTagsPerPost, maxTagLength,
  *              maxImageBytes, maxImagesPerPost, maxPostsPerAuthor, excerptLength } forwarded by the
  *              Next.js server from blog-config.json; re-validated here (a bad key falls back to its
- *              default, an invalid writeRoles to ["admin"], admin is always included).
+ *              default, an invalid writeRoles to ["admin"], admin is always included). Every text
+ *              limit is in characters (Unicode code points). A config that only has the former
+ *              byte-based `maxBodyBytes` gets maxBodyLength = that number (capped at 200000).
  * Errors:          HTTP status + { error: { message } }. 400 invalid input or over a limit, 401 no
  *                  or invalid session, 403 role lacks blog:write, 404 a missing, malformed or other
  *                  author's post (non-admin) or image, 409 version conflict or post limit reached.
@@ -36,7 +40,9 @@ import {
  *
  * Types
  *   Image   = { id, contentType: "image/png"|"image/jpeg"|"image/webp"|"image/gif", bytes, name }
- *   Post    = { id, title, body, tags: string[], images: Image[], status: "draft"|"published",
+ *   Post    = { id, title, format: "markdown"|"doc", body, content? (the rich-text document, only
+ *               when format is "doc"; body is then the original Markdown, "" for a new post),
+ *               tags: string[], images: Image[], status: "draft"|"published",
  *               excerpt, version, createdAt, updatedAt, publishedAt: string|null,
  *               authorEmail?  (present only when the caller is admin) }   (ISO timestamps)
  *   Summary = { id, title, excerpt, tags, status, imageCount, version, createdAt, updatedAt,
@@ -45,7 +51,11 @@ import {
  * list         { scope?: "own"|"all" }                        -> { posts: Summary[], canSeeAll: boolean }
  *              newest updated first; "all" is honored only for admin, otherwise the caller's own.
  * get          { id }                                         -> { post: Post }
- * save         { id?, title, body, tags?, status, version?, removeImageIds? }
+ * save         { id?, title, content | body, tags?, status, version?, removeImageIds? }
+ *              `content` = rich-text document (validated against the closed schema in blogDoc.ts,
+ *              stored with format "doc", excerpt built from its text; the original `body` of an
+ *              earlier Markdown post is kept untouched). `body` = legacy Markdown string (the old
+ *              app during a rollout); refused with 409 for a post already saved as a document.
  *              no id = create (status/limits checked, maxPostsPerAuthor -> 409; version ignored);
  *              with id = update, `version` (number from the last read) REQUIRED, mismatch -> 409.
  *              removeImageIds: images to drop (deleted from the bucket). Returns -> { post: Post }
@@ -57,8 +67,16 @@ import {
  * imageGet     { id, imageId }                                -> { contentType, name, dataBase64 }
  *              the image must belong to the post (else 404); same ownership check as the post.
  * headers      {} (no cookie)                                 -> { headers: [{ id, title, excerpt,
- *              tags, publishedAt }] } published posts only, newest first, at most 500; never the
- *              author email, body, image ids or draft state.
+ *              tags, publishedAt, authorName }] } published posts only, newest first, at most 500.
+ * publicGet    { id } (no cookie)                             -> { post: { id, title, excerpt, tags,
+ *              publishedAt, authorName, format, body (markdown) | content (doc), images:
+ *              [{ id, name, contentType }] } } published posts only; a draft, deleted, unknown or
+ *              malformed id is the same 404.
+ * publicImageGet { id, imageId } (no cookie)                  -> { contentType, name, dataBase64 }
+ *              the post must be published and own the image, else 404.
+ *              The public actions build their output from explicit field lists; the author email is
+ *              never returned, `authorName` is the author's display name limited to 60 characters
+ *              ("Author" when empty or containing "@").
  */
 
 const POSTS = "blog_posts";
@@ -74,6 +92,8 @@ interface StoredPost {
   authorEmail: string;
   title: string;
   body: string;
+  format?: "doc";
+  content?: BlogDoc;
   tags: string[];
   images: StoredImage[];
   status: "draft" | "published";
@@ -112,7 +132,9 @@ function publicPost(id: string, p: StoredPost, role: Role) {
   const out: Record<string, unknown> = {
     id,
     title: p.title,
+    format: p.format === "doc" ? "doc" : "markdown",
     body: p.body,
+    ...(p.format === "doc" && p.content ? { content: p.content } : {}),
     tags: p.tags,
     images: p.images,
     status: p.status,
@@ -168,10 +190,12 @@ async function get(body: Body) {
 async function save(body: Body) {
   const { email, role, config } = await authorize(body);
   const title = checkTitle(body.title, config);
-  const text = checkBody(body.body, config);
+  const rich = body.content !== undefined && body.content !== null;
+  const checked = rich ? checkContent(body.content, config) : undefined;
+  const text = checked ? "" : checkBody(body.body, config);
   const tags = checkTags(body.tags, config);
   const status = checkStatus(body.status);
-  const excerpt = buildExcerpt(text, config.excerptLength);
+  const excerpt = checked ? docExcerpt(checked.doc, config.excerptLength) : buildExcerpt(text, config.excerptLength);
   const now = new Date().toISOString();
 
   if (body.id === undefined || body.id === null) {
@@ -184,6 +208,7 @@ async function save(body: Body) {
       authorEmail: email,
       title,
       body: text,
+      ...(checked ? { format: "doc" as const, content: checked.doc } : {}),
       tags,
       images: [],
       status,
@@ -212,11 +237,15 @@ async function save(body: Body) {
     const snap = await tx.get(ref);
     const current = visible(snap.exists ? (snap.data() as StoredPost) : undefined, email, role);
     if (current.version !== expected) throw new ApiError(409, "This post changed elsewhere. Reload to continue.");
+    if (!checked && current.format === "doc") {
+      throw new ApiError(409, "This post was saved with the new editor. Reload to continue.");
+    }
     removed = current.images.filter((i) => remove.has(i.id)).map((i) => i.id);
     const updated: StoredPost = {
       ...current, // authorEmail stays the original author, also for the admin
       title,
-      body: text,
+      // A rich save keeps the original Markdown body as a rollback copy.
+      ...(checked ? { format: "doc" as const, content: checked.doc } : { body: text }),
       tags,
       images: current.images.filter((i) => !remove.has(i.id)),
       status,
@@ -291,9 +320,31 @@ async function imageGet(body: Body) {
   return { contentType: image.contentType, name: image.name, dataBase64: bytes.toString("base64") };
 }
 
+const USERS = "allowed_emails";
+const AUTHOR_FALLBACK = "Author";
+const AUTHOR_MAX = 60;
+
+/** A display name that is safe to show: trimmed, at most 60 characters, never an email address. */
+function authorNameOf(raw: unknown): string {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (name === "" || name.includes("@")) return AUTHOR_FALLBACK;
+  return Array.from(name).slice(0, AUTHOR_MAX).join("").trim();
+}
+
+/** Display names of the given authors from `allowed_emails/{email}.displayName` (one batched read). */
+async function authorNames(emails: string[]): Promise<Map<string, string>> {
+  const distinct = Array.from(new Set(emails));
+  const names = new Map<string, string>();
+  if (distinct.length === 0) return names;
+  const snaps = await db().getAll(...distinct.map((e) => db().doc(`${USERS}/${e}`)));
+  snaps.forEach((snap, i) => names.set(distinct[i], authorNameOf(snap.exists ? snap.get("displayName") : undefined)));
+  return names;
+}
+
 /**
- * The one public read: headers of published posts, nothing else. One single-field query (range plus
- * order on `publishedAt`, which unpublished posts have as null), so no composite index is needed.
+ * Public read of the headers of published posts. One single-field query (range plus order on
+ * `publishedAt`, which unpublished posts have as null), so no composite index is needed. The author
+ * email is read only to resolve the display name and is never part of the answer.
  */
 async function headers() {
   const snap = await db()
@@ -301,19 +352,56 @@ async function headers() {
     .where("publishedAt", ">", "")
     .orderBy("publishedAt", "desc")
     .limit(MAX_PUBLIC_SCAN)
-    .select("title", "excerpt", "tags", "publishedAt", "status")
+    .select("title", "excerpt", "tags", "publishedAt", "status", "authorEmail")
     .get();
+  const published = snap.docs.filter((d) => d.get("status") === "published");
+  const names = await authorNames(published.map((d) => String(d.get("authorEmail") ?? "")).filter(Boolean));
   return {
-    headers: snap.docs
-      .filter((d) => d.get("status") === "published")
-      .map((d) => ({
-        id: d.id,
-        title: d.get("title"),
-        excerpt: d.get("excerpt"),
-        tags: d.get("tags") ?? [],
-        publishedAt: d.get("publishedAt"),
-      })),
+    headers: published.map((d) => ({
+      id: d.id,
+      title: d.get("title"),
+      excerpt: d.get("excerpt"),
+      tags: d.get("tags") ?? [],
+      publishedAt: d.get("publishedAt"),
+      authorName: names.get(String(d.get("authorEmail") ?? "")) ?? AUTHOR_FALLBACK,
+    })),
   };
+}
+
+/** A published post by id; anything else (draft, deleted, unknown, malformed) is the same 404. */
+async function loadPublished(rawId: unknown): Promise<{ id: string; post: StoredPost }> {
+  const id = postId(rawId);
+  const snap = await postRef(id).get();
+  const post = snap.exists ? (snap.data() as StoredPost) : undefined;
+  if (!post || post.status !== "published" || !post.publishedAt) throw new ApiError(404, "Post not found.");
+  return { id, post };
+}
+
+async function publicGet(body: Body) {
+  const { id, post } = await loadPublished(body.id);
+  const name = (await authorNames([post.authorEmail])).get(post.authorEmail) ?? AUTHOR_FALLBACK;
+  const doc = post.format === "doc" && post.content ? validateDoc(post.content) : undefined;
+  return {
+    post: {
+      id,
+      title: post.title,
+      excerpt: post.excerpt,
+      tags: post.tags ?? [],
+      publishedAt: post.publishedAt,
+      authorName: name,
+      format: doc ? "doc" : "markdown",
+      ...(doc ? { content: doc } : { body: post.body }),
+      images: (post.images ?? []).map((i) => ({ id: i.id, name: i.name, contentType: i.contentType })),
+    },
+  };
+}
+
+async function publicImageGet(body: Body) {
+  const { id, post } = await loadPublished(body.id);
+  const image = typeof body.imageId === "string" ? post.images.find((i) => i.id === body.imageId) : undefined;
+  if (!image) throw new ApiError(404, "Image not found.");
+  const [bytes] = await imageFile(id, image.id).download();
+  return { contentType: image.contentType, name: image.name, dataBase64: bytes.toString("base64") };
 }
 
 const ACTIONS: Record<string, (body: Body) => Promise<unknown>> = {
@@ -324,6 +412,8 @@ const ACTIONS: Record<string, (body: Body) => Promise<unknown>> = {
   imageUpload,
   imageGet,
   headers: () => headers(),
+  publicGet,
+  publicImageGet,
 };
 
 export const blog = privateEndpoint(async (body) => {
