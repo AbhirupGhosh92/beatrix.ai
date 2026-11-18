@@ -5,6 +5,7 @@
 // disagreement between the function's response shapes and what the site expects fails here.
 // Build the functions first: npm run functions:build. Run: node --experimental-strip-types scripts/check-blog-contract.mjs
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import Module from 'node:module'
 import path from 'node:path'
@@ -17,7 +18,13 @@ process.env.GCLOUD_PROJECT = 'test-project'
 // ---- in-memory fakes -------------------------------------------------------------------------
 const docs = new Map() // "blog_posts/<id>" -> data
 const files = new Map() // "<post>/<image>" -> Buffer
-const roles = { 'admin@x.dev': { role: 'admin' }, 'writer@x.dev': { role: 'user-advanced' }, 'other@x.dev': { role: 'user-advanced' } }
+const LONG_NAME = 'N'.repeat(80)
+const roles = {
+  'admin@x.dev': { role: 'admin' }, // no displayName
+  'writer@x.dev': { role: 'user-advanced', displayName: 'Wanda Writer' },
+  'other@x.dev': { role: 'user-advanced', displayName: 'other@x.dev' }, // an email as a name must never show
+  'long@x.dev': { role: 'user-advanced', displayName: LONG_NAME },
+}
 
 class DocSnap {
   constructor(id, data) { this.id = id; this.data_ = data; this.exists = data !== undefined }
@@ -57,7 +64,8 @@ class Query {
 const fakeDb = {
   doc: (p) => new DocRef(p),
   collection: (name) => new Query(name),
-  runTransaction: async (fn) => fn({ get: (ref) => ref.get(), set: (ref, d) => ref.set(d), update: (ref, d) => ref.update(d) }),
+  getAll: async (...refs) => Promise.all(refs.map((r) => r.get())),
+  runTransaction: async (fn) => fn({ get: (ref) => ref.get(), create: (ref, d) => ref.create(d), set: (ref, d) => ref.set(d), update: (ref, d) => ref.update(d) }),
 }
 class FakeFile {
   constructor(k) { this.k = k }
@@ -90,9 +98,9 @@ Module._load = function (request, ...rest) {
 
 // ---- call the real handler ------------------------------------------------------------------
 const { blog } = require(path.join(root, 'functions', 'lib', 'blog.js'))
-const { unwrapHeaders, unwrapImage, unwrapPost } = await import(path.join(root, 'src', 'lib', 'blogResponses.ts'))
+const { unwrapHeaders, unwrapImage, unwrapPost, unwrapPublicPost } = await import(path.join(root, 'src', 'lib', 'blogResponses.ts'))
 
-const config = { writeRoles: ['admin', 'user-advanced'], maxTitleLength: 120, maxBodyBytes: 100000, maxTagsPerPost: 8, maxTagLength: 30, maxImageBytes: 2097152, maxImagesPerPost: 10, maxPostsPerAuthor: 200, excerptLength: 160 }
+const config = { writeRoles: ['admin', 'user-advanced'], maxTitleLength: 120, maxBodyLength: 50000, maxTagsPerPost: 8, maxTagLength: 30, maxImageBytes: 2097152, maxImagesPerPost: 10, maxPostsPerAuthor: 200, excerptLength: 160 }
 
 async function call(action, cookie, fields = {}) {
   let status = 0
@@ -137,7 +145,7 @@ assert.equal((await call('save', 'writer@x.dev', { id: created.id, title: 'x', b
 await ok('save', 'writer@x.dev', { title: 'Secret draft', body: 'hidden', tags: [], status: 'draft' })
 const pub = unwrapHeaders(await ok('headers', null))
 assert.equal(pub.length, 1)
-assert.deepEqual(Object.keys(pub[0]).sort(), ['excerpt', 'id', 'publishedAt', 'tags', 'title'])
+assert.deepEqual(Object.keys(pub[0]).sort(), ['authorName', 'excerpt', 'id', 'publishedAt', 'tags', 'title'])
 assert.equal(pub[0].title, 'Hello 2')
 
 // ownership: another author gets 404, the admin can edit and the post keeps its author
@@ -149,6 +157,9 @@ const own = await ok('list', 'other@x.dev', { scope: 'all' })
 assert.equal(own.posts.length, 0, 'a non-admin never gets the all-authors view')
 assert.equal((await ok('list', 'admin@x.dev', { scope: 'all' })).posts.length, 2)
 
+// the author name is resolved server-side and shown on the headers (D1)
+assert.equal(pub[0].authorName, 'Wanda Writer')
+
 // a shape mismatch must throw, not return undefined fields
 assert.throws(() => unwrapPost({ id: 'x' }))
 assert.throws(() => unwrapHeaders([]))
@@ -159,5 +170,179 @@ await ok('imageUpload', 'writer@x.dev', { id: second.id, name: 'p.png', dataBase
 await ok('delete', 'writer@x.dev', { id: second.id })
 assert.equal((await call('get', 'writer@x.dev', { id: second.id })).status, 404)
 assert.equal([...files.keys()].filter((k) => k.startsWith(second.id + '/')).length, 0)
+
+// ---- 1.1 the two copies of the shared document module are identical -----------------------------
+assert.equal(
+  readFileSync(path.join(root, 'src', 'lib', 'blogDoc.ts'), 'utf-8'),
+  readFileSync(path.join(root, 'functions', 'src', 'blogDoc.ts'), 'utf-8'),
+  'src/lib/blogDoc.ts and functions/src/blogDoc.ts must be byte-identical',
+)
+
+// ---- 1.2 limits in characters (code points), legacy byte key ------------------------------------
+const base = { tags: [], status: 'draft' }
+const doc = (...content) => ({ type: 'doc', content })
+const p = (text, marks) => ({ type: 'paragraph', content: [{ type: 'text', text, ...(marks ? { marks } : {}) }] })
+const refused = async (fields, needle) => {
+  const before = docs.size
+  const r = await call('save', 'writer@x.dev', fields)
+  assert.equal(r.status, 400, JSON.stringify(r.payload))
+  if (needle) assert.match(r.payload.error.message, needle)
+  assert.equal(docs.size, before, 'a refused save stores nothing')
+}
+await refused({ ...base, title: 'x'.repeat(121), body: 'b' }, /characters/)
+await ok('save', 'writer@x.dev', { ...base, title: '😀'.repeat(120), body: 'b' }) // 120 code points = 480 bytes
+await refused({ ...base, title: '😀'.repeat(121), body: 'b' }, /characters/)
+await refused({ ...base, title: 'T', body: 'x'.repeat(50001) }, /limit of 50000 characters/)
+await ok('save', 'writer@x.dev', { ...base, title: 'T', body: '😀'.repeat(50000) })
+await refused({ ...base, title: 'T', body: 'b', tags: ['t'.repeat(31)] }, /30 characters/)
+await ok('save', 'writer@x.dev', { ...base, title: 'T', body: 'b', tags: ['😀'.repeat(30)] })
+await refused({ ...base, title: 'T', content: doc(p('x'.repeat(50001))) }, /limit of 50000 characters/)
+// a config with only the former byte key: the limit in characters is derived from it
+const legacyConfig = { ...config }
+delete legacyConfig.maxBodyLength
+legacyConfig.maxBodyBytes = 20
+await refused({ ...base, title: 'T', body: 'x'.repeat(21), config: legacyConfig }, /limit of 20 characters/)
+await ok('save', 'writer@x.dev', { ...base, title: 'T', body: 'x'.repeat(20), config: legacyConfig })
+const { readBlogConfig, MAX_DOC_BYTES } = require(path.join(root, 'functions', 'lib', 'blogValidation.js'))
+assert.equal(MAX_DOC_BYTES, 700000)
+assert.equal(readBlogConfig({}).maxBodyLength, 50000)
+assert.equal(readBlogConfig({ maxBodyBytes: 30000 }).maxBodyLength, 30000)
+assert.equal(readBlogConfig({ maxBodyBytes: 900000 }).maxBodyLength, 200000)
+assert.equal(readBlogConfig({ maxBodyBytes: 'x', maxBodyLength: 0 }).maxBodyLength, 50000)
+assert.equal(readBlogConfig({ maxBodyBytes: 30000, maxBodyLength: 100 }).maxBodyLength, 100)
+
+// ---- 1.3 rich save, Markdown posts still readable and savable ------------------------------------
+const mdPost = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Old', body: '# Old\n\n**md** body', tags: ['x'], status: 'published' }))
+assert.equal(mdPost.format, 'markdown')
+assert.equal(unwrapPost(await ok('get', 'writer@x.dev', { id: mdPost.id })).body, '# Old\n\n**md** body')
+const mdImage = unwrapImage(await ok('imageUpload', 'writer@x.dev', { id: mdPost.id, name: 'p.png', dataBase64: PNG.toString('base64') }))
+
+const richDoc = doc(
+  { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Heading' }] },
+  p('Hello <script>alert(1)</script> world', [{ type: 'bold' }, { type: 'link', attrs: { href: 'https://example.com/a' } }]),
+  { type: 'bulletList', content: [{ type: 'listItem', content: [p('item')] }] },
+  { type: 'image', attrs: { imageId: mdImage.id, alt: 'pic' } },
+)
+const rich = unwrapPost(await ok('save', 'writer@x.dev', { id: mdPost.id, title: 'Old', content: richDoc, tags: ['x'], status: 'published', version: mdPost.version }))
+assert.equal(rich.format, 'doc')
+assert.equal(rich.body, '# Old\n\n**md** body', 'the original Markdown is kept on a rich save')
+assert.equal(rich.excerpt, 'Heading Hello <script>alert(1)</script> world item')
+assert.equal(rich.version, 2)
+const reread = unwrapPost(await ok('get', 'writer@x.dev', { id: mdPost.id }))
+assert.equal(reread.format, 'doc')
+assert.equal(reread.content.content[0].attrs.level, 2)
+assert.equal(reread.content.content[3].attrs.imageId, mdImage.id)
+// the legacy `body` save is refused for a post already saved as a document (never overwrites it)
+assert.equal((await call('save', 'writer@x.dev', { id: mdPost.id, title: 'Old', body: 'b', tags: [], status: 'published', version: 2 })).status, 409)
+// a brand new rich post stores no Markdown
+const fresh = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Fresh', content: doc(p('just rich')), tags: [], status: 'draft' }))
+assert.equal(fresh.format, 'doc')
+assert.equal(fresh.body, '')
+
+// hostile or malformed documents are refused and store nothing
+const bad = (n) => ({ ...base, title: 'T', content: n })
+await refused(bad(doc({ type: 'script', content: [] })), /not valid/)
+await refused(bad(doc({ type: 'paragraph', attrs: { onclick: 'x' } })), /unknown attribute/)
+await refused(bad(doc({ type: 'paragraph', content: [{ type: 'text', text: 'a', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] })), /http, https or mailto/)
+await refused(bad(doc({ type: 'paragraph', content: [{ type: 'text', text: 'a', marks: [{ type: 'link', attrs: { href: 'https://x.dev', onclick: 'y' } }] }] })), /not valid/)
+await refused(bad(doc({ type: 'paragraph', content: [{ type: 'text', text: 'a', marks: [{ type: 'font' }] }] })), /unknown mark/)
+await refused(bad(doc({ type: 'heading', attrs: { level: 4 }, content: [] })), /level 1, 2 or 3/)
+await refused(bad(doc({ type: 'image', attrs: { imageId: 'https://evil.dev/x.png' } })), /not valid/)
+await refused(bad(doc({ type: 'image', attrs: { imageId: 'a', src: 'https://evil.dev/x.png' } })), /unknown attribute/)
+await refused(bad(doc({ type: 'paragraph', content: [{ type: 'image', attrs: { imageId: 'a' } }] })), /not valid/)
+await refused(bad({ type: 'paragraph' }), /not valid/)
+await refused(bad('<p>html</p>'), /not valid/)
+let deep = p('x')
+for (let i = 0; i < 13; i++) deep = { type: 'blockquote', content: [deep] }
+await refused(bad(doc(deep)), /nested too deeply/)
+await refused(bad(doc(...Array.from({ length: 20001 }, () => ({ type: 'horizontalRule' })))), /too many/)
+// the storage backstop: well inside the character limit but over MAX_DOC_BYTES
+{
+  const huge = { ...config, maxBodyLength: 200000 }
+  const big = doc(...Array.from({ length: 6 }, () => p('😀'.repeat(30000))))
+  await refused({ ...base, title: 'T', content: big, config: huge }, /too large to store/)
+}
+
+// ---- 1.3 public actions --------------------------------------------------------------------------
+const publicOnly = (r) => {
+  const text = JSON.stringify(r)
+  assert.ok(!text.includes('authorEmail'), 'no authorEmail in a public response')
+  assert.ok(!text.includes('@'), 'no "@" in a public response')
+}
+const pubPost = await ok('publicGet', null, { id: mdPost.id })
+publicOnly(pubPost)
+const pp = unwrapPublicPost(pubPost)
+assert.equal(pp.authorName, 'Wanda Writer')
+assert.equal(pp.format, 'doc')
+assert.deepEqual(Object.keys(pubPost.post).sort(), ['authorName', 'content', 'excerpt', 'format', 'id', 'images', 'publishedAt', 'tags', 'title'])
+assert.deepEqual(pp.images, [{ id: mdImage.id, name: 'p.png', contentType: 'image/png' }])
+assert.equal(pp.content.content[0].type, 'heading')
+// a Markdown post that was never converted is still public, as Markdown
+const mdOnly = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Plain md', body: 'plain **md**', tags: [], status: 'published' }))
+const mdPub = await ok('publicGet', null, { id: mdOnly.id })
+publicOnly(mdPub)
+assert.equal(mdPub.post.format, 'markdown')
+assert.equal(mdPub.post.body, 'plain **md**')
+assert.equal('content' in mdPub.post, false)
+// names: an email-like or empty name falls back, a long name is cut at 60 characters
+const asOther = unwrapPost(await ok('save', 'other@x.dev', { title: 'By other', body: 'b', tags: [], status: 'published' }))
+assert.equal(unwrapPublicPost(await ok('publicGet', null, { id: asOther.id })).authorName, 'Author')
+const asLong = unwrapPost(await ok('save', 'admin@x.dev', { title: 'By admin', body: 'b', tags: [], status: 'published' }))
+assert.equal(unwrapPublicPost(await ok('publicGet', null, { id: asLong.id })).authorName, 'Author', 'no displayName')
+docs.set('allowed_emails/long@x.dev', { role: 'user-advanced', displayName: LONG_NAME })
+const byLong = unwrapPost(await ok('save', 'long@x.dev', { title: 'By long', body: 'b', tags: [], status: 'published' }))
+assert.equal(unwrapPublicPost(await ok('publicGet', null, { id: byLong.id })).authorName, 'N'.repeat(60))
+// headers: names for every author, never an email
+const allHeaders = await ok('headers', null)
+publicOnly(allHeaders)
+const names = Object.fromEntries(unwrapHeaders(allHeaders).map((h) => [h.title, h.authorName]))
+assert.equal(names['Plain md'], 'Wanda Writer')
+assert.equal(names['By other'], 'Author')
+assert.equal(names['By long'], 'N'.repeat(60))
+assert.ok(unwrapHeaders(allHeaders).every((h) => h.title !== 'Secret draft' && h.title !== 'Fresh'), 'drafts never in headers')
+// draft, deleted, unknown and malformed ids are all the same 404 with no content
+const draftNotFound = await call('publicGet', null, { id: fresh.id })
+assert.equal(draftNotFound.status, 404)
+assert.deepEqual(draftNotFound.payload, (await call('publicGet', null, { id: '00000000-0000-4000-8000-000000000000' })).payload)
+assert.equal((await call('publicGet', null, { id: 'not-an-id' })).status, 404)
+assert.equal((await call('publicGet', null, {})).status, 404)
+assert.equal((await call('publicGet', null, { id: { $ne: 1 } })).status, 404)
+// public images: published and owned only
+const pubImage = await ok('publicImageGet', null, { id: mdPost.id, imageId: mdImage.id })
+assert.equal(pubImage.contentType, 'image/png')
+assert.equal((await call('publicImageGet', null, { id: mdPost.id, imageId: 'nope' })).status, 404)
+assert.equal((await call('publicImageGet', null, { id: mdOnly.id, imageId: mdImage.id })).status, 404, 'an image of another post')
+assert.equal((await call('publicImageGet', null, { id: 'not-an-id', imageId: mdImage.id })).status, 404)
+const draftWithImage = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Draft img', body: 'b', tags: [], status: 'draft' }))
+const draftImg = unwrapImage(await ok('imageUpload', 'writer@x.dev', { id: draftWithImage.id, name: 'd.png', dataBase64: PNG.toString('base64') }))
+assert.equal((await call('publicImageGet', null, { id: draftWithImage.id, imageId: draftImg.id })).status, 404, 'a draft image')
+// unpublish and delete take the post (and its images) out of the public actions
+await ok('save', 'writer@x.dev', { id: mdOnly.id, title: 'Plain md', body: 'x', tags: [], status: 'draft', version: mdOnly.version })
+assert.equal((await call('publicGet', null, { id: mdOnly.id })).status, 404)
+await ok('delete', 'writer@x.dev', { id: mdPost.id })
+assert.equal((await call('publicGet', null, { id: mdPost.id })).status, 404, 'deleted')
+assert.equal((await call('publicImageGet', null, { id: mdPost.id, imageId: mdImage.id })).status, 404, 'deleted')
+// the private actions still need a session
+assert.equal((await call('get', null, { id: fresh.id })).status, 401)
+// the site's unwrap helper rejects a malformed public response
+assert.throws(() => unwrapPublicPost({ post: { id: 'x' } }))
+assert.throws(() => unwrapPublicPost({}))
+
+// ---- 1.4 registerIfAbsent fills only an empty displayName ---------------------------------------
+const { registerIfAbsent } = require(path.join(root, 'functions', 'lib', 'users.js'))
+docs.set('allowed_emails/empty@x.dev', { role: 'user-base', allowed: true, displayName: '' })
+docs.set('allowed_emails/named@x.dev', { role: 'user-base', allowed: true, displayName: 'Keep Me' })
+docs.set('allowed_emails/revoked@x.dev', { role: 'admin', allowed: false })
+await registerIfAbsent('empty@x.dev', 'Filled Name')
+await registerIfAbsent('named@x.dev', 'Other Name')
+await registerIfAbsent('revoked@x.dev', 'Revoked Name')
+await registerIfAbsent('blank@x.dev', '')
+assert.equal(docs.get('allowed_emails/empty@x.dev').displayName, 'Filled Name')
+assert.equal(docs.get('allowed_emails/empty@x.dev').role, 'user-base')
+assert.equal(docs.get('allowed_emails/empty@x.dev').allowed, true)
+assert.equal(docs.get('allowed_emails/named@x.dev').displayName, 'Keep Me')
+assert.equal(docs.get('allowed_emails/revoked@x.dev').allowed, false, 'allowed is never changed')
+assert.equal(docs.get('allowed_emails/revoked@x.dev').role, 'admin')
+assert.equal(docs.get('allowed_emails/blank@x.dev').role, 'reader', 'a new user is still a reader')
 
 console.log('blog contract: OK')

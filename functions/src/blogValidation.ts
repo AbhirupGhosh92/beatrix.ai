@@ -1,5 +1,6 @@
 import { ApiError } from "./http";
 import { ROLES, type Role } from "./policy";
+import { charCount, docText, validateDoc, type BlogDoc } from "./blogDoc";
 
 // Blog input rules. The limits come from blog-config.json through the Next.js server; they are
 // re-validated here (a bad or missing value falls back to the default, never to "unlimited") and
@@ -7,7 +8,7 @@ import { ROLES, type Role } from "./policy";
 
 export interface BlogLimits {
   maxTitleLength: number;
-  maxBodyBytes: number;
+  maxBodyLength: number;
   maxTagsPerPost: number;
   maxTagLength: number;
   maxImageBytes: number;
@@ -23,7 +24,7 @@ export interface BlogConfig extends BlogLimits {
 export const BLOG_DEFAULTS: BlogConfig = {
   writeRoles: ["admin"],
   maxTitleLength: 120,
-  maxBodyBytes: 100_000,
+  maxBodyLength: 50_000,
   maxTagsPerPost: 8,
   maxTagLength: 30,
   maxImageBytes: 2_097_152,
@@ -34,7 +35,7 @@ export const BLOG_DEFAULTS: BlogConfig = {
 
 /** Hard caps in code that a config can never raise. */
 export const BLOG_HARD_MAX = {
-  maxBodyBytes: 500_000,
+  maxBodyLength: 200_000,
   maxImageBytes: 5_242_880,
   maxTitleLength: 300,
   maxTagsPerPost: 30,
@@ -44,12 +45,15 @@ export const BLOG_HARD_MAX = {
   excerptLength: 500,
 } as const;
 
+/** Serialized size of a stored document; far below Firestore's 1 MiB document limit. */
+export const MAX_DOC_BYTES = 700_000;
+
 /** The most recently published posts the public headers read considers. */
 export const MAX_PUBLIC_SCAN = 500;
 
 const INT_KEYS = [
   "maxTitleLength",
-  "maxBodyBytes",
+  "maxBodyLength",
   "maxTagsPerPost",
   "maxTagLength",
   "maxImageBytes",
@@ -65,6 +69,16 @@ export function readBlogConfig(value: unknown): BlogConfig {
   for (const key of INT_KEYS) {
     const v = c[key];
     if (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= BLOG_HARD_MAX[key]) out[key] = v;
+  }
+  // Legacy byte-based key: a character is at least one byte, so it is a safe (never stricter) limit.
+  const legacy = c.maxBodyBytes;
+  const lengthValid =
+    typeof c.maxBodyLength === "number" &&
+    Number.isInteger(c.maxBodyLength) &&
+    c.maxBodyLength >= 1 &&
+    c.maxBodyLength <= BLOG_HARD_MAX.maxBodyLength;
+  if (!lengthValid && typeof legacy === "number" && Number.isInteger(legacy) && legacy >= 1) {
+    out.maxBodyLength = Math.min(legacy, BLOG_HARD_MAX.maxBodyLength);
   }
   const roles = c.writeRoles;
   if (Array.isArray(roles) && roles.every((r) => typeof r === "string" && (ROLES as readonly string[]).includes(r))) {
@@ -82,18 +96,37 @@ export function postId(value: unknown): string {
 }
 
 export function checkTitle(value: unknown, limits: BlogLimits): string {
-  if (typeof value !== "string" || value.trim() === "" || value.trim().length > limits.maxTitleLength) {
+  if (typeof value !== "string" || value.trim() === "" || charCount(value.trim()) > limits.maxTitleLength) {
     throw new ApiError(400, `Title must be 1-${limits.maxTitleLength} characters.`);
   }
   return value.trim();
 }
 
+/** Legacy Markdown body: counted in characters (code points). */
 export function checkBody(value: unknown, limits: BlogLimits): string {
   if (typeof value !== "string") throw new ApiError(400, "The post body must be text.");
-  if (Buffer.byteLength(value, "utf-8") > limits.maxBodyBytes) {
-    throw new ApiError(400, `The post body is over the limit of ${limits.maxBodyBytes} bytes.`);
+  if (charCount(value) > limits.maxBodyLength) {
+    throw new ApiError(400, `The post body is over the limit of ${limits.maxBodyLength} characters.`);
   }
   return value;
+}
+
+/** Rich-text document: closed schema, size backstop, visible text counted in characters. */
+export function checkContent(value: unknown, limits: BlogLimits): { doc: BlogDoc; text: string } {
+  let doc: BlogDoc;
+  try {
+    doc = validateDoc(value);
+  } catch (err) {
+    throw new ApiError(400, err instanceof Error ? err.message : "The post content is not valid.");
+  }
+  if (Buffer.byteLength(JSON.stringify(doc), "utf-8") > MAX_DOC_BYTES) {
+    throw new ApiError(400, "The post is too large to store");
+  }
+  const text = docText(doc);
+  if (charCount(text) > limits.maxBodyLength) {
+    throw new ApiError(400, `The post body is over the limit of ${limits.maxBodyLength} characters.`);
+  }
+  return { doc, text };
 }
 
 /** Trimmed, lowercased, de-duplicated; empty entries dropped. */
@@ -106,7 +139,7 @@ export function checkTags(value: unknown, limits: BlogLimits): string[] {
   if (tags.length > limits.maxTagsPerPost) {
     throw new ApiError(400, `A post can have at most ${limits.maxTagsPerPost} tags.`);
   }
-  if (tags.some((t) => t.length > limits.maxTagLength)) {
+  if (tags.some((t) => charCount(t) > limits.maxTagLength)) {
     throw new ApiError(400, `A tag can have at most ${limits.maxTagLength} characters.`);
   }
   return tags;
@@ -128,10 +161,11 @@ export function buildExcerpt(markdown: string, length: number): string {
     .replace(/[*_~`#>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (text.length <= length) return text;
-  const cut = text.slice(0, length);
+  const chars = Array.from(text);
+  if (chars.length <= length) return text;
+  const cut = chars.slice(0, length);
   const space = cut.lastIndexOf(" ");
-  return `${(space > length * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+  return `${(space > length * 0.6 ? cut.slice(0, space) : cut).join("").trimEnd()}…`;
 }
 
 export type ImageType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
