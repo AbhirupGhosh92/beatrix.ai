@@ -2,7 +2,7 @@
 
 ## 1. Fix row identity (owner: builder-1; file set: `src/components/ui/JsonTreeEditor.tsx`)
 
-- [ ] 1.1 In `TreeNode`, key child rows by their position in the unfiltered `entries` (not by key text, not by filtered position), keep the `index` prop behavior, and add a short comment on why (a rename must not remount; removal shifts open state, accepted). Do not touch `src/lib/jsonTree.ts`. Verify `npm run check` passes.
+- [x] 1.1 In `TreeNode`, key child rows by their position in the unfiltered `entries` (not by key text, not by filtered position), keep the `index` prop behavior, and add a short comment on why (a rename must not remount; removal shifts open state, accepted). Do not touch `src/lib/jsonTree.ts`. Verify `npm run check` passes.
 
 ## 2. Verification (owner: Tester via the PO; no file changes)
 
@@ -13,4 +13,4 @@
 
 ## 3. Docs (owner: architect; file set: `CLAUDE.md`)
 
-- [ ] 3.1 Add one sentence to the JSON tree editor notes in `CLAUDE.md` (rows are keyed by position so renaming a key keeps focus and expanded state). `docs/DEPLOYMENT.md` and the README need no change. Run `openspec validate json-tree-key-focus --strict`.
+- [x] 3.1 Add one sentence to the JSON tree editor notes in `CLAUDE.md` (rows are keyed by position so renaming a key keeps focus and expanded state). `docs/DEPLOYMENT.md` and the README need no change. Run `openspec validate json-tree-key-focus --strict`.
