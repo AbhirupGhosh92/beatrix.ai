@@ -8,6 +8,8 @@ import { isRole } from '../lib/access.ts'
 import type { Role } from '../lib/access.ts'
 import { getIdToken } from '../lib/firebase.ts'
 import type { ApplicationDetail, ApplicationInput, ApplicationList, ApplicationSummary, CreatedResume } from '../lib/applicationTypes.ts'
+import type { BlogImage, BlogList, BlogPost, BlogSaveArg } from '../lib/blogTypes.ts'
+import type { BlogEditorConfig, BlogHeader } from '../data/blogConfig.ts'
 import type { BuilderConfig, ResumeEnvelope, ResumeSummary } from '../lib/resumeTypes.ts'
 import type { ResumeData, ResumeView, Structure } from '../lib/resumeValidation.ts'
 
@@ -104,7 +106,7 @@ export interface SaveResumeArg {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'Users', 'Owners', 'CmsFiles', 'CmsFile'],
+  tagTypes: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'Users', 'Owners', 'CmsFiles', 'CmsFile', 'BlogPosts', 'BlogPost', 'BlogConfig', 'BlogHeaders'],
   endpoints: (build) => ({
     // Session: null role when logged out (401 is the normal anonymous answer, not a failure).
     getSessionRole: build.query<Role | null, void>({
@@ -118,11 +120,42 @@ export const api = createApi({
     signIn: build.mutation<{ success?: boolean }, { idToken: string }>({
       query: (body) => ({ url: '/api/auth/session', method: 'POST', body }),
       // A new session must never see the previous user's cached data.
-      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application'],
+      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig'],
     }),
     signOut: build.mutation<{ success?: boolean }, void>({
       query: () => ({ url: '/api/auth/session', method: 'DELETE' }),
-      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application'],
+      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig'],
+    }),
+
+    // Blog: the author's own posts (the public home headers are the one public read).
+    getBlogConfig: build.query<BlogEditorConfig, void>({
+      query: () => ({ url: '/api/blog/config' }),
+      providesTags: ['BlogConfig'],
+    }),
+    listBlogPosts: build.query<BlogList, { all: boolean }>({
+      query: ({ all }) => ({ url: all ? '/api/blog?scope=all' : '/api/blog' }),
+      providesTags: ['BlogPosts'],
+    }),
+    getBlogPost: build.query<BlogPost, string>({
+      query: (id) => ({ url: `/api/blog/${id}` }),
+      providesTags: (_r, _e, id) => [{ type: 'BlogPost', id }],
+      // The editor holds the working copy; a cached older version must never reopen as the post.
+      keepUnusedDataFor: 0,
+    }),
+    saveBlogPost: build.mutation<BlogPost, BlogSaveArg>({
+      query: ({ id, ...body }) => ({ url: id ? `/api/blog/${id}` : '/api/blog', method: id ? 'PUT' : 'POST', body }),
+      invalidatesTags: ['BlogPosts', 'BlogHeaders'],
+    }),
+    deleteBlogPost: build.mutation<{ success: boolean }, string>({
+      query: (id) => ({ url: `/api/blog/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['BlogPosts', 'BlogHeaders'],
+    }),
+    uploadBlogImage: build.mutation<BlogImage, { postId: string; name: string; dataBase64: string }>({
+      query: ({ postId, name, dataBase64 }) => ({ url: `/api/blog/${postId}/images`, method: 'POST', body: { name, dataBase64 } }),
+    }),
+    getBlogHeaders: build.query<BlogHeader[], void>({
+      query: () => ({ url: '/api/blog/headers' }),
+      providesTags: ['BlogHeaders'],
     }),
 
     // Resume builder.
@@ -227,6 +260,13 @@ export const {
   useGetSessionRoleQuery,
   useSignInMutation,
   useSignOutMutation,
+  useGetBlogConfigQuery,
+  useListBlogPostsQuery,
+  useGetBlogPostQuery,
+  useSaveBlogPostMutation,
+  useDeleteBlogPostMutation,
+  useUploadBlogImageMutation,
+  useGetBlogHeadersQuery,
   useGetResumeConfigQuery,
   useListResumesQuery,
   useGetResumeQuery,
