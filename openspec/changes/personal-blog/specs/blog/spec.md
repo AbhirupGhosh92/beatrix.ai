@@ -42,7 +42,7 @@ Posts and images SHALL be stored where browsers have no direct access. Every rea
 - **THEN** access is denied
 
 ### Requirement: Public home sample
-The home page SHALL show a random sample of published posts from all authors as headers (title, date, excerpt, tags). Drafts SHALL never be included. The sample size SHALL come from the blog config. With no published posts, or with the section off, the block SHALL NOT render.
+The home page SHALL show a random sample of published posts from all authors as headers (title, date, excerpt, tags). Drafts SHALL never be included. The sample size SHALL come from the blog config. With no published posts, or with the section off, the block SHALL NOT render. A post that was unpublished or deleted MAY still appear on the home page for up to 30 seconds (the server keeps the pool of published headers for that long); after that it SHALL NOT.
 
 #### Scenario: Random sample
 - **WHEN** an anonymous visitor opens `/` and more published posts exist than the sample size
