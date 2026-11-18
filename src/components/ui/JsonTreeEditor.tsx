@@ -253,11 +253,15 @@ function TreeNode({ value, path, keyName, parentKind, index, siblings, depth, op
 
       {container && open && entries.length > 0 && (
         <ul role="group" className="border-base-300 ml-3 border-l pl-3 sm:ml-5 sm:pl-4">
+          {/* Key rows by position in the unfiltered entries, not by key text: a key rename keeps the
+              position (renameKey preserves order), so the row is not remounted and the input keeps
+              focus. Removing a map entry shifts later rows' open state; accepted (design.md, decision 3). */}
           {entries
-            .filter(([k, v]) => !searching || matchesSearch(v, k, search))
-            .map(([k, v]) => (
+            .map(([k, v], position) => ({ k, v, position }))
+            .filter(({ k, v }) => !searching || matchesSearch(v, k, search))
+            .map(({ k, v, position }) => (
               <TreeNode
-                key={`${k}`}
+                key={position}
                 value={v}
                 path={[...path, k]}
                 keyName={k}
