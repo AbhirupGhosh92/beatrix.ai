@@ -168,7 +168,6 @@ export function checkImage(dataBase64: unknown, name: unknown, limits: BlogLimit
   }
   const contentType = detectImageType(bytes);
   if (!contentType) throw new ApiError(400, "Only PNG, JPEG, WebP and GIF images are allowed.");
-  // eslint-disable-next-line no-control-regex
   const label = typeof name === "string" ? name.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 100) : "";
   return { bytes, contentType, name: label || "image" };
 }

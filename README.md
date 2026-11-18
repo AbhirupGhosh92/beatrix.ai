@@ -222,6 +222,9 @@ src/
 │   │       │   └── route.ts
 │   │       └── config/
 │   │           └── route.ts
+│   ├── blog/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── job-tracker/
 │   │   ├── layout.tsx
 │   │   └── page.tsx
@@ -231,6 +234,11 @@ src/
 ├── components/
 │   ├── admin/
 │   │   └── OrphanedResumes.tsx
+│   ├── blog/
+│   │   ├── BlogEditor.tsx
+│   │   ├── BlogList.tsx
+│   │   ├── BlogPage.tsx
+│   │   └── BlogPreview.tsx
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
 │   │   ├── ApplicationTable.tsx
@@ -271,6 +279,7 @@ src/
 │   │   ├── Education.tsx
 │   │   ├── Experience.tsx
 │   │   ├── Hero.tsx
+│   │   ├── LandingBlog.tsx
 │   │   ├── LandingClosing.tsx
 │   │   ├── LandingFeatures.tsx
 │   │   ├── LandingHero.tsx
@@ -309,6 +318,7 @@ src/
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
 │   ├── blogConfigSanitize.ts
+│   ├── blogTypes.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── homeConfigSanitize.ts
@@ -360,6 +370,7 @@ src/
     ├── components/
     │   ├── achievement-card.css
     │   ├── back-to-top.css
+    │   ├── blog.css
     │   ├── buttons.css
     │   ├── google-signin.css
     │   ├── landing.css
