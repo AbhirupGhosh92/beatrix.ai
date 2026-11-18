@@ -91,6 +91,12 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["delete", "create"]))), 1)
         self.assertEqual(run_guard(plan(("google_storage_bucket", "resumes_storage", ["update"]))), 0)
 
+    def test_blog_bucket_cannot_be_deleted_or_replaced(self):
+        # Blog post images are user content: protected like the resumes bucket.
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "blog_storage", ["delete"]))), 1)
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "blog_storage", ["delete", "create"]))), 1)
+        self.assertEqual(run_guard(plan(("google_storage_bucket", "blog_storage", ["update"]))), 0)
+
     def test_secret_is_protected(self):
         # The Python service's model API key secret holds a value set by hand.
         self.assertEqual(run_guard(plan(("google_secret_manager_secret", "model_api_key", ["delete"]))), 1)

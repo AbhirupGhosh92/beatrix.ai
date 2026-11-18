@@ -205,6 +205,40 @@ resource "google_storage_bucket" "resumes_storage" {
 }
 
 # ------------------------------------------------------------------------------
+# Cloud Storage Bucket for blog post images (private, per-post objects)
+# ------------------------------------------------------------------------------
+# Only the `blog` Cloud Function (Admin SDK) touches this bucket; browsers never do. Objects are
+# `<postId>/<imageId>`. The name must match functions/src/firebase.ts (`<project id>-blog`). Same
+# protections as the resumes bucket: deleted or overwritten images stay recoverable for 30 days.
+resource "google_storage_bucket" "blog_storage" {
+  name                        = "${var.project_id}-blog"
+  location                    = var.region
+  project                     = var.project_id
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      days_since_noncurrent_time = 30
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.enabled_services]
+}
+
+# ------------------------------------------------------------------------------
 # Firebase Security Rules (Firestore & Storage)
 # ------------------------------------------------------------------------------
 resource "google_firebaserules_ruleset" "firestore" {
