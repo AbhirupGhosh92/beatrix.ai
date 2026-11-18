@@ -112,11 +112,15 @@ The product page SHALL work from 320px to 1920px in both themes, use headings in
 - **THEN** the scroll-to-top button is not shown
 
 ### Requirement: Home shows random published blog headers
-The public home page SHALL include a block of randomly chosen published blog headers when the blog is on and at least one published post exists; see the `blog` capability. It SHALL NOT change the product page content for anonymous visitors otherwise.
+The public home page SHALL include a block of randomly chosen published blog headers, each showing its author's name and opening the post's read-only page, when the blog is on and at least one published post exists; see the `blog` capability. It SHALL NOT change the product page content for anonymous visitors otherwise.
 
 #### Scenario: Blog on with posts
 - **WHEN** an anonymous visitor opens `/` and published posts exist
-- **THEN** the block shows the configured number of random headers
+- **THEN** the block shows the configured number of random headers, each with an author name
+
+#### Scenario: Clicking a header
+- **WHEN** a visitor clicks a header in the block
+- **THEN** the post's read-only page opens
 
 #### Scenario: Blog off
 - **WHEN** the blog is switched off in the config

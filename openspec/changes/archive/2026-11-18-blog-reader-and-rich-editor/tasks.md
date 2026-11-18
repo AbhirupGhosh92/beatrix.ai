@@ -42,4 +42,4 @@ Files: `package.json`, lockfiles, `src/components/blog/BlogEditor.tsx`, `src/com
 Files: `CLAUDE.md`, `README.md` (generated sections via `scripts/update-readme.mjs`), `docs/DEPLOYMENT.md` only if a pipeline fact changed (not expected), `openspec/changes/blog-reader-and-rich-editor/**`.
 
 - [x] 4.1 Update the `CLAUDE.md` blog, landing and access-control passages (rich-text storage, `/posts` public routes, characters, author name) and the README structure sections.
-- [ ] 4.2 Run `openspec validate --all`, `npm run check`, `npm run build`, `npm run check:blog`; report to the PO that the change is ready for testing. Archive with `/opsx:archive` when the PO asks (before the PR is ready).
+- [x] 4.2 Run `openspec validate --all`, `npm run check`, `npm run build`, `npm run check:blog`; report to the PO that the change is ready for testing. Archive with `/opsx:archive` when the PO asks (before the PR is ready).
