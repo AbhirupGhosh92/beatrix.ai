@@ -8,6 +8,7 @@ import { isExternalHref, visibleMenuItems } from '../../lib/drawer.ts'
 import type { Role } from '../../lib/access.ts'
 import { useSignOutMutation } from '../../store/api.ts'
 import type { DropdownIcon } from '../../data/profile.ts'
+import { useBlogAccess } from './BlogConfigProvider.tsx'
 import { useProfile } from './ProfileProvider.tsx'
 
 const ICONS: Record<DropdownIcon, LucideIcon> = {
@@ -22,7 +23,7 @@ export default function NavbarDropdown({ role }: { role: Role | null }) {
   const profile = useProfile()
   const [signOutServer] = useSignOutMutation()
   const { nav } = profile
-  const items = visibleMenuItems(nav.dropdownItems, role)
+  const items = visibleMenuItems(nav.dropdownItems, role, useBlogAccess())
 
   // Nothing to offer: no button at all, like the drawer's menu button.
   if (items.length === 0) return null

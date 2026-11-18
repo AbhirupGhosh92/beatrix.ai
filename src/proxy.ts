@@ -3,7 +3,8 @@
 // routes check permissions again next to the data; this is the first line, not the only one.
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { can, featureItemId, isFeatureEnabled, requiredPermission } from './lib/access.ts'
+import { can, featureItemId, isBlogRoute, isFeatureEnabled, requiredPermission } from './lib/access.ts'
+import { getBlogConfig } from './middleware/blogConfigService.ts'
 import { getProfile } from './middleware/profileService.ts'
 import { SESSION_COOKIE, verifySession } from './middleware/sessionService.ts'
 import type { Session } from './middleware/sessionService.ts'
@@ -41,8 +42,18 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  if (!can(session.role, needed)) {
+  // blog:write comes from blog-config.json (admin always); getBlogConfig() never throws and falls
+  // back to the example (admin only, enabled), so an unreadable config means admin only.
+  const blogConfig = isBlogRoute(pathname) ? await getBlogConfig() : null
+  if (!can(session.role, needed, { blogWriteRoles: blogConfig?.writeRoles })) {
     return isApi ? NextResponse.json({ error: 'Not allowed.' }, { status: 403, headers: NO_STORE }) : home()
+  }
+
+  // The blog is switched by its own config, not by a menu item: 404 for every role while it is off.
+  if (blogConfig && !blogConfig.enabled) {
+    return isApi
+      ? NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE })
+      : NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })
   }
 
   // A switchable feature exists only while its menu item is enabled; getProfile() never throws and
