@@ -7,7 +7,7 @@ import { getBlogConfig } from '../../../middleware/blogConfigService.ts'
 import { getPublicBlogPost } from '../../../middleware/blogService.ts'
 import { getProfile } from '../../../middleware/profileService.ts'
 
-// A published post, server rendered for everyone (the proxy lets only /posts/<uuid> through without a
+// A published post, server rendered for everyone (the proxy lets only /posts/<id> through without a
 // session). 404 while the blog is off and for a draft, deleted or unknown post. The cache() below shares
 // the one fetch between the metadata and the page.
 export const dynamic = 'force-dynamic'

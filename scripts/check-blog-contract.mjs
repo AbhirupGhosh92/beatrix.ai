@@ -345,4 +345,18 @@ assert.equal(docs.get('allowed_emails/revoked@x.dev').allowed, false, 'allowed i
 assert.equal(docs.get('allowed_emails/revoked@x.dev').role, 'admin')
 assert.equal(docs.get('allowed_emails/blank@x.dev').role, 'reader', 'a new user is still a reader')
 
+// ---- public path policy (src/lib/access.ts) ------------------------------------------------------
+{
+  const { isPublicPostPath, requiredPermission } = await import(path.join(root, 'src', 'lib', 'access.ts'))
+  const uuid = '11111111-1111-4111-8111-111111111111'
+  for (const p of ['/posts/nonexistent-id', `/posts/${uuid}`, '/api/posts/nonexistent-id/images/abc_1', `/api/posts/${uuid}/images/x`]) {
+    assert.ok(isPublicPostPath(p) && requiredPermission(p) === null, `${p} must reach the handler without a session`)
+  }
+  for (const p of ['/posts', '/posts/', '/posts/a/b', '/api/posts/x', '/api/posts/x/images', '/api/posts/x/images/a/b', '/blog', '/api/blog/x', '/api/blog/x/images/y']) {
+    assert.ok(!isPublicPostPath(p), `${p} must not be public`)
+  }
+  assert.equal(requiredPermission('/blog'), 'blog:write')
+  assert.equal(requiredPermission('/api/blog/x'), 'blog:write')
+}
+
 console.log('blog contract: OK')
