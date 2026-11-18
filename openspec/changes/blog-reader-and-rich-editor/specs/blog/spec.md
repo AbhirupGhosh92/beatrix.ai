@@ -40,6 +40,10 @@ Every published post SHALL have a public read-only page, readable without a sess
 - **WHEN** a visitor opens the page of a draft, a deleted post or an unknown id
 - **THEN** the response is not found and no post content is returned
 
+#### Scenario: Recently unpublished post
+- **WHEN** a post was unpublished or deleted less than 30 seconds ago
+- **THEN** its page MAY still be readable (the server caches published posts for 30 seconds), and after that it is not found
+
 #### Scenario: Hostile content
 - **WHEN** a post body contains a script, an HTML event handler or a remote image
 - **THEN** none of it runs or loads on the post page
