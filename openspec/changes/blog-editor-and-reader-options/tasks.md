@@ -1,32 +1,36 @@
-## 1. Image upload: reproduce, record, fix (builder-1)
+## 1. Document schema and validation (builder-1; merge first)
 
-File set: `src/middleware/cloudFunctions.ts`, `src/middleware/blogService.ts`, `src/app/api/blog/[id]/images/route.ts`, `src/components/blog/BlogEditor.tsx`, `src/components/blog/EditorToolbar.tsx`, `functions/src/blogValidation.ts`, `scripts/` (a repro script, not committed unless useful), `design.md` (only the root-cause section).
+File set: `src/lib/blogDoc.ts`, `functions/src/blogDoc.ts` (byte-identical), `scripts/check-blog-contract.mjs`.
 
-- [ ] 1.1 Add a regression check for the first-save remount (an image inserted after the first save of a new post shows its `src`) and, if time allows, confirm the secondary hypotheses locally (timeout, error text) with a stand-in function; record any extra finding in design.md. Verify: the section states observed behavior. **Stop and report to the Architect if anything needs a cloud resource, IAM or secret.**
-- [ ] 1.2 Make the "Insert image" toolbar button and the Upload button clickable on an unsaved post or at the image limit: `aria-disabled`, a reason in `title`/`aria-label`, and on click the existing error snackbar with the reason; no draft is created and no request is sent. Add the per-call timeout and clearer errors only if 1.1 confirms them. Verify: scenarios "Upload an allowed image" (after first save), "Wrong type or too large", "Upload failure" by hand; the button gives a visible reason on a new post; `npm run check`.
+- [ ] 1.1 Add `ALIGN_VALUES`, `BULLET_STYLES`, `ORDERED_STYLES`; allow `textAlign` on paragraph/heading and `listStyle` on bulletList/orderedList; refuse other values with `The post content is not valid (<attribute> "<value>" is not allowed).` (value truncated to 20 characters, control characters removed). Verify: `diff` of the two files is empty.
+- [ ] 1.2 Image node `{ src, alt }`: export `isHttpsImageUrl`, `stripLegacyImages`; `validateDoc(raw, limits?: { maxImageUrlLength?: number })` refuses a non-https, relative, data, javascript, userinfo or over-long URL with a clear message and silently drops legacy `{ imageId }` image nodes. Verify: below.
+- [ ] 1.3 Extend `check-blog-contract.mjs`: valid/unknown alignment and list values, script text in attrs refused, https accepted, `http`/`javascript:`/`data:`/relative/over-long refused, legacy `imageId` node dropped, old docs unchanged. Verify: `npm run check:blog` passes.
 
-## 2. Document schema and server validation (builder-2)
+## 2. Server side: function, config, routes, access (builder-2, after 1 is merged)
 
-File set: `src/lib/blogDoc.ts`, `functions/src/blogDoc.ts`, `scripts/check-blog-contract.mjs`.
+File set: `functions/src/blog.ts`, `functions/src/blogValidation.ts`, `src/data/blogConfig.ts`, `src/data/blog-config.example.json`, `src/lib/blogConfigSanitize.ts`, `src/app/api/blog/config/route.ts`, `src/lib/access.ts`, `src/proxy.ts`, `src/app/api/blog/[id]/images/` (delete), `src/app/api/posts/[id]/images/` (delete).
 
-- [ ] 2.1 Add `ALIGN_VALUES`, `BULLET_STYLES`, `ORDERED_STYLES`, allow `textAlign` on paragraph/heading and `listStyle` on bulletList/orderedList, refuse other values with the message from design.md; keep both files byte-identical. Verify: `diff` empty, `npm run check:blog`.
-- [ ] 2.2 Extend `check-blog-contract.mjs` with cases: each valid value accepted, unknown value, `style`/script text in an alignment or list attr refused, old doc without attrs unchanged. Verify: `npm run check:blog` passes.
+- [ ] 2.1 Remove `imageUpload`/`imageGet`/`publicImageGet`, `checkImage`, `detectImageType`; stop returning `images`/`imageCount` and ignore `removeImageIds`; keep `delete` removing the post's objects; pass `config` to `validateDoc`. Verify: `npm run functions:build`, `npm run check:blog`.
+- [ ] 2.2 Config: add `maxImageUrlLength` (default 2000, 20 to 8000) to types, example, sanitizer, public config route and function limits; drop `maxImageBytes`/`maxImagesPerPost` but let an old stored file load with them ignored. Verify: load an old-shaped config through the sanitizer (script or quick node run) and see no error.
+- [ ] 2.3 Delete the two image routes and the public image pattern; add `isRemovedImageRoute` in `access.ts` and answer 404 for it in `proxy.ts` before the session check. Verify: anonymous and signed-in requests to both former routes answer 404 (scenario "Former image route"); `/posts/<id>` still public.
 
-## 3. Editor: alignment and list styling (builder-3, after 2 is merged)
+## 3. Editor, client types and API (builder-3, after 1 is merged)
 
-File set: `src/components/blog/RichEditor.tsx`, `src/components/blog/EditorToolbar.tsx`, `package.json`, lockfiles. (Task 1 also edits `EditorToolbar.tsx`: group 3 starts after group 1 is merged.)
+File set: `src/components/blog/RichEditor.tsx`, `src/components/blog/EditorToolbar.tsx`, `src/components/blog/BlogEditor.tsx`, `src/lib/blogTypes.ts`, `src/lib/blogResponses.ts`, `src/store/api.ts`, `src/middleware/blogService.ts`, `package.json` and lockfiles.
 
-- [ ] 3.1 Add `@tiptap/extension-text-align` (exact version, pnpm and npm lockfiles), toolbar alignment buttons and shortcuts, list-style select, `listStyle` attr on list nodes. Verify: scenarios "Align and reopen", "Style a bulleted list", "Style a numbered list" in `npm run dev`; `npm run check`.
+- [ ] 3.1 Remove upload UI, `uploadBlogImage` (RTK and service), `BlogImage`/`images`/`removeImageIds` from types and responses, `unwrapImage`; the editor's save no longer sends images. Strip legacy image nodes before loading a post into the editor. Verify: `npm run check`; scenario "Open an older post with an uploaded image".
+- [ ] 3.2 Inline image by URL: toolbar form (URL, alt), `src`/`alt`-only image extension, https-only parse and input rule, `no-referrer`, validation message identical to the server's with `maxImageUrlLength` from the config. Verify: scenarios "Insert an image by URL", "refused URL" (`http`, `javascript:`, `data:`, relative), `npm run check`.
+- [ ] 3.3 Alignment and list style: add `@tiptap/extension-text-align` (exact version, both lockfiles), toolbar buttons and shortcuts, list-style select, `listStyle` attr on list nodes, using the constants from `blogDoc.ts`. Verify: scenarios "Align and reopen", "Style a bulleted list", "Style a numbered list".
 
-## 4. Rendering and reader options (builder-4, after 2 is merged)
+## 4. Rendering and reader options (builder-4, after 1 is merged)
 
-File set: `src/components/blog/BlogContent.tsx`, `src/components/blog/BlogView.tsx`, `src/app/posts/[id]/page.tsx`, new `src/components/blog/ReaderFrame.tsx`, `ReaderControls.tsx`, `src/lib/readerPrefs.ts`, `src/styles/components/blog-content.css`, `src/index.css`.
+File set: `src/components/blog/BlogContent.tsx`, `src/components/blog/BlogView.tsx`, `src/components/blog/BlogPreview.tsx`, `src/app/posts/[id]/page.tsx`, new `src/components/blog/ReaderFrame.tsx`, `ReaderControls.tsx`, `src/lib/readerPrefs.ts`, `src/styles/components/blog-content.css`, `src/index.css`.
 
-- [ ] 4.1 `BlogContent` maps whitelisted attrs to classes by lookup (never raw values), unknown ignored; legacy Markdown path untouched. Verify: scenarios "Alignment in the reader", "Post without alignment", "No script through content".
-- [ ] 4.2 `readerPrefs`, `ReaderFrame`, `ReaderControls`, paper/light/dark scoped styles, compact/wide width; wire into `/posts/[id]` and `BlogView`. Verify: scenarios "Choose a theme", "Stretch the width", "Storage unavailable", "Reader choice does not alter the post" (block storage in devtools), both site themes, narrow and desktop widths.
+- [ ] 4.1 `BlogContent`: render `<img>` only for `isHttpsImageUrl(src)` with attributes `src`, `alt`, `loading`, `decoding`, `referrerPolicy` only; skip legacy image nodes; drop the `imageUrl` prop and its callers; `BlogPreview` drops `blog-image:` mapping (no remote images, as before); map whitelisted `textAlign`/`listStyle` to classes by lookup, never raw values. Verify: scenarios "Alignment in the reader", "Post without alignment", "No script through content", "Image cannot load" (alt shows).
+- [ ] 4.2 Reader options: `readerPrefs` (`useSyncExternalStore`, keys `blog-reader-theme`, `blog-reader-width`, in-memory fallback), `ReaderFrame`, `ReaderControls`, scoped light/dark/paper styles and compact/wide width, wired into `/posts/[id]` and `BlogView`. Verify: scenarios "Choose a theme", "Stretch the width", "Storage unavailable", "Reader choice does not alter the post"; both site themes, narrow and desktop widths.
 
 ## 5. Docs (architect)
 
-File set: `CLAUDE.md`, `README.md` (structure section via `scripts/update-readme.mjs`), `openspec/` archive.
+File set: `CLAUDE.md`, `README.md` (via `scripts/update-readme.mjs`), `docs/` only if inaccurate, OpenSpec archive.
 
-- [ ] 5.1 Update the CLAUDE.md "Personal blog" section (new attrs and whitelist, reader options and their localStorage keys, the upload fix), regenerate the README structure section, run `npm run check`, `npm run build`, `openspec validate --all`, and archive the change after testing.
+- [ ] 5.1 Update the CLAUDE.md "Personal blog" section (inline images by URL and the URL rule, removed upload, routes and config keys, whitelist attrs, reader options and their localStorage keys, no CSP note, the unused `<project>-blog` bucket), the access-control mention of the public image route, and the README structure. Run `npm run check`, `npm run build`, `openspec validate --all`; archive after testing.
