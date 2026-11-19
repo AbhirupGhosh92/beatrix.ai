@@ -26,8 +26,8 @@ File set: `src/components/blog/RichEditor.tsx`, `src/components/blog/EditorToolb
 
 File set: `src/components/blog/BlogContent.tsx`, `src/components/blog/BlogView.tsx`, `src/components/blog/BlogPreview.tsx` (only if needed), `src/app/posts/[id]/page.tsx`, new `src/components/blog/ReaderFrame.tsx`, `ReaderControls.tsx`, `src/lib/readerPrefs.ts`, `src/styles/components/blog-content.css`, `src/index.css`.
 
-- [ ] 4.1 `BlogContent`: uploaded nodes through `imageUrl`, URL nodes only for `isHttpsImageUrl(src)` with attributes `src`, `alt`, `loading`, `decoding`, `referrerPolicy="no-referrer"` only; whitelisted `textAlign`/`listStyle` mapped to classes by lookup, never raw values; legacy Markdown unchanged. Verify: scenarios "Alignment in the reader", "Post without alignment", "No script through content", "Image cannot load" (alt shows).
-- [ ] 4.2 Reader options: `readerPrefs` (`useSyncExternalStore`, keys `blog-reader-theme`, `blog-reader-width`, in-memory fallback), `ReaderFrame`, `ReaderControls`, scoped light/dark/paper styles and compact/wide width, wired into `/posts/[id]` and `BlogView`. Verify: scenarios "Choose a theme", "Stretch the width", "Storage unavailable", "Reader choice does not alter the post"; both site themes, narrow and desktop widths.
+- [x] 4.1 `BlogContent`: uploaded nodes through `imageUrl`, URL nodes only for `isHttpsImageUrl(src)` with attributes `src`, `alt`, `loading`, `decoding`, `referrerPolicy="no-referrer"` only; whitelisted `textAlign`/`listStyle` mapped to classes by lookup, never raw values; legacy Markdown unchanged. Verify: scenarios "Alignment in the reader", "Post without alignment", "No script through content", "Image cannot load" (alt shows).
+- [x] 4.2 Reader options: `readerPrefs` (`useSyncExternalStore`, keys `blog-reader-theme`, `blog-reader-width`, in-memory fallback), `ReaderFrame`, `ReaderControls`, scoped light/dark/paper styles and compact/wide width, wired into `/posts/[id]` and `BlogView`. Verify: scenarios "Choose a theme", "Stretch the width", "Storage unavailable", "Reader choice does not alter the post"; both site themes, narrow and desktop widths.
 
 ## 5. Docs (architect)
 
