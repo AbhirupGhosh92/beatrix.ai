@@ -10,7 +10,7 @@ File set: `src/lib/blogDoc.ts`, `functions/src/blogDoc.ts` (byte-identical), `sc
 
 File set: `functions/src/blog.ts`, `functions/src/blogValidation.ts`, `src/data/blogConfig.ts`, `src/data/blog-config.example.json`, `src/lib/blogConfigSanitize.ts`, `src/app/api/blog/config/route.ts`. Nothing is removed.
 
-- [ ] 2.1 Add `maxImageUrlLength` (default 2000, 20 to 8000) to the config type, example, sanitizer, public config route and function limits; the `blog` function passes its config to `validateDoc` on save. Verify: `npm run functions:build`, `npm run check:blog`; a save with an over-long URL is refused naming the limit; an old config without the key gets the default.
+- [x] 2.1 Add `maxImageUrlLength` (default 2000, 20 to 8000) to the config type, example, sanitizer, public config route and function limits; the `blog` function passes its config to `validateDoc` on save. Verify: `npm run functions:build`, `npm run check:blog`; a save with an over-long URL is refused naming the limit; an old config without the key gets the default.
 
 ## 3. Editor, first-save flow, alignment and lists (builder-3, after 1 is merged)
 
