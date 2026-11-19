@@ -57,7 +57,7 @@ The read-only post views (the public post page and the author's read-only view) 
 - **THEN** the stored post and what other readers see are unchanged
 
 ### Requirement: Inline images from a URL
-An author SHALL be able to place an image between paragraphs of a post by giving the image's https URL (with optional alt text) in the editor, and the image SHALL appear at that position in the editor, the author's read-only view and the public post page, as a block between the surrounding text. Only absolute `https` URLs SHALL be accepted; any other scheme, a relative URL, a data URL or an over-long URL SHALL be refused on save with a clear message and store nothing. The site SHALL NOT offer uploading image files, and SHALL NOT store image files. A broken or unreachable image URL SHALL show its alt text in place and SHALL NOT break the rest of the post.
+An author SHALL be able to place an image between paragraphs of a post by giving the image's https URL (with optional alt text) in the editor, and the image SHALL appear at that position in the editor, the author's read-only view and the public post page, as a block between the surrounding text. Only absolute `https` URLs SHALL be accepted; any other scheme, a relative URL, a data URL or an over-long URL SHALL be refused on save with a clear message and store nothing.
 
 #### Scenario: Insert between paragraphs
 - **WHEN** an author inserts an image by https URL between two paragraphs, saves and publishes
@@ -66,6 +66,9 @@ An author SHALL be able to place an image between paragraphs of a post by giving
 #### Scenario: Not https
 - **WHEN** an author gives a `http`, `javascript:`, `data:` or relative image URL
 - **THEN** it is refused with a message and nothing is stored
+
+### Requirement: Unreachable images and no file upload
+A broken or unreachable image URL SHALL show its alt text in place and SHALL NOT break the rest of the post. The site SHALL NOT offer uploading image files and SHALL NOT store image files.
 
 #### Scenario: Image cannot load
 - **WHEN** an image URL in a post cannot be fetched by the reader's browser
