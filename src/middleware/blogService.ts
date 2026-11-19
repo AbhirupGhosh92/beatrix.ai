@@ -61,6 +61,7 @@ function limits(config: BlogConfig) {
     maxTagLength: config.maxTagLength,
     maxImageBytes: config.maxImageBytes,
     maxImagesPerPost: config.maxImagesPerPost,
+    maxImageUrlLength: config.maxImageUrlLength,
     maxPostsPerAuthor: config.maxPostsPerAuthor,
     excerptLength: config.excerptLength,
   }

@@ -16,6 +16,8 @@ export interface BlogConfig {
   maxTagLength: number
   maxImageBytes: number
   maxImagesPerPost: number
+  /** Characters of an image URL (https) in a post. */
+  maxImageUrlLength: number
   /** Safety limit on drafts plus published posts of one author, not a product cap. */
   maxPostsPerAuthor: number
   /** Length of the excerpt stored with a post. */
@@ -40,6 +42,7 @@ export const BLOG_LIMITS = {
   maxTagLength: { min: 1, max: 60 },
   maxImageBytes: { min: 1, max: 5_242_880 },
   maxImagesPerPost: { min: 0, max: 50 },
+  maxImageUrlLength: { min: 20, max: 8000 },
   maxPostsPerAuthor: { min: 1, max: 2000 },
   excerptLength: { min: 20, max: 500 },
 } as const
@@ -55,6 +58,7 @@ export interface BlogEditorConfig {
   maxTagLength: number
   maxImageBytes: number
   maxImagesPerPost: number
+  maxImageUrlLength: number
   /** Whether the caller is an admin (may list every author's posts). */
   isAdmin: boolean
 }
