@@ -33,11 +33,33 @@ interface Props {
 }
 
 export default function BlogEditor({ id, config, onOpen, onClose }: Props) {
-  const query = useGetBlogPostQuery(id ?? '', { skip: id === null })
+  // The id of the post this form created with its first save: while `id` is that id the same form
+  // stays mounted (same key), so the editor keeps its cursor and unsaved typing.
+  const [created, setCreated] = useState<string | null>(null)
+  const keepForm = id === null || id === created
+  const query = useGetBlogPostQuery(id ?? '', { skip: keepForm, refetchOnMountOrArgChange: true })
   // Bumped by Reload so the form starts again from the freshly fetched post.
   const [reloadKey, setReloadKey] = useState(0)
 
-  if (id === null) return <BlogForm key="new" post={null} config={config} onOpen={onOpen} onClose={onClose} onReload={() => undefined} />
+  if (keepForm) {
+    return (
+      <BlogForm
+        key="new"
+        post={null}
+        config={config}
+        onOpen={(openedId) => {
+          setCreated(openedId)
+          onOpen(openedId)
+        }}
+        onClose={onClose}
+        onReload={() => {
+          // Leaves the kept form: the post is fetched and the form starts again from it.
+          setCreated(null)
+          setReloadKey((n) => n + 1)
+        }}
+      />
+    )
+  }
   if (query.isLoading || query.isFetching) return <SkeletonPage label="Loading the post" />
   if (!query.data) {
     const message = (query.error && 'message' in query.error ? query.error.message : undefined) ?? 'The post could not be loaded.'
@@ -149,8 +171,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   ].filter((problem): problem is string => problem !== null)
   const busy = saving || deleting || uploading
 
-  const save = async () => {
-    if (!validDoc) return
+  /** Saves the post; true when it was stored. `asDraft` saves as a draft whatever the toggle says. */
+  const save = async (asDraft = false): Promise<boolean> => {
+    if (!validDoc) return false
     // A rich post is always saved as a document, never with `body` (the server keeps a legacy post's
     // original Markdown and refuses a body save on a document post).
     const arg = {
@@ -158,7 +181,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
       title: title.trim(),
       content: validDoc,
       tags,
-      status: (published ? 'published' : 'draft') as BlogSaveArg['status'],
+      status: (published && !asDraft ? 'published' : 'draft') as BlogSaveArg['status'],
       ...(removed.length > 0 ? { removeImageIds: removed } : {}),
     }
     try {
@@ -172,9 +195,11 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         setPostId(saved.id)
         onOpen(saved.id)
       }
+      return true
     } catch (err) {
       // The error snackbar already told the user; a version conflict also offers Reload.
       if ((err as ApiError | undefined)?.status === 409) setConflict(true)
+      return false
     }
   }
 
@@ -230,9 +255,34 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   }
 
   const visibleImages = images.filter((image) => !removed.includes(image.id))
-  const pickImage = useCallback(() => fileRef.current?.click(), [])
   const reportError = useCallback((message: string) => dispatch(notify('error', message)), [dispatch])
-  const canUpload = !!postId && visibleImages.length < config.maxImagesPerPost
+  const maxImageUrlLength = (config as { maxImageUrlLength?: number }).maxImageUrlLength ?? 2000
+
+  /** The Upload control (toolbar and Images panel). A never-saved post is saved as a draft first. */
+  const requestUpload = async () => {
+    if (busy) return
+    if (visibleImages.length >= config.maxImagesPerPost) {
+      dispatch(notify('error', `A post holds at most ${config.maxImagesPerPost} images.`))
+      return
+    }
+    if (postId) {
+      fileRef.current?.click()
+      return
+    }
+    // Never saved: the form's own checks first, so nothing is saved and no picker opens when they fail.
+    if (problems.length > 0 || !validDoc) {
+      dispatch(notify('error', problems.length > 0 ? problems.join(' ') : 'The text is not ready yet.'))
+      return
+    }
+    setPublished(false)
+    if (!(await save(true))) return
+    // The click's activation may be spent by the save: showPicker can refuse, then the next click opens it.
+    try {
+      fileRef.current?.showPicker()
+    } catch {
+      dispatch(notify('info', 'Draft saved. Choose the image again.'))
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -293,9 +343,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         <RichEditor
           initial={initial}
           postId={postId}
-          canUpload={canUpload}
-          uploading={uploading}
-          onPickImage={pickImage}
+          busy={busy}
+          maxImageUrlLength={maxImageUrlLength}
+          onPickImage={() => void requestUpload()}
           onDoc={setDoc}
           onEditor={setEditor}
           onError={reportError}
@@ -319,11 +369,11 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
               if (file) void upload(file)
             }}
           />
-          <button type="button" className="button-secondary flex items-center gap-2" disabled={busy || !canUpload} onClick={pickImage}>
+          <button type="button" className="button-secondary flex items-center gap-2" disabled={busy} onClick={() => void requestUpload()}>
             <ImagePlus size={16} aria-hidden="true" /> Upload image
           </button>
         </div>
-        {!postId && <p className="text-meta">Save the post once to add images.</p>}
+        {!postId && <p className="text-meta">Uploading an image on a new post saves it as a draft first.</p>}
         <p className="text-meta">PNG, JPEG, WebP or GIF, up to {formatBytes(config.maxImageBytes)} each.</p>
         {visibleImages.length > 0 && (
           <ul className="flex flex-col gap-2">
