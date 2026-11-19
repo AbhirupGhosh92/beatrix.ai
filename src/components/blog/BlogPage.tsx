@@ -17,6 +17,13 @@ export default function BlogPage() {
   // to seed local state, so opening, closing and "New post" keep working without a navigation.
   const initialId = useSearchParams().get('open')
   const [editing, setEditing] = useState<Editing>(initialId)
+  // Changes only when the author opens a different post or "new", not when the editor reports the id
+  // of the post it just created, so the open form (cursor, unsaved typing) is not remounted.
+  const [editorKey, setEditorKey] = useState<string>(initialId ?? 'new')
+  const openPost = (id: string) => {
+    setEditing(id)
+    setEditorKey(id)
+  }
   // The post open in the read-only view (null when none); editing takes precedence.
   const [viewing, setViewing] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
@@ -44,7 +51,7 @@ export default function BlogPage() {
   if (editing) {
     return (
       <BlogEditor
-        key={editing}
+        key={editorKey}
         id={editing === 'new' ? null : editing}
         config={config}
         onOpen={(id) => setEditing(id)}
@@ -59,7 +66,7 @@ export default function BlogPage() {
         key={viewing}
         id={viewing}
         onEdit={() => {
-          setEditing(viewing)
+          openPost(viewing)
           setViewing(null)
         }}
         onClose={() => setViewing(null)}
@@ -74,8 +81,11 @@ export default function BlogPage() {
       showAll={showAll}
       onToggleAll={setShowAll}
       onView={setViewing}
-      onOpen={setEditing}
-      onNew={() => setEditing('new')}
+      onOpen={openPost}
+      onNew={() => {
+        setEditing('new')
+        setEditorKey('new')
+      }}
     />
   )
 }

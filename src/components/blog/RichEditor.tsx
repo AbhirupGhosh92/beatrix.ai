@@ -1,19 +1,22 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, Extension, nodeInputRule, useEditor } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
+import TextAlign from '@tiptap/extension-text-align'
 import { Markdown } from '@tiptap/markdown'
+import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES, isHttpsImageUrl } from '../../lib/blogDoc.ts'
 import { BLOG_IMAGE_SCHEME } from '../../lib/blogTypes.ts'
 import EditorToolbar from './EditorToolbar.tsx'
 
 // The rich-text editor (Tiptap). Loaded only by BlogEditor through next/dynamic, so the public pages
 // and the home page never download it. Its schema is exactly the closed document in
 // src/lib/blogDoc.ts: the server rejects anything else, so every attribute outside that list is
-// removed here (Link keeps only `href`, Image keeps only `imageId` and `alt`).
+// removed here (Link keeps only `href`, Image keeps only `imageId`, `src` and `alt`, and the only
+// other attributes are `textAlign` and `listStyle`, limited to the values of blogDoc.ts).
 
 const IMAGE_ID = /^[A-Za-z0-9_-]{1,100}$/
 
@@ -23,34 +26,66 @@ const BlogLink = Link.extend({
   },
 })
 
-const BlogImage = Image.extend<{ inline: boolean; allowBase64: boolean; HTMLAttributes: Record<string, unknown>; resize: false; postId: string | null }>({
+interface ImageOptions {
+  inline: boolean
+  allowBase64: boolean
+  HTMLAttributes: Record<string, unknown>
+  resize: false
+  /** The id of the post as it is now (read when an image is rendered, never frozen at mount). */
+  getPostId: () => string | null
+}
+
+// `![alt](https://...)` typed in the editor; any other source is not turned into an image.
+const IMAGE_INPUT = /(?:^|\s)(!\[([^\]]*)\]\((\S+?)(?:\s+["'][^"']*["'])?\))$/
+
+const BlogImage = Image.extend<ImageOptions>({
   addOptions() {
-    return { inline: false, allowBase64: false, HTMLAttributes: {}, resize: false, postId: null }
+    return { inline: false, allowBase64: false, HTMLAttributes: {}, resize: false, getPostId: () => null }
   },
   addAttributes() {
     return {
       imageId: { default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-image-id') },
+      src: {
+        default: null,
+        parseHTML: (el: HTMLElement) => {
+          if (el.hasAttribute('data-image-id')) return null
+          const src = el.getAttribute('src')
+          return isHttpsImageUrl(src) ? src : null
+        },
+      },
       alt: { default: null },
     }
   },
   parseHTML() {
-    return [{ tag: 'img[data-image-id]' }]
+    return [{ tag: 'img[data-image-id]' }, { tag: 'img[src^="https://"]' }]
   },
   renderHTML({ node }) {
-    const postId = this.options.postId
-    const imageId = String(node.attrs.imageId ?? '')
-    return [
-      'img',
-      {
-        ...(postId ? { src: `/api/blog/${encodeURIComponent(postId)}/images/${imageId}` } : {}),
-        alt: String(node.attrs.alt ?? ''),
-        'data-image-id': imageId,
-        loading: 'lazy',
-      },
-    ]
+    const alt = String(node.attrs.alt ?? '')
+    if (node.attrs.imageId) {
+      const postId = this.options.getPostId()
+      const imageId = String(node.attrs.imageId)
+      return [
+        'img',
+        {
+          ...(postId ? { src: `/api/blog/${encodeURIComponent(postId)}/images/${imageId}` } : {}),
+          alt,
+          'data-image-id': imageId,
+          loading: 'lazy',
+          decoding: 'async',
+        },
+      ]
+    }
+    const src = node.attrs.src
+    return ['img', { ...(isHttpsImageUrl(src) ? { src } : {}), alt, referrerPolicy: 'no-referrer', loading: 'lazy', decoding: 'async' }]
   },
   addInputRules() {
-    return []
+    return [
+      nodeInputRule({
+        find: IMAGE_INPUT,
+        type: this.type,
+        getAttributes: (match) => (isHttpsImageUrl(match[3]) ? { src: match[3], alt: match[2] || null } : false),
+      }),
+    ]
   },
   // Legacy Markdown: `![name](blog-image:<id>)` becomes an image node; any other source is dropped.
   parseMarkdown: (token, helpers) => {
@@ -61,14 +96,41 @@ const BlogImage = Image.extend<{ inline: boolean; allowBase64: boolean; HTMLAttr
   },
 })
 
+function listStyleAttr(allowed: readonly string[]) {
+  return {
+    listStyle: {
+      default: null,
+      // The value returned is the constant from the whitelist, never the parsed text itself.
+      parseHTML: (el: HTMLElement) => allowed.find((style) => style === el.style.listStyleType) ?? null,
+      renderHTML: (attributes: Record<string, unknown>) => {
+        const hit = allowed.find((style) => style === attributes.listStyle)
+        return hit ? { style: `list-style-type: ${hit}` } : {}
+      },
+    },
+  }
+}
+
+// `listStyle` on bullet and numbered lists: only the whitelisted values of src/lib/blogDoc.ts.
+const ListStyle = Extension.create({
+  name: 'listStyle',
+  addGlobalAttributes() {
+    return [
+      { types: ['bulletList'], attributes: listStyleAttr(BULLET_STYLES) },
+      { types: ['orderedList'], attributes: listStyleAttr(ORDERED_STYLES) },
+    ]
+  },
+})
+
 export type EditorInitial = { kind: 'empty' } | { kind: 'doc'; doc: JSONContent } | { kind: 'markdown'; markdown: string }
 
 interface Props {
   initial: EditorInitial
-  /** The post the images belong to (null until it is saved once). */
+  /** The post the images belong to (null until it is saved once); read when an image is inserted. */
   postId: string | null
-  canUpload: boolean
-  uploading: boolean
+  /** An upload or save is running: the image control waits. */
+  busy: boolean
+  /** The configured limit of an image address, in characters. */
+  maxImageUrlLength: number
   onPickImage: () => void
   /** Every change, as the editor's document JSON (validated by the caller before saving). */
   onDoc: (doc: JSONContent) => void
@@ -77,14 +139,20 @@ interface Props {
   onError: (message: string) => void
 }
 
-export default function RichEditor({ initial, postId, canUpload, uploading, onPickImage, onDoc, onEditor, onError }: Props) {
+export default function RichEditor({ initial, postId, busy, maxImageUrlLength, onPickImage, onDoc, onEditor, onError }: Props) {
   const onDocRef = useRef(onDoc)
   useEffect(() => {
     onDocRef.current = onDoc
   }, [onDoc])
 
-  // The post id is fixed for this editor's life: saving a new post remounts the editor under its id.
-  const [imagePostId] = useState(postId)
+  // The current post id: the first save gives a new post its id while this editor stays mounted.
+  const postIdRef = useRef(postId)
+  useEffect(() => {
+    postIdRef.current = postId
+  }, [postId])
+
+  const [getPostId] = useState(() => () => postIdRef.current)
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
@@ -98,10 +166,12 @@ export default function RichEditor({ initial, postId, canUpload, uploading, onPi
         protocols: ['mailto'],
         HTMLAttributes: { rel: 'noopener noreferrer nofollow ugc', target: '_blank' },
       }),
-      BlogImage.configure({ postId: imagePostId }),
+      BlogImage.configure({ getPostId }),
+      TextAlign.configure({ types: ['heading', 'paragraph'], alignments: [...ALIGN_VALUES] }),
+      ListStyle,
       Markdown,
     ],
-    [imagePostId],
+    [getPostId],
   )
 
   const editor = useEditor({
@@ -135,7 +205,7 @@ export default function RichEditor({ initial, postId, canUpload, uploading, onPi
 
   return (
     <div className="rich-editor">
-      <EditorToolbar editor={editor} canUpload={canUpload} uploading={uploading} onPickImage={onPickImage} onError={onError} />
+      <EditorToolbar editor={editor} busy={busy} maxImageUrlLength={maxImageUrlLength} onPickImage={onPickImage} onError={onError} />
       <EditorContent editor={editor} className="rich-editor-content" />
     </div>
   )
