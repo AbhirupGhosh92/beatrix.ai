@@ -2,9 +2,9 @@
 
 File set: `src/lib/blogDoc.ts`, `functions/src/blogDoc.ts` (byte-identical), `scripts/check-blog-contract.mjs`.
 
-- [ ] 1.1 Add `ALIGN_VALUES`, `BULLET_STYLES`, `ORDERED_STYLES`; allow `textAlign` on paragraph/heading and `listStyle` on bulletList/orderedList; refuse other values with `The post content is not valid (<attribute> "<value>" is not allowed).` (value truncated to 20 characters, control characters removed). Verify: `diff` of the two files is empty.
-- [ ] 1.2 Image node with exactly one of `imageId` or `src` (+ optional `alt`): export `isHttpsImageUrl`; `validateDoc(raw, limits?: { maxImageUrlLength?: number })` refuses a non-https, relative, data, javascript, userinfo, over-long URL or a node with both or neither source, with clear messages; uploaded `imageId` nodes validate as before. Verify: below.
-- [ ] 1.3 Extend `check-blog-contract.mjs`: valid/unknown alignment and list values, script text in attrs refused, https accepted, `http`/`javascript:`/`data:`/relative/over-long refused, both/neither source refused, old docs with `imageId` unchanged. Verify: `npm run check:blog` passes.
+- [x] 1.1 Add `ALIGN_VALUES`, `BULLET_STYLES`, `ORDERED_STYLES`; allow `textAlign` on paragraph/heading and `listStyle` on bulletList/orderedList; refuse other values with `The post content is not valid (<attribute> "<value>" is not allowed).` (value truncated to 20 characters, control characters removed). Verify: `diff` of the two files is empty.
+- [x] 1.2 Image node with exactly one of `imageId` or `src` (+ optional `alt`): export `isHttpsImageUrl`; `validateDoc(raw, limits?: { maxImageUrlLength?: number })` refuses a non-https, relative, data, javascript, userinfo, over-long URL or a node with both or neither source, with clear messages; uploaded `imageId` nodes validate as before. Verify: below.
+- [x] 1.3 Extend `check-blog-contract.mjs`: valid/unknown alignment and list values, script text in attrs refused, https accepted, `http`/`javascript:`/`data:`/relative/over-long refused, both/neither source refused, old docs with `imageId` unchanged. Verify: `npm run check:blog` passes.
 
 ## 2. Server side: function and config (builder-2, after 1 is merged)
 
