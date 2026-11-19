@@ -256,7 +256,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
 
   const visibleImages = images.filter((image) => !removed.includes(image.id))
   const reportError = useCallback((message: string) => dispatch(notify('error', message)), [dispatch])
-  const maxImageUrlLength = (config as { maxImageUrlLength?: number }).maxImageUrlLength ?? 2000
+  const maxImageUrlLength = config.maxImageUrlLength
 
   /** The Upload control (toolbar and Images panel). A never-saved post is saved as a draft first. */
   const requestUpload = async () => {

@@ -16,11 +16,11 @@ File set: `functions/src/blog.ts`, `functions/src/blogValidation.ts`, `src/data/
 
 File set: `src/components/blog/RichEditor.tsx`, `src/components/blog/EditorToolbar.tsx`, `src/components/blog/BlogEditor.tsx`, `src/components/blog/BlogPage.tsx`, `package.json` and lockfiles.
 
-- [ ] 3.1 Image node in the editor: attrs `imageId`, `src`, `alt`; parse `img[data-image-id]` and `img[src^="https://"]`; render by source; https-only Markdown input rule; `getPostId` ref instead of the frozen `imagePostId`. Verify: `npm run check`; an uploaded and a URL image both show at their position.
-- [ ] 3.2 Toolbar image control with Upload and By URL (inline form with https URL and alt, same refusal messages as the server using `maxImageUrlLength`). Verify: scenarios "Image by URL", "URL not accepted" (`http`, `javascript:`, `data:`, relative, over-long).
-- [ ] 3.3 Always-usable upload on a new post: run `problems`, save as draft (draft toggle reset), then `showPicker()` in try/catch with the "Draft saved. Choose the image again." fallback; no draft and no picker when checks or save fail. Verify: scenarios "First upload on a new post", "Unsaved post cannot be saved", "Upload failure", "Wrong type or too large".
-- [ ] 3.4 Keep the form mounted across the first save: stable `editorKey` in `BlogPage`, `created` post and no refetch skeleton in `BlogEditor` as in design.md. Verify by hand: typed text and the cursor position survive the first-save upload and the image is inserted at the cursor; Reload and opening another post still work.
-- [ ] 3.5 Alignment and list style: add `@tiptap/extension-text-align` (exact version, both lockfiles), toolbar buttons and shortcuts, list-style select, `listStyle` attr on list nodes using the constants from `blogDoc.ts`. Verify: scenarios "Align and reopen", "Style a bulleted list", "Style a numbered list".
+- [x] 3.1 Image node in the editor: attrs `imageId`, `src`, `alt`; parse `img[data-image-id]` and `img[src^="https://"]`; render by source; https-only Markdown input rule; `getPostId` ref instead of the frozen `imagePostId`. Verify: `npm run check`; an uploaded and a URL image both show at their position.
+- [x] 3.2 Toolbar image control with Upload and By URL (inline form with https URL and alt, same refusal messages as the server using `maxImageUrlLength`). Verify: scenarios "Image by URL", "URL not accepted" (`http`, `javascript:`, `data:`, relative, over-long).
+- [x] 3.3 Always-usable upload on a new post: run `problems`, save as draft (draft toggle reset), then `showPicker()` in try/catch with the "Draft saved. Choose the image again." fallback; no draft and no picker when checks or save fail. Verify: scenarios "First upload on a new post", "Unsaved post cannot be saved", "Upload failure", "Wrong type or too large".
+- [x] 3.4 Keep the form mounted across the first save: stable `editorKey` in `BlogPage`, `created` post and no refetch skeleton in `BlogEditor` as in design.md. Verify by hand: typed text and the cursor position survive the first-save upload and the image is inserted at the cursor; Reload and opening another post still work.
+- [x] 3.5 Alignment and list style: add `@tiptap/extension-text-align` (exact version, both lockfiles), toolbar buttons and shortcuts, list-style select, `listStyle` attr on list nodes using the constants from `blogDoc.ts`. Verify: scenarios "Align and reopen", "Style a bulleted list", "Style a numbered list".
 
 ## 4. Rendering and reader options (builder-4, after 1 is merged)
 
@@ -33,4 +33,4 @@ File set: `src/components/blog/BlogContent.tsx`, `src/components/blog/BlogView.t
 
 File set: `CLAUDE.md`, `README.md` (via `scripts/update-readme.mjs`), OpenSpec archive.
 
-- [ ] 5.1 Update the CLAUDE.md "Personal blog" section (two image sources and the URL rule, `maxImageUrlLength`, always-usable upload and the first-save draft, post id switch without remount, whitelist attrs, reader options and their localStorage keys, no CSP note) and the README structure. Run `npm run check`, `npm run build`, `openspec validate --all`; archive after testing.
+- [x] 5.1 Update the CLAUDE.md "Personal blog" section (two image sources and the URL rule, `maxImageUrlLength`, always-usable upload and the first-save draft, post id switch without remount, whitelist attrs, reader options and their localStorage keys, no CSP note) and the README structure. Run `npm run check`, `npm run build`, `openspec validate --all`. (Archive with `/opsx:archive` after testing: still to do.)
