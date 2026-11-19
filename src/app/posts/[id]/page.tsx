@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import BlogContent from '../../../components/blog/BlogContent.tsx'
+import ReaderFrame from '../../../components/blog/ReaderFrame.tsx'
 import { getBlogConfig } from '../../../middleware/blogConfigService.ts'
 import { getPublicBlogPost } from '../../../middleware/blogService.ts'
 import { getProfile } from '../../../middleware/profileService.ts'
@@ -42,7 +43,8 @@ export default async function PostPage({ params }: Props) {
           </Link>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-screen-2xl flex-1 px-3 py-10 sm:px-6 lg:px-8">
+        <ReaderFrame>
         <article className="flex flex-col gap-6">
           <header className="flex flex-col gap-3">
             <h1 className="break-words text-3xl font-bold sm:text-4xl">{post.title}</h1>
@@ -67,6 +69,7 @@ export default async function PostPage({ params }: Props) {
             imageUrl={(imageId) => `/api/posts/${post.id}/images/${imageId}`}
           />
         </article>
+        </ReaderFrame>
       </main>
     </div>
   )

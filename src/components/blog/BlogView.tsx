@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, PenLine } from 'lucide-react'
 import { useGetBlogPostQuery } from '../../store/api.ts'
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import BlogContent from './BlogContent.tsx'
+import ReaderFrame from './ReaderFrame.tsx'
 
 interface Props {
   id: string
@@ -57,14 +58,16 @@ export default function BlogView({ id, onEdit, onClose }: Props) {
         )}
       </header>
 
-      <div className="surface rounded-box p-4">
-        <BlogContent
-          format={post.format === 'doc' ? 'doc' : 'markdown'}
-          body={post.body}
-          content={post.content}
-          imageUrl={(imageId: string) => `/api/blog/${encodeURIComponent(post.id)}/images/${imageId}`}
-        />
-      </div>
+      <ReaderFrame>
+        <div className="surface rounded-box p-4">
+          <BlogContent
+            format={post.format === 'doc' ? 'doc' : 'markdown'}
+            body={post.body}
+            content={post.content}
+            imageUrl={(imageId: string) => `/api/blog/${encodeURIComponent(post.id)}/images/${imageId}`}
+          />
+        </div>
+      </ReaderFrame>
     </article>
   )
 }

@@ -1,0 +1,92 @@
+/* Blog content: alignment and list markers (fixed classes chosen from whitelists in BlogContent)
+   and the reader view (theme and width), scoped to the .reader wrapper. */
+.blog-align-left {
+  text-align: left;
+}
+
+.blog-align-center {
+  text-align: center;
+}
+
+.blog-align-right {
+  text-align: right;
+}
+
+.blog-align-justify {
+  text-align: justify;
+}
+
+.blog-prose ul.blog-list-disc {
+  list-style-type: disc;
+}
+
+.blog-prose ul.blog-list-circle {
+  list-style-type: circle;
+}
+
+.blog-prose ul.blog-list-square {
+  list-style-type: square;
+}
+
+.blog-prose ol.blog-list-decimal {
+  list-style-type: decimal;
+}
+
+.blog-prose ol.blog-list-lower-alpha {
+  list-style-type: lower-alpha;
+}
+
+.blog-prose ol.blog-list-upper-alpha {
+  list-style-type: upper-alpha;
+}
+
+.blog-prose ol.blog-list-lower-roman {
+  list-style-type: lower-roman;
+}
+
+.blog-prose ol.blog-list-upper-roman {
+  list-style-type: upper-roman;
+}
+
+/* Reader width: compact is a readable measure, wide uses the full available width. */
+.reader[data-reader-width="compact"] .reader-inner {
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.reader[data-reader-width="wide"] .reader-inner {
+  max-width: none;
+}
+
+/* Reader themes: scoped overrides of the theme tokens, so nothing outside the wrapper changes.
+   Body text contrast: light about 14:1, dark about 14:1, paper about 10:1 (all above 4.5:1). */
+.reader[data-reader-theme] {
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  border-radius: var(--radius-box);
+  padding: 1rem;
+}
+
+.reader[data-reader-theme="light"] {
+  --color-base-100: #ffffff;
+  --color-base-200: #f1f5f9;
+  --color-base-300: #cbd5e1;
+  --color-base-content: #1e293b;
+  --color-primary: #4338ca;
+}
+
+.reader[data-reader-theme="dark"] {
+  --color-base-100: #0f172a;
+  --color-base-200: #1e293b;
+  --color-base-300: #475569;
+  --color-base-content: #e2e8f0;
+  --color-primary: #a5b4fc;
+}
+
+.reader[data-reader-theme="paper"] {
+  --color-base-100: #f4ecd8;
+  --color-base-200: #eadfc4;
+  --color-base-300: #cdbf9f;
+  --color-base-content: #3b3228;
+  --color-primary: #7c2d12;
+}
