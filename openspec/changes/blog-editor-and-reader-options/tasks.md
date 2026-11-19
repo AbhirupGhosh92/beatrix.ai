@@ -2,8 +2,8 @@
 
 File set: `src/middleware/cloudFunctions.ts`, `src/middleware/blogService.ts`, `src/app/api/blog/[id]/images/route.ts`, `src/components/blog/BlogEditor.tsx`, `src/components/blog/EditorToolbar.tsx`, `functions/src/blogValidation.ts`, `scripts/` (a repro script, not committed unless useful), `design.md` (only the root-cause section).
 
-- [ ] 1.1 Reproduce locally per design.md (stand-in function using real `checkImage`/`imageUpload`; png, jpeg, webp, gif, 2 MiB, over limit, wrong type, new vs saved post) and record the confirmed cause under "Image upload: root cause". Verify: the section states observed behavior. **Stop and report to the Architect if the cause needs a cloud resource, IAM or secret.**
-- [ ] 1.2 Fix the confirmed cause(s) only: per-call timeout for `imageUpload` with a clear timeout message, specific errors for type, size and unreachable server, visible reason when upload is unavailable (new unsaved post, image limit). Verify: scenarios "Upload an allowed image", "Wrong type or too large", "Upload failure" by hand and `npm run check`.
+- [ ] 1.1 Add a regression check for the first-save remount (an image inserted after the first save of a new post shows its `src`) and, if time allows, confirm the secondary hypotheses locally (timeout, error text) with a stand-in function; record any extra finding in design.md. Verify: the section states observed behavior. **Stop and report to the Architect if anything needs a cloud resource, IAM or secret.**
+- [ ] 1.2 Make the "Insert image" toolbar button and the Upload button clickable on an unsaved post or at the image limit: `aria-disabled`, a reason in `title`/`aria-label`, and on click the existing error snackbar with the reason; no draft is created and no request is sent. Add the per-call timeout and clearer errors only if 1.1 confirms them. Verify: scenarios "Upload an allowed image" (after first save), "Wrong type or too large", "Upload failure" by hand; the button gives a visible reason on a new post; `npm run check`.
 
 ## 2. Document schema and server validation (builder-2)
 
