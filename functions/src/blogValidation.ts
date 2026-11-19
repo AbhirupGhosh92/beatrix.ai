@@ -15,6 +15,8 @@ export interface BlogLimits {
   maxImagesPerPost: number;
   maxPostsPerAuthor: number;
   excerptLength: number;
+  /** Characters of an image URL in a post (the image node's src). */
+  maxImageUrlLength: number;
 }
 
 export interface BlogConfig extends BlogLimits {
@@ -31,6 +33,7 @@ export const BLOG_DEFAULTS: BlogConfig = {
   maxImagesPerPost: 10,
   maxPostsPerAuthor: 200,
   excerptLength: 160,
+  maxImageUrlLength: 2000,
 };
 
 /** Hard caps in code that a config can never raise. */
@@ -43,7 +46,11 @@ export const BLOG_HARD_MAX = {
   maxImagesPerPost: 50,
   maxPostsPerAuthor: 5000,
   excerptLength: 500,
+  maxImageUrlLength: 8000,
 } as const;
+
+/** Lowest accepted value of keys whose minimum is not 1. */
+const INT_MIN: Partial<Record<keyof typeof BLOG_HARD_MAX, number>> = { maxImageUrlLength: 20 };
 
 /** Serialized size of a stored document; far below Firestore's 1 MiB document limit. */
 export const MAX_DOC_BYTES = 700_000;
@@ -60,6 +67,7 @@ const INT_KEYS = [
   "maxImagesPerPost",
   "maxPostsPerAuthor",
   "excerptLength",
+  "maxImageUrlLength",
 ] as const;
 
 /** Reads the forwarded config; an invalid key falls back to its default, writeRoles to admin only. */
@@ -68,7 +76,7 @@ export function readBlogConfig(value: unknown): BlogConfig {
   const out: BlogConfig = { ...BLOG_DEFAULTS, writeRoles: ["admin"] };
   for (const key of INT_KEYS) {
     const v = c[key];
-    if (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= BLOG_HARD_MAX[key]) out[key] = v;
+    if (typeof v === "number" && Number.isInteger(v) && v >= (INT_MIN[key] ?? 1) && v <= BLOG_HARD_MAX[key]) out[key] = v;
   }
   // Legacy byte-based key: a character is at least one byte, so it is a safe (never stricter) limit.
   const legacy = c.maxBodyBytes;
@@ -115,7 +123,7 @@ export function checkBody(value: unknown, limits: BlogLimits): string {
 export function checkContent(value: unknown, limits: BlogLimits): { doc: BlogDoc; text: string } {
   let doc: BlogDoc;
   try {
-    doc = validateDoc(value);
+    doc = validateDoc(value, { maxImageUrlLength: limits.maxImageUrlLength });
   } catch (err) {
     throw new ApiError(400, err instanceof Error ? err.message : "The post content is not valid.");
   }
