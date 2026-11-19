@@ -252,6 +252,8 @@ src/
 │   │   ├── BlogView.tsx
 │   │   ├── CharCounter.tsx
 │   │   ├── EditorToolbar.tsx
+│   │   ├── ReaderControls.tsx
+│   │   ├── ReaderFrame.tsx
 │   │   └── RichEditor.tsx
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
@@ -342,6 +344,7 @@ src/
 │   ├── jsonDefaults.ts
 │   ├── jsonTree.ts
 │   ├── navigationProgress.ts
+│   ├── readerPrefs.ts
 │   ├── resumeConfigSanitize.ts
 │   ├── resumeForm.ts
 │   ├── resumeTypes.ts
@@ -387,6 +390,7 @@ src/
     ├── components/
     │   ├── achievement-card.css
     │   ├── back-to-top.css
+    │   ├── blog-content.css
     │   ├── blog-editor.css
     │   ├── blog.css
     │   ├── buttons.css

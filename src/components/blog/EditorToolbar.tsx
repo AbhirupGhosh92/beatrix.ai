@@ -4,7 +4,12 @@ import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { BULLET_STYLES, ORDERED_STYLES, charCount, isHttpsImageUrl } from '../../lib/blogDoc.ts'
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Bold,
   Code,
   Heading1,
@@ -26,9 +31,10 @@ import {
 
 interface Props {
   editor: Editor
-  /** An image can be uploaded (the post is saved and under the image limit). */
-  canUpload: boolean
-  uploading: boolean
+  /** An upload or save is running. */
+  busy: boolean
+  /** The configured limit of an image address, in characters. */
+  maxImageUrlLength: number
   onPickImage: () => void
   onError: (message: string) => void
 }
@@ -46,9 +52,13 @@ export function normalizeLink(input: string): string | null {
   }
 }
 
-export default function EditorToolbar({ editor, canUpload, uploading, onPickImage, onError }: Props) {
+export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickImage, onError }: Props) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
+  // The image control: closed, the two choices, or the By URL form.
+  const [imageMode, setImageMode] = useState<'closed' | 'choose' | 'url'>('closed')
+  const [imageUrl, setImageUrl] = useState('')
+  const [imageAlt, setImageAlt] = useState('')
 
   const s = useEditorState({
     editor,
@@ -66,6 +76,12 @@ export default function EditorToolbar({ editor, canUpload, uploading, onPickImag
       code: e.isActive('code'),
       codeBlock: e.isActive('codeBlock'),
       link: e.isActive('link'),
+      alignLeft: e.isActive({ textAlign: 'left' }) || (!e.isActive({ textAlign: 'center' }) && !e.isActive({ textAlign: 'right' }) && !e.isActive({ textAlign: 'justify' })),
+      alignCenter: e.isActive({ textAlign: 'center' }),
+      alignRight: e.isActive({ textAlign: 'right' }),
+      alignJustify: e.isActive({ textAlign: 'justify' }),
+      bulletStyle: e.isActive('bulletList') ? String(e.getAttributes('bulletList').listStyle ?? '') : '',
+      orderedStyle: e.isActive('orderedList') ? String(e.getAttributes('orderedList').listStyle ?? '') : '',
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
     }),
@@ -97,6 +113,29 @@ export default function EditorToolbar({ editor, canUpload, uploading, onPickImag
   const removeLink = () => {
     run().extendMarkRange('link').unsetLink().run()
     setLinkOpen(false)
+  }
+
+  const insertUrlImage = () => {
+    const src = imageUrl.trim()
+    if (charCount(src) > maxImageUrlLength) {
+      onError(`The image address is too long (limit ${maxImageUrlLength} characters).`)
+      return
+    }
+    if (!isHttpsImageUrl(src)) {
+      onError('Image addresses must start with https:// and have no spaces.')
+      return
+    }
+    const alt = imageAlt.trim()
+    if (charCount(alt) > 500) {
+      onError('The image description is over the limit of 500 characters.')
+      return
+    }
+    run()
+      .insertContent({ type: 'image', attrs: { src, alt: alt || null } })
+      .run()
+    setImageUrl('')
+    setImageAlt('')
+    setImageMode('closed')
   }
 
   const tool = (label: string, Icon: typeof Bold, active: boolean, action: () => void, disabled = false) => (
@@ -139,13 +178,104 @@ export default function EditorToolbar({ editor, canUpload, uploading, onPickImag
           {tool('Code block', SquareCode, s.codeBlock, () => run().toggleCodeBlock().run())}
           {tool('Link', LinkIcon, s.link, openLink)}
           {tool('Horizontal rule', Minus, false, () => run().setHorizontalRule().run())}
-          {tool('Insert image', ImagePlus, false, onPickImage, !canUpload || uploading)}
+          {tool('Insert image', ImagePlus, imageMode !== 'closed', () => setImageMode((m) => (m === 'closed' ? 'choose' : 'closed')), busy)}
         </div>
+        <div className="editor-toolbar-group">
+          {tool('Align left', AlignLeft, s.alignLeft, () => run().setTextAlign('left').run())}
+          {tool('Align center', AlignCenter, s.alignCenter, () => run().setTextAlign('center').run())}
+          {tool('Align right', AlignRight, s.alignRight, () => run().setTextAlign('right').run())}
+          {tool('Justify', AlignJustify, s.alignJustify, () => run().setTextAlign('justify').run())}
+        </div>
+        {(s.bullet || s.ordered) && (
+          <div className="editor-toolbar-group">
+            <label className="sr-only" htmlFor="editor-list-style">
+              List style
+            </label>
+            <select
+              id="editor-list-style"
+              className="select select-bordered select-sm"
+              value={s.bullet ? s.bulletStyle : s.orderedStyle}
+              onChange={(event) => {
+                const value = event.target.value || null
+                run()
+                  .updateAttributes(s.bullet ? 'bulletList' : 'orderedList', { listStyle: value })
+                  .run()
+              }}
+            >
+              <option value="">Default</option>
+              {(s.bullet ? BULLET_STYLES : ORDERED_STYLES).map((style) => (
+                <option key={style} value={style}>
+                  {style}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="editor-toolbar-group">
           {tool('Undo', Undo2, false, () => run().undo().run(), !s.canUndo)}
           {tool('Redo', Redo2, false, () => run().redo().run(), !s.canRedo)}
         </div>
       </div>
+
+      {imageMode === 'choose' && (
+        <div className="editor-link-form">
+          <button type="button" className="button-primary" disabled={busy} onClick={() => { setImageMode('closed'); onPickImage() }}>
+            Upload
+          </button>
+          <button type="button" className="button-secondary" onClick={() => setImageMode('url')}>
+            By URL
+          </button>
+          <button type="button" className="button-secondary" onClick={() => setImageMode('closed')}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {imageMode === 'url' && (
+        <div className="editor-link-form">
+          <label className="sr-only" htmlFor="editor-image-url">
+            Image address
+          </label>
+          <input
+            id="editor-image-url"
+            className="input input-bordered min-w-0 flex-1"
+            placeholder="https://example.com/picture.png"
+            value={imageUrl}
+            autoFocus
+            onChange={(event) => setImageUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                insertUrlImage()
+              }
+              if (event.key === 'Escape') setImageMode('closed')
+            }}
+          />
+          <label className="sr-only" htmlFor="editor-image-alt">
+            Image description
+          </label>
+          <input
+            id="editor-image-alt"
+            className="input input-bordered min-w-0 flex-1"
+            placeholder="Description (alt text)"
+            value={imageAlt}
+            onChange={(event) => setImageAlt(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                insertUrlImage()
+              }
+              if (event.key === 'Escape') setImageMode('closed')
+            }}
+          />
+          <button type="button" className="button-primary" onClick={insertUrlImage}>
+            Insert
+          </button>
+          <button type="button" className="button-secondary" onClick={() => setImageMode('closed')}>
+            Cancel
+          </button>
+        </div>
+      )}
 
       {linkOpen && (
         <div className="editor-link-form">

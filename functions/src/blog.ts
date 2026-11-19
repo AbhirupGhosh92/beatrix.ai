@@ -28,7 +28,7 @@ import {
  * Every request:   { action, cookie?, config?, ...fields }
  *   cookie   the user's `__session` cookie (all actions except `headers`)
  *   config   { writeRoles, maxTitleLength, maxBodyLength, maxTagsPerPost, maxTagLength,
- *              maxImageBytes, maxImagesPerPost, maxPostsPerAuthor, excerptLength } forwarded by the
+ *              maxImageBytes, maxImagesPerPost, maxPostsPerAuthor, excerptLength, maxImageUrlLength } forwarded by the
  *              Next.js server from blog-config.json; re-validated here (a bad key falls back to its
  *              default, an invalid writeRoles to ["admin"], admin is always included). Every text
  *              limit is in characters (Unicode code points). A config that only has the former
@@ -380,7 +380,7 @@ async function loadPublished(rawId: unknown): Promise<{ id: string; post: Stored
 async function publicGet(body: Body) {
   const { id, post } = await loadPublished(body.id);
   const name = (await authorNames([post.authorEmail])).get(post.authorEmail) ?? AUTHOR_FALLBACK;
-  const doc = post.format === "doc" && post.content ? validateDoc(post.content) : undefined;
+  const doc = post.format === "doc" && post.content ? validateDoc(post.content, { maxImageUrlLength: readBlogConfig(body.config).maxImageUrlLength }) : undefined;
   return {
     post: {
       id,

@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       maxTagLength: config.maxTagLength,
       maxImageBytes: config.maxImageBytes,
       maxImagesPerPost: config.maxImagesPerPost,
+      maxImageUrlLength: config.maxImageUrlLength,
       isAdmin: guard.role === 'admin',
     }
     return NextResponse.json(body, { headers: NO_STORE })

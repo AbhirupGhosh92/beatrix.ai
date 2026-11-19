@@ -8,6 +8,7 @@
   "maxTagLength": 30,
   "maxImageBytes": 2097152,
   "maxImagesPerPost": 10,
+  "maxImageUrlLength": 2000,
   "maxPostsPerAuthor": 200,
   "excerptLength": 160,
   "home": {
