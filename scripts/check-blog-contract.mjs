@@ -248,7 +248,7 @@ await refused(bad(doc({ type: 'paragraph', content: [{ type: 'text', text: 'a', 
 await refused(bad(doc({ type: 'paragraph', content: [{ type: 'text', text: 'a', marks: [{ type: 'font' }] }] })), /unknown mark/)
 await refused(bad(doc({ type: 'heading', attrs: { level: 4 }, content: [] })), /level 1, 2 or 3/)
 await refused(bad(doc({ type: 'image', attrs: { imageId: 'https://evil.dev/x.png' } })), /not valid/)
-await refused(bad(doc({ type: 'image', attrs: { imageId: 'a', src: 'https://evil.dev/x.png' } })), /unknown attribute/)
+await refused(bad(doc({ type: 'image', attrs: { imageId: 'a', src: 'https://evil.dev/x.png' } })), /either an uploaded image or an address/)
 await refused(bad(doc({ type: 'paragraph', content: [{ type: 'image', attrs: { imageId: 'a' } }] })), /not valid/)
 await refused(bad({ type: 'paragraph' }), /not valid/)
 await refused(bad('<p>html</p>'), /not valid/)
@@ -256,6 +256,47 @@ let deep = p('x')
 for (let i = 0; i < 13; i++) deep = { type: 'blockquote', content: [deep] }
 await refused(bad(doc(deep)), /nested too deeply/)
 await refused(bad(doc(...Array.from({ length: 20001 }, () => ({ type: 'horizontalRule' })))), /too many/)
+// alignment, list styles and https URL images (blog-editor-and-reader-options 1.1)
+{
+  const { validateDoc, isHttpsImageUrl, ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES } = await import(path.join(root, 'src', 'lib', 'blogDoc.ts'))
+  const li = { type: 'listItem', content: [p('i')] }
+  for (const v of ALIGN_VALUES) {
+    assert.equal(validateDoc(doc({ ...p('a'), attrs: { textAlign: v } })).content[0].attrs.textAlign, v)
+    assert.equal(validateDoc(doc({ type: 'heading', attrs: { level: 1, textAlign: v } })).content[0].attrs.textAlign, v)
+  }
+  for (const v of BULLET_STYLES) assert.equal(validateDoc(doc({ type: 'bulletList', attrs: { listStyle: v }, content: [li] })).content[0].attrs.listStyle, v)
+  for (const v of ORDERED_STYLES) assert.equal(validateDoc(doc({ type: 'orderedList', attrs: { start: 1, listStyle: v }, content: [li] })).content[0].attrs.listStyle, v)
+  assert.throws(() => validateDoc(doc({ ...p('a'), attrs: { textAlign: 'start' } })), /textAlign "start" is not allowed/)
+  assert.throws(() => validateDoc(doc({ type: 'bulletList', attrs: { listStyle: 'decimal' }, content: [li] })), /listStyle "decimal" is not allowed/)
+  assert.throws(() => validateDoc(doc({ type: 'orderedList', attrs: { listStyle: 'disc' }, content: [li] })), /not allowed/)
+  assert.throws(() => validateDoc(doc({ type: 'blockquote', attrs: { textAlign: 'left' }, content: [] })), /unknown attribute/)
+  for (const hostile of ['<script>alert(1)</script>', 'x;}</style><style>a{}', 'a\u0000b'.repeat(20)]) {
+    let msg = ''
+    try { validateDoc(doc({ ...p('a'), attrs: { textAlign: hostile } })) } catch (e) { msg = e.message }
+    assert.match(msg, /not allowed/)
+    assert.ok(Array.from(msg.match(/textAlign "(.*)" is/s)[1]).length <= 20 && !/[\u0000-\u001f]/.test(msg), 'echoed value is bounded and clean')
+  }
+  await refused(bad(doc({ ...p('a'), attrs: { textAlign: '<style>' } })), /textAlign "<style>" is not allowed/)
+  const img = (attrs) => doc({ type: 'image', attrs })
+  assert.equal(validateDoc(img({ src: 'https://example.com/a.png?x=1', alt: 'pic' })).content[0].attrs.src, 'https://example.com/a.png?x=1')
+  assert.equal(validateDoc(img({ src: 'https://example.com/a.png' })).content[0].attrs.alt, null)
+  for (const src of ['http://example.com/a.png', 'javascript:alert(1)', 'data:image/png;base64,AAAA', 'blob:https://x.dev/1', '/a.png', '//example.com/a.png', 'a.png', 'https://u:p@example.com/a.png', 'https://exa mple.com/a.png', 'https://example.com/a\n.png', '']) {
+    assert.equal(isHttpsImageUrl(src), false, JSON.stringify(src))
+    assert.throws(() => validateDoc(img({ src })), /https:\/\//, JSON.stringify(src))
+  }
+  const longUrl = 'https://example.com/' + 'a'.repeat(1980)
+  assert.equal(longUrl.length, 2000)
+  validateDoc(img({ src: longUrl }))
+  assert.throws(() => validateDoc(img({ src: longUrl + 'a' })), /limit 2000 characters/)
+  assert.throws(() => validateDoc(img({ src: 'https://example.com/abcdef' }), { maxImageUrlLength: 20 }), /limit 20 characters/)
+  validateDoc(img({ src: 'https://example.com/abcdef' }), { maxImageUrlLength: 40 })
+  assert.throws(() => validateDoc(img({ imageId: 'a', src: 'https://example.com/a.png' })), /either an uploaded image or an address/)
+  assert.throws(() => validateDoc(img({ alt: 'x' })), /either an uploaded image or an address/)
+  assert.throws(() => validateDoc(img({ src: 'https://example.com/a.png', extra: 1 })), /unknown attribute/)
+  // old documents validate exactly as before
+  const old = doc({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'H' }] }, p('x'), { type: 'bulletList', content: [li] }, { type: 'orderedList', attrs: { start: 3 }, content: [li] }, { type: 'image', attrs: { imageId: 'abc_1', alt: 'pic' } })
+  assert.deepEqual(validateDoc(old), old)
+}
 // the storage backstop: well inside the character limit but over MAX_DOC_BYTES
 {
   const huge = { ...config, maxBodyLength: 200000 }
