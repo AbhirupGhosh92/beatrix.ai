@@ -3,6 +3,7 @@
 import { ArrowLeft, ExternalLink, PenLine } from 'lucide-react'
 import { useGetBlogPostQuery } from '../../store/api.ts'
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
+import { readMinutes } from '../../lib/readTime.ts'
 import BlogContent from './BlogContent.tsx'
 import ReaderFrame from './ReaderFrame.tsx'
 
@@ -44,9 +45,12 @@ export default function BlogView({ id, onEdit, onClose }: Props) {
 
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="min-w-0 break-words text-2xl font-semibold">{post.title || 'Untitled'}</h1>
+          <h1 className="reader-title min-w-0">{post.title || 'Untitled'}</h1>
           <span className="blog-tag">{post.status === 'published' ? 'Published' : 'Draft'}</span>
         </div>
+        <p className="reader-byline text-meta">
+          <span>{readMinutes(post)} min read</span>
+        </p>
         {post.tags.length > 0 && (
           <ul className="flex flex-wrap gap-1" aria-label="Tags">
             {post.tags.map((tag) => (
