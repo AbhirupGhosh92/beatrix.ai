@@ -22,6 +22,16 @@ export interface BlogConfig {
   maxPostsPerAuthor: number
   /** Length of the excerpt stored with a post. */
   excerptLength: number
+  /** Characters (code points) of one comment. */
+  maxCommentLength: number
+  /** Comments returned per read of a post. */
+  maxCommentsShown: number
+  /** Comments one user may write on one post. */
+  maxCommentsPerUserPerPost: number
+  /** Comments one post may hold. */
+  maxCommentsPerPost: number
+  /** Bookmarks one user may keep. */
+  maxBookmarksPerUser: number
   /** Copy of the home page block. */
   home: { heading: string; intro: string }
 }
@@ -30,6 +40,8 @@ export interface BlogConfig {
 export interface PublicBlogConfig {
   enabled: boolean
   writeRoles: Role[]
+  /** Lets the comment box show a live counter. */
+  maxCommentLength: number
   home: { heading: string; intro: string }
 }
 
@@ -45,6 +57,11 @@ export const BLOG_LIMITS = {
   maxImageUrlLength: { min: 20, max: 8000 },
   maxPostsPerAuthor: { min: 1, max: 2000 },
   excerptLength: { min: 20, max: 500 },
+  maxCommentLength: { min: 50, max: 5000 },
+  maxCommentsShown: { min: 1, max: 200 },
+  maxCommentsPerUserPerPost: { min: 1, max: 200 },
+  maxCommentsPerPost: { min: 1, max: 10_000 },
+  maxBookmarksPerUser: { min: 1, max: 2000 },
 } as const
 
 /** Longest allowed heading or intro text. */
@@ -59,6 +76,8 @@ export interface BlogEditorConfig {
   maxImageBytes: number
   maxImagesPerPost: number
   maxImageUrlLength: number
+  /** Characters of one comment (optional until the editor config route forwards it). */
+  maxCommentLength?: number
   /** Whether the caller is an admin (may list every author's posts). */
   isAdmin: boolean
 }

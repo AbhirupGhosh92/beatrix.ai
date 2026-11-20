@@ -11,6 +11,11 @@
   "maxImageUrlLength": 2000,
   "maxPostsPerAuthor": 200,
   "excerptLength": 160,
+  "maxCommentLength": 1000,
+  "maxCommentsShown": 50,
+  "maxCommentsPerUserPerPost": 20,
+  "maxCommentsPerPost": 1000,
+  "maxBookmarksPerUser": 200,
   "home": {
     "heading": "From the blog",
     "intro": "Notes and write-ups, picked at random."
