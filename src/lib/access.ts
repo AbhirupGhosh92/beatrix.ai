@@ -109,6 +109,9 @@ const POST_ID = '[A-Za-z0-9_-]{1,100}'
 const PUBLIC_POST_PATHS = [
   new RegExp(`^/posts/${POST_ID}$`),
   new RegExp(`^/api/posts/${POST_ID}/images/[A-Za-z0-9_-]{1,100}$`),
+  // Counts and comments are public to read; the handler treats a bad cookie as anonymous. Only GET
+  // matters: the writes (like, bookmark, comments) are different paths and stay non-public (site:view).
+  new RegExp(`^/api/posts/${POST_ID}/engagement$`),
 ]
 
 export function isPublicPostPath(pathname: string): boolean {
@@ -139,13 +142,26 @@ export function requiredPermission(pathname: string): Permission | null {
   return best?.permission ?? DEFAULT_PERMISSION
 }
 
+/** The signed-in engagement routes (site:view, not blog:write): like, bookmark, comments, bookmarks list. */
+const ENGAGEMENT_ROUTES = [
+  new RegExp(`^/api/posts/${POST_ID}/(?:like|bookmark|comments)$`),
+  new RegExp(`^/api/posts/${POST_ID}/comments/[A-Za-z0-9_-]{1,100}$`),
+]
+
 /**
- * Whether a path belongs to the blog authoring feature (page or API) that blog-config.json can
- * switch off. The public headers endpoint is excluded: it does its own config check.
+ * Whether a path belongs to the blog feature (authoring page or API, or the signed-in engagement
+ * routes and bookmarks page) that blog-config.json can switch off. Public paths (the headers
+ * endpoint, the post page and the public engagement read) are excluded: they do their own config check.
  */
 export function isBlogRoute(pathname: string): boolean {
   if (isPublicPath(pathname)) return false
-  return matchesPrefix(pathname, '/blog') || matchesPrefix(pathname, '/api/blog')
+  return (
+    matchesPrefix(pathname, '/blog') ||
+    matchesPrefix(pathname, '/api/blog') ||
+    matchesPrefix(pathname, '/bookmarks') ||
+    matchesPrefix(pathname, '/api/bookmarks') ||
+    ENGAGEMENT_ROUTES.some((pattern) => pattern.test(pathname))
+  )
 }
 
 /** The menu item id a path is tied to, or null when the path is not a switchable feature. */
