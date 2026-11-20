@@ -8,7 +8,15 @@ import { isRole } from '../lib/access.ts'
 import type { Role } from '../lib/access.ts'
 import { getIdToken } from '../lib/firebase.ts'
 import type { ApplicationDetail, ApplicationInput, ApplicationList, ApplicationSummary, CreatedResume } from '../lib/applicationTypes.ts'
-import type { BlogImage, BlogList, BlogPost, BlogSaveArg } from '../lib/blogTypes.ts'
+import type {
+  BlogBookmarks,
+  BlogImage,
+  BlogList,
+  BlogPost,
+  BlogSaveArg,
+  CommentAddResult,
+  PostEngagement,
+} from '../lib/blogTypes.ts'
 import type { BlogEditorConfig, BlogHeader } from '../data/blogConfig.ts'
 import type { BuilderConfig, ResumeEnvelope, ResumeSummary } from '../lib/resumeTypes.ts'
 import type { ResumeData, ResumeView, Structure } from '../lib/resumeValidation.ts'
@@ -106,7 +114,7 @@ export interface SaveResumeArg {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'Users', 'Owners', 'CmsFiles', 'CmsFile', 'BlogPosts', 'BlogPost', 'BlogConfig', 'BlogHeaders'],
+  tagTypes: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'Users', 'Owners', 'CmsFiles', 'CmsFile', 'BlogPosts', 'BlogPost', 'BlogConfig', 'BlogHeaders', 'Engagement', 'Bookmarks'],
   endpoints: (build) => ({
     // Session: null role when logged out (401 is the normal anonymous answer, not a failure).
     getSessionRole: build.query<Role | null, void>({
@@ -120,11 +128,11 @@ export const api = createApi({
     signIn: build.mutation<{ success?: boolean }, { idToken: string }>({
       query: (body) => ({ url: '/api/auth/session', method: 'POST', body }),
       // A new session must never see the previous user's cached data.
-      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig'],
+      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig', 'Engagement', 'Bookmarks'],
     }),
     signOut: build.mutation<{ success?: boolean }, void>({
       query: () => ({ url: '/api/auth/session', method: 'DELETE' }),
-      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig'],
+      invalidatesTags: ['Session', 'Resumes', 'Resume', 'ResumeConfig', 'Applications', 'Application', 'BlogPosts', 'BlogPost', 'BlogConfig', 'Engagement', 'Bookmarks'],
     }),
 
     // Blog: the author's own posts (the public home headers are the one public read).
@@ -152,6 +160,72 @@ export const api = createApi({
     }),
     uploadBlogImage: build.mutation<BlogImage, { postId: string; name: string; dataBase64: string }>({
       query: ({ postId, name, dataBase64 }) => ({ url: `/api/blog/${postId}/images`, method: 'POST', body: { name, dataBase64 } }),
+    }),
+    // Blog engagement (any signed-in user): likes, bookmarks and comments on a published post.
+    getPostEngagement: build.query<PostEngagement, string>({
+      query: (id) => ({ url: `/api/posts/${id}/engagement` }),
+      providesTags: (_r, _e, id) => [{ type: 'Engagement', id }],
+    }),
+    // One older page of comments (`before` = the createdAt of the oldest one shown); used with the lazy hook.
+    getOlderComments: build.query<PostEngagement, { id: string; before: string }>({
+      query: ({ id, before }) => ({ url: `/api/posts/${id}/engagement?before=${encodeURIComponent(before)}` }),
+      keepUnusedDataFor: 0,
+    }),
+    toggleLike: build.mutation<{ liked: boolean; likeCount: number }, string>({
+      query: (id) => ({ url: `/api/posts/${id}/like`, method: 'POST' }),
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          api.util.updateQueryData('getPostEngagement', id, (draft) => {
+            if (!draft.viewer) return
+            draft.viewer.liked = !draft.viewer.liked
+            draft.likeCount = Math.max(0, draft.likeCount + (draft.viewer.liked ? 1 : -1))
+          }),
+        )
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            api.util.updateQueryData('getPostEngagement', id, (draft) => {
+              if (draft.viewer) draft.viewer.liked = data.liked
+              draft.likeCount = data.likeCount
+            }),
+          )
+        } catch {
+          patch.undo()
+        }
+      },
+    }),
+    toggleBookmark: build.mutation<{ bookmarked: boolean }, string>({
+      query: (id) => ({ url: `/api/posts/${id}/bookmark`, method: 'POST' }),
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          api.util.updateQueryData('getPostEngagement', id, (draft) => {
+            if (draft.viewer) draft.viewer.bookmarked = !draft.viewer.bookmarked
+          }),
+        )
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            api.util.updateQueryData('getPostEngagement', id, (draft) => {
+              if (draft.viewer) draft.viewer.bookmarked = data.bookmarked
+            }),
+          )
+        } catch {
+          patch.undo()
+        }
+      },
+      invalidatesTags: ['Bookmarks'],
+    }),
+    addComment: build.mutation<CommentAddResult, { id: string; text: string }>({
+      query: ({ id, text }) => ({ url: `/api/posts/${id}/comments`, method: 'POST', body: { text } }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Engagement', id }],
+    }),
+    removeComment: build.mutation<{ commentCount: number }, { id: string; commentId: string }>({
+      query: ({ id, commentId }) => ({ url: `/api/posts/${id}/comments/${commentId}`, method: 'DELETE' }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Engagement', id }],
+    }),
+    getBookmarks: build.query<BlogBookmarks, void>({
+      query: () => ({ url: '/api/bookmarks' }),
+      providesTags: ['Bookmarks'],
     }),
     getBlogHeaders: build.query<BlogHeader[], void>({
       query: () => ({ url: '/api/blog/headers' }),
@@ -267,6 +341,13 @@ export const {
   useDeleteBlogPostMutation,
   useUploadBlogImageMutation,
   useGetBlogHeadersQuery,
+  useGetPostEngagementQuery,
+  useLazyGetOlderCommentsQuery,
+  useToggleLikeMutation,
+  useToggleBookmarkMutation,
+  useAddCommentMutation,
+  useRemoveCommentMutation,
+  useGetBookmarksQuery,
   useGetResumeConfigQuery,
   useListResumesQuery,
   useGetResumeQuery,
