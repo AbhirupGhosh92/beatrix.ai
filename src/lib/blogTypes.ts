@@ -52,3 +52,41 @@ export interface BlogSaveArg {
 
 /** Image scheme used inside a Markdown body: ![name](blog-image:<imageId>). */
 export const BLOG_IMAGE_SCHEME = 'blog-image:'
+
+/** A public comment: no email, only the display name. `mine`/`canRemove` are relative to the viewer. */
+export interface BlogComment {
+  id: string
+  authorName: string
+  text: string
+  createdAt: string
+  mine: boolean
+  canRemove: boolean
+}
+
+/** GET /api/posts/<id>/engagement. `viewer` is null for an anonymous visitor. */
+export interface PostEngagement {
+  likeCount: number
+  commentCount: number
+  comments: BlogComment[]
+  hasMore: boolean
+  viewer: { liked: boolean; bookmarked: boolean } | null
+}
+
+export interface CommentAddResult {
+  comment: BlogComment
+  commentCount: number
+}
+
+export interface BookmarkedPost {
+  id: string
+  title: string
+  excerpt: string
+  tags: string[]
+  publishedAt: string
+  authorName: string
+  savedAt: string
+}
+
+export interface BlogBookmarks {
+  posts: BookmarkedPost[]
+}

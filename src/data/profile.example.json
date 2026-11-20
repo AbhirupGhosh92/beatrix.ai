@@ -480,6 +480,13 @@
         "href": "/blog",
         "icon": "pen-line",
         "enabled": true
+      },
+      {
+        "id": "bookmarks",
+        "label": "Saved posts",
+        "href": "/bookmarks",
+        "icon": "bookmark",
+        "enabled": true
       }
     ],
     "dropdownItems": [
