@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { Editor, JSONContent } from '@tiptap/react'
 import { ArrowLeft, ImagePlus, RefreshCw, Save, Trash2 } from 'lucide-react'
@@ -139,6 +139,15 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   const [doc, setDoc] = useState<JSONContent | null>(null)
   const [editor, setEditor] = useState<Editor | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const titleRef = useRef<HTMLTextAreaElement>(null)
+
+  // The title field grows with its text (no inner scrollbar).
+  useLayoutEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [title])
 
   // Legacy Markdown posts are converted in the editor; the notice says what that cannot keep.
   const initial = useMemo(() => initialContent(post), [post])
@@ -305,11 +314,23 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         </div>
       )}
 
-      <label className="flex flex-col gap-1">
-        <span className="text-meta-strong font-semibold">Title</span>
-        <input className="input input-bordered w-full" value={title} onChange={(event) => setTitle(event.target.value)} />
-        <CharCounter label="Title length" count={titleChars} max={config.maxTitleLength} />
-      </label>
+      <div className="editor-canvas">
+        <label className="flex flex-col gap-1">
+          <span className="sr-only">Title</span>
+          <textarea
+            ref={titleRef}
+            className="editor-title"
+            rows={1}
+            placeholder="Title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value.replace(/[\r\n]+/g, ' '))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.preventDefault()
+            }}
+          />
+          <CharCounter label="Title length" count={titleChars} max={config.maxTitleLength} />
+        </label>
+      </div>
 
       <label className="flex flex-col gap-1">
         <span className="text-meta-strong font-semibold">Tags</span>
@@ -335,9 +356,8 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-meta-strong font-semibold">Text</span>
+      <div className="editor-canvas flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <CharCounter label="Text length" count={bodyChars} max={bodyMax} />
         </div>
         <RichEditor
