@@ -2,7 +2,7 @@
 
 Owner: `architect`. File set: `src/index.css`, `src/styles/components/blog-reader.css` (new, empty), `src/styles/components/blog-engagement.css` (new, empty).
 
-- [ ] 0.1 Create the two empty style files and add their `@import`s after `blog-content.css` in `src/index.css`, so no Builder edits `index.css`. Verify: `npm run build` passes.
+- [x] 0.1 Create the two empty style files and add their `@import`s after `blog-content.css` in `src/index.css`, so no Builder edits `index.css`. Verify: `npm run build` passes.
 
 Parallel groups 1, 2, 3 and 4 have disjoint file sets and share only the JSON contract in `design.md` D3 and the routes in D5. Group 5 starts after group 4 is merged. Every Builder runs `npm run check` before reporting; groups 1 also runs `npm run check:blog`.
 
