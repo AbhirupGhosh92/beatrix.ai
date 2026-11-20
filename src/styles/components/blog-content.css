@@ -50,7 +50,7 @@
 
 /* Reader width: compact is a readable measure, wide uses the full available width. */
 .reader[data-reader-width="compact"] .reader-inner {
-  max-width: 44rem;
+  max-width: 42rem;
   margin-inline: auto;
 }
 

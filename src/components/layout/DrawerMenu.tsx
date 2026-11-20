@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Briefcase, Circle, FileText, PenLine, Sliders, User } from 'lucide-react'
+import { Bookmark, Briefcase, Circle, FileText, PenLine, Sliders, User } from 'lucide-react'
 import type { DrawerIcon } from '../../data/profile.ts'
 import { can, type Role } from '../../lib/access.ts'
 import { visibleDrawerItems } from '../../lib/drawer.ts'
@@ -14,6 +14,7 @@ const ICONS: Record<DrawerIcon, typeof Circle> = {
   user: User,
   circle: Circle,
   'pen-line': PenLine,
+  bookmark: Bookmark,
 }
 
 export default function DrawerMenu({ role }: { role: Role }) {

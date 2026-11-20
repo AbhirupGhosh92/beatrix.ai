@@ -53,6 +53,17 @@ function applyMark(mark: BlogMark, child: ReactNode): ReactNode {
   }
 }
 
+// An image with alt text is shown as a figure with the alt text as its caption; one without stays bare.
+function captioned(key: string, img: ReactNode, alt: string): ReactNode {
+  if (alt.trim() === '') return <Fragment key={key}>{img}</Fragment>
+  return (
+    <figure key={key}>
+      {img}
+      <figcaption>{alt}</figcaption>
+    </figure>
+  )
+}
+
 function renderNode(node: BlogNode, key: string, imageUrl: (id: string) => string): ReactNode {
   const children = (node.content ?? []).map((child, i) => renderNode(child, `${key}.${i}`, imageUrl))
   switch (node.type) {
@@ -94,11 +105,15 @@ function renderNode(node: BlogNode, key: string, imageUrl: (id: string) => strin
       const src = node.attrs?.src
       if (typeof id === 'string' && IMAGE_ID.test(id)) {
         // eslint-disable-next-line @next/next/no-img-element
-        return <img key={key} src={imageUrl(id)} alt={alt} loading="lazy" decoding="async" />
+        return captioned(key, <img src={imageUrl(id)} alt={alt} loading="lazy" decoding="async" />, alt)
       }
       if (isHttpsImageUrl(src)) {
-        // eslint-disable-next-line @next/next/no-img-element
-        return <img key={key} src={src} alt={alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+        return captioned(
+          key,
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" />,
+          alt,
+        )
       }
       return null
     }

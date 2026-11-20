@@ -16,6 +16,8 @@
 @import "./styles/components/blog.css";
 @import "./styles/components/blog-editor.css";
 @import "./styles/components/blog-content.css";
+@import "./styles/components/blog-reader.css";
+@import "./styles/components/blog-engagement.css";
 @import "./styles/components/typography.css";
 @import "./styles/components/back-to-top.css";
 @import "./styles/components/skills-tabs.css";

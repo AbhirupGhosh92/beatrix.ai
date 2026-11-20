@@ -59,3 +59,18 @@ export async function blogGuard(request: NextRequest): Promise<{ cookie: string;
   const denied = await blogOff(session.role)
   return denied ?? { cookie, role: session.role }
 }
+
+/**
+ * The checks every signed-in engagement route (like, bookmark, comments, bookmarks) starts with: cookie,
+ * session, blog on. Any role with access may go on; blog:write is not needed.
+ */
+export async function signedInGuard(request: NextRequest): Promise<{ cookie: string; role: Role } | NextResponse> {
+  const cookie = sessionCookie(request)
+  if (!cookie) return unauthorized('Sign-in required.')
+  const session = await verifySession(cookie)
+  if (!session) return unauthorized('Sign-in required.')
+  if (!(await getBlogConfig()).enabled) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE })
+  }
+  return { cookie, role: session.role }
+}

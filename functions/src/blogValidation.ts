@@ -17,6 +17,12 @@ export interface BlogLimits {
   excerptLength: number;
   /** Characters of an image URL in a post (the image node's src). */
   maxImageUrlLength: number;
+  /** Characters of one comment. */
+  maxCommentLength: number;
+  maxCommentsShown: number;
+  maxCommentsPerUserPerPost: number;
+  maxCommentsPerPost: number;
+  maxBookmarksPerUser: number;
 }
 
 export interface BlogConfig extends BlogLimits {
@@ -34,6 +40,11 @@ export const BLOG_DEFAULTS: BlogConfig = {
   maxPostsPerAuthor: 200,
   excerptLength: 160,
   maxImageUrlLength: 2000,
+  maxCommentLength: 1000,
+  maxCommentsShown: 50,
+  maxCommentsPerUserPerPost: 20,
+  maxCommentsPerPost: 1000,
+  maxBookmarksPerUser: 200,
 };
 
 /** Hard caps in code that a config can never raise. */
@@ -47,10 +58,15 @@ export const BLOG_HARD_MAX = {
   maxPostsPerAuthor: 5000,
   excerptLength: 500,
   maxImageUrlLength: 8000,
+  maxCommentLength: 5000,
+  maxCommentsShown: 200,
+  maxCommentsPerUserPerPost: 200,
+  maxCommentsPerPost: 10_000,
+  maxBookmarksPerUser: 2000,
 } as const;
 
 /** Lowest accepted value of keys whose minimum is not 1. */
-const INT_MIN: Partial<Record<keyof typeof BLOG_HARD_MAX, number>> = { maxImageUrlLength: 20 };
+const INT_MIN: Partial<Record<keyof typeof BLOG_HARD_MAX, number>> = { maxImageUrlLength: 20, maxCommentLength: 50 };
 
 /** Serialized size of a stored document; far below Firestore's 1 MiB document limit. */
 export const MAX_DOC_BYTES = 700_000;
@@ -68,6 +84,11 @@ const INT_KEYS = [
   "maxPostsPerAuthor",
   "excerptLength",
   "maxImageUrlLength",
+  "maxCommentLength",
+  "maxCommentsShown",
+  "maxCommentsPerUserPerPost",
+  "maxCommentsPerPost",
+  "maxBookmarksPerUser",
 ] as const;
 
 /** Reads the forwarded config; an invalid key falls back to its default, writeRoles to admin only. */

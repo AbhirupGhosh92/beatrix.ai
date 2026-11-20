@@ -73,5 +73,5 @@ export function sanitizeBlogConfig(value: unknown, example: BlogConfig, warn?: W
 
 /** The subset of the config the browser may see. */
 export function publicBlogConfig(config: BlogConfig): PublicBlogConfig {
-  return { enabled: config.enabled, writeRoles: config.writeRoles, home: config.home }
+  return { enabled: config.enabled, writeRoles: config.writeRoles, maxCommentLength: config.maxCommentLength, home: config.home }
 }

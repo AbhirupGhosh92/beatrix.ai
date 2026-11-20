@@ -18,6 +18,7 @@ import {
   readBlogConfig,
   type BlogConfig,
 } from "./blogValidation";
+import { createEngagementActions, deleteEngagement } from "./blogEngagement";
 
 /*
  * The whole blog backend is ONE private function, `blog`, that dispatches on `body.action`.
@@ -74,6 +75,23 @@ import {
  *              malformed id is the same 404.
  * publicImageGet { id, imageId } (no cookie)                  -> { contentType, name, dataBase64 }
  *              the post must be published and own the image, else 404.
+ *
+ * Engagement (blogEngagement.ts; published posts only, anything else is the same 404 as publicGet).
+ * Identity is always the verified session email; `site:view` is enough (not blog:write). The config
+ * also carries maxCommentLength, maxCommentsShown, maxCommentsPerUserPerPost, maxCommentsPerPost and
+ * maxBookmarksPerUser. Over a per-user rate limit (30 writes/min, 5 comments/10 min) -> 429.
+ * engagementGet  { id, before?, cookie? }   -> { likeCount, commentCount, comments: [{ id, authorName,
+ *              text, createdAt, mine, canRemove }], hasMore, viewer: null | { liked, bookmarked } }
+ *              newest comments first; no or invalid cookie = anonymous (viewer null).
+ * likeToggle     { id }                     -> { liked, likeCount }
+ * bookmarkToggle { id }                     -> { bookmarked }  (409 past maxBookmarksPerUser)
+ * bookmarksList  {}                         -> { posts: [{ id, title, excerpt, tags, publishedAt,
+ *              authorName, savedAt }] } newest saved first; unpublished or deleted posts dropped.
+ * commentAdd     { id, text }               -> { comment, commentCount }  (400 empty or too long,
+ *              409 comment limit)
+ * commentRemove  { id, commentId }          -> { commentCount }  (writer, post author or admin;
+ *              403 otherwise, 404 missing)
+ * Deleting a post also deletes its engagement data; unpublishing keeps it.
  *              The public actions build their output from explicit field lists; the author email is
  *              never returned, `authorName` is the author's display name limited to 60 characters
  *              ("Author" when empty or containing "@").
@@ -268,6 +286,7 @@ async function remove(body: Body) {
   await ref.delete();
   // The bucket keeps noncurrent versions for 30 days, so an operator can still restore an image.
   await blogBucket().deleteFiles({ prefix: `${id}/`, force: true });
+  await deleteEngagement(id);
   return { success: true };
 }
 
@@ -404,6 +423,8 @@ async function publicImageGet(body: Body) {
   return { contentType: image.contentType, name: image.name, dataBase64: bytes.toString("base64") };
 }
 
+const engagement = createEngagementActions({ loadPublished, authorNames, authorFallback: AUTHOR_FALLBACK });
+
 const ACTIONS: Record<string, (body: Body) => Promise<unknown>> = {
   list,
   get,
@@ -414,6 +435,7 @@ const ACTIONS: Record<string, (body: Body) => Promise<unknown>> = {
   headers: () => headers(),
   publicGet,
   publicImageGet,
+  ...engagement,
 };
 
 export const blog = privateEndpoint(async (body) => {

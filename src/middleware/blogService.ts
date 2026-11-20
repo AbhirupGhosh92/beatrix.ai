@@ -157,6 +157,88 @@ export async function getPublicBlogPost(id: string): Promise<PublicPost | null> 
   }
 }
 
+// Engagement (likes, bookmarks, comments). Response types mirror the function contract (design.md D3);
+// the function returns explicit public fields only. A malformed id is answered here without a call.
+export interface BlogComment {
+  id: string
+  authorName: string
+  text: string
+  createdAt: string
+  mine: boolean
+  canRemove: boolean
+}
+
+export interface BlogEngagement {
+  likeCount: number
+  commentCount: number
+  comments: BlogComment[]
+  hasMore: boolean
+  /** null for an anonymous reader. */
+  viewer: { liked: boolean; bookmarked: boolean } | null
+}
+
+export interface BlogLikeResult {
+  liked: boolean
+  likeCount: number
+}
+
+export interface BlogBookmarkResult {
+  bookmarked: boolean
+}
+
+export interface BlogBookmarkEntry {
+  id: string
+  title: string
+  excerpt: string
+  tags: string[]
+  publishedAt: string | null
+  authorName: string
+  savedAt: string
+}
+
+export interface BlogBookmarksResult {
+  posts: BlogBookmarkEntry[]
+}
+
+export interface BlogCommentAddResult {
+  comment: BlogComment
+  commentCount: number
+}
+
+export interface BlogCommentRemoveResult {
+  commentCount: number
+}
+
+const notFound = () => new CloudFunctionError(404, 'Not found.')
+
+/** Engagement of a published post; `cookie` null (or a bad one) reads as anonymous. */
+export async function getEngagement(cookie: string | null, id: string, before?: string) {
+  if (!PUBLIC_ID.test(id)) throw notFound()
+  return call<BlogEngagement>('engagementGet', cookie, { id, ...(before ? { before } : {}) })
+}
+
+export async function toggleLike(cookie: string, id: string) {
+  if (!PUBLIC_ID.test(id)) throw notFound()
+  return call<BlogLikeResult>('likeToggle', cookie, { id })
+}
+
+export async function toggleBookmark(cookie: string, id: string) {
+  if (!PUBLIC_ID.test(id)) throw notFound()
+  return call<BlogBookmarkResult>('bookmarkToggle', cookie, { id })
+}
+
+export async function addComment(cookie: string, id: string, text: string) {
+  if (!PUBLIC_ID.test(id)) throw notFound()
+  return call<BlogCommentAddResult>('commentAdd', cookie, { id, text })
+}
+
+export async function removeComment(cookie: string, id: string, commentId: string) {
+  if (!PUBLIC_ID.test(id)) throw notFound()
+  return call<BlogCommentRemoveResult>('commentRemove', cookie, { id, commentId })
+}
+
+export const listBookmarks = (cookie: string) => call<BlogBookmarksResult>('bookmarksList', cookie)
+
 /** The bytes of an image of a published post, or null when the post or image is not public. */
 export async function getPublicBlogImage(id: string, imageId: string) {
   if (!PUBLIC_ID.test(id)) return null

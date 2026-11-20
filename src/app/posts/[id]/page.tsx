@@ -3,7 +3,10 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import BlogContent from '../../../components/blog/BlogContent.tsx'
+import PostEngagement from '../../../components/blog/PostEngagement.tsx'
 import ReaderFrame from '../../../components/blog/ReaderFrame.tsx'
+import SavedLink from '../../../components/blog/SavedLink.tsx'
+import { readMinutes } from '../../../lib/readTime.ts'
 import { getBlogConfig } from '../../../middleware/blogConfigService.ts'
 import { getPublicBlogPost } from '../../../middleware/blogService.ts'
 import { getProfile } from '../../../middleware/profileService.ts'
@@ -41,34 +44,41 @@ export default async function PostPage({ params }: Props) {
           <Link href="/" className="text-lg font-semibold hover-subtle">
             {profile.person.name}
           </Link>
+          <div className="ml-auto">
+            <SavedLink />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-3 py-10 sm:px-6 lg:px-8">
         <ReaderFrame>
-        <article className="flex flex-col gap-6">
-          <header className="flex flex-col gap-3">
-            <h1 className="break-words text-3xl font-bold sm:text-4xl">{post.title}</h1>
-            <p className="text-meta">
-              {post.authorName} ·{' '}
-              <time dateTime={post.publishedAt}>{new Date(post.publishedAt).toLocaleDateString('en-US')}</time>
-            </p>
-            {post.tags.length > 0 && (
-              <ul className="flex flex-wrap gap-1" aria-label="Tags">
-                {post.tags.map((tag) => (
-                  <li key={tag} className="blog-tag">
-                    {tag}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </header>
-          <BlogContent
-            format={post.format}
-            body={post.body}
-            content={post.content}
-            imageUrl={(imageId) => `/api/posts/${post.id}/images/${imageId}`}
-          />
-        </article>
+          <article className="reader-article flex flex-col gap-6">
+            <header className="flex flex-col gap-3">
+              <h1 className="reader-title">{post.title}</h1>
+              <p className="reader-byline text-meta">
+                <span>{post.authorName}</span>
+                <span aria-hidden="true">·</span>
+                <time dateTime={post.publishedAt}>{new Date(post.publishedAt).toLocaleDateString('en-US')}</time>
+                <span aria-hidden="true">·</span>
+                <span>{readMinutes(post)} min read</span>
+              </p>
+              {post.tags.length > 0 && (
+                <ul className="flex flex-wrap gap-1" aria-label="Tags">
+                  {post.tags.map((tag) => (
+                    <li key={tag} className="blog-tag">
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </header>
+            <BlogContent
+              format={post.format}
+              body={post.body}
+              content={post.content}
+              imageUrl={(imageId) => `/api/posts/${post.id}/images/${imageId}`}
+            />
+          </article>
+          <PostEngagement postId={post.id} />
         </ReaderFrame>
       </main>
     </div>

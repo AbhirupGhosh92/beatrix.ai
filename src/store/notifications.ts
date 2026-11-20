@@ -52,6 +52,8 @@ const SUCCESS: Record<string, (arg: Arg, result: Result) => string | null> = {
     typeof arg === 'object' && arg?.id ? (arg.status === 'published' ? 'Post saved and published.' : 'Draft saved.') : 'Post created.',
   deleteBlogPost: () => 'Post deleted.',
   uploadBlogImage: () => 'Image uploaded.',
+  addComment: () => 'Comment posted.',
+  removeComment: () => 'Comment removed.',
   createApplication: () => 'Application added.',
   updateApplication: () => 'Application updated.',
   deleteApplication: () => 'Application deleted.',
