@@ -217,11 +217,23 @@ src/
 │   │   │   │   └── route.ts
 │   │   │   └── headers/
 │   │   │       └── route.ts
+│   │   ├── bookmarks/
+│   │   │   └── route.ts
 │   │   ├── posts/
 │   │   │   └── [id]/
-│   │   │       └── images/
-│   │   │           └── [imageId]/
-│   │   │               └── route.ts
+│   │   │       ├── bookmark/
+│   │   │       │   └── route.ts
+│   │   │       ├── comments/
+│   │   │       │   ├── route.ts
+│   │   │       │   └── [commentId]/
+│   │   │       │       └── route.ts
+│   │   │       ├── engagement/
+│   │   │       │   └── route.ts
+│   │   │       ├── images/
+│   │   │       │   └── [imageId]/
+│   │   │       │       └── route.ts
+│   │   │       └── like/
+│   │   │           └── route.ts
 │   │   └── resumes/
 │   │       ├── route.ts
 │   │       ├── [id]/
@@ -230,6 +242,8 @@ src/
 │   │           └── route.ts
 │   ├── blog/
 │   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── bookmarks/
 │   │   └── page.tsx
 │   ├── job-tracker/
 │   │   ├── layout.tsx
@@ -250,11 +264,16 @@ src/
 │   │   ├── BlogPage.tsx
 │   │   ├── BlogPreview.tsx
 │   │   ├── BlogView.tsx
+│   │   ├── BookmarksPage.tsx
 │   │   ├── CharCounter.tsx
-│   │   ├── EditorToolbar.tsx
+│   │   ├── CommentSection.tsx
+│   │   ├── FloatingToolbar.tsx
+│   │   ├── InsertMenu.tsx
+│   │   ├── PostEngagement.tsx
 │   │   ├── ReaderControls.tsx
 │   │   ├── ReaderFrame.tsx
-│   │   └── RichEditor.tsx
+│   │   ├── RichEditor.tsx
+│   │   └── SavedLink.tsx
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
 │   │   ├── ApplicationTable.tsx
@@ -345,6 +364,7 @@ src/
 │   ├── jsonTree.ts
 │   ├── navigationProgress.ts
 │   ├── readerPrefs.ts
+│   ├── readTime.ts
 │   ├── resumeConfigSanitize.ts
 │   ├── resumeForm.ts
 │   ├── resumeTypes.ts
@@ -392,6 +412,8 @@ src/
     │   ├── back-to-top.css
     │   ├── blog-content.css
     │   ├── blog-editor.css
+    │   ├── blog-engagement.css
+    │   ├── blog-reader.css
     │   ├── blog.css
     │   ├── buttons.css
     │   ├── google-signin.css
