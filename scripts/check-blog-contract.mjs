@@ -27,13 +27,13 @@ const roles = {
 }
 
 class DocSnap {
-  constructor(id, data) { this.id = id; this.data_ = data; this.exists = data !== undefined }
+  constructor(id, data, path) { this.id = id; this.data_ = data; this.exists = data !== undefined; this.ref = new DocRef(path ?? id) }
   data() { return this.data_ === undefined ? undefined : structuredClone(this.data_) }
   get(f) { return this.data_?.[f] }
 }
 class DocRef {
   constructor(p) { this.path = p; this.id = p.split('/').pop() }
-  async get() { return new DocSnap(this.id, docs.get(this.path)) }
+  async get() { return new DocSnap(this.id, docs.get(this.path), this.path) }
   async set(d) { docs.set(this.path, structuredClone(d)) }
   async create(d) { if (docs.has(this.path)) throw new Error('exists'); docs.set(this.path, structuredClone(d)) }
   async update(d) { docs.set(this.path, { ...docs.get(this.path), ...structuredClone(d) }) }
@@ -41,16 +41,18 @@ class DocRef {
 }
 class Query {
   constructor(prefix, filters = [], lim = Infinity) { this.prefix = prefix; this.filters = filters; this.lim = lim }
+  doc(id) { return new DocRef(this.prefix + '/' + id) }
   where(f, op, v) { return new Query(this.prefix, [...this.filters, [f, op, v]], this.lim) }
   orderBy(f, dir) { const q = new Query(this.prefix, this.filters, this.lim); q.order = [f, dir]; return q }
   limit(n) { const q = new Query(this.prefix, this.filters, n); q.order = this.order; return q }
   select() { return this }
   rows() {
-    let rows = [...docs.entries()].filter(([k]) => k.startsWith(this.prefix + '/')).map(([k, v]) => new DocSnap(k.split('/').pop(), v))
+    let rows = [...docs.entries()].filter(([k]) => k.startsWith(this.prefix + '/')).map(([k, v]) => new DocSnap(k.split('/').pop(), v, k))
     for (const [f, op, v] of this.filters) {
       rows = rows.filter((s) => {
         const x = s.data_[f]
         if (op === '==') return x === v
+        if (op === '<') return x !== null && x !== undefined && x < v
         if (op === '>') return x !== null && x !== undefined && x > v
         throw new Error('fake: op ' + op)
       })
@@ -65,7 +67,8 @@ const fakeDb = {
   doc: (p) => new DocRef(p),
   collection: (name) => new Query(name),
   getAll: async (...refs) => Promise.all(refs.map((r) => r.get())),
-  runTransaction: async (fn) => fn({ get: (ref) => ref.get(), create: (ref, d) => ref.create(d), set: (ref, d) => ref.set(d), update: (ref, d) => ref.update(d) }),
+  recursiveDelete: async (ref) => { for (const k of [...docs.keys()]) if (k === ref.path || k.startsWith(ref.path + '/')) docs.delete(k) },
+  runTransaction: async (fn) => fn({ get: (ref) => ref.get(), create: (ref, d) => ref.create(d), set: (ref, d) => ref.set(d), update: (ref, d) => ref.update(d), delete: (ref) => ref.delete() }),
 }
 class FakeFile {
   constructor(k) { this.k = k }
@@ -398,6 +401,197 @@ assert.equal(docs.get('allowed_emails/blank@x.dev').role, 'reader', 'a new user 
   }
   assert.equal(requiredPermission('/blog'), 'blog:write')
   assert.equal(requiredPermission('/api/blog/x'), 'blog:write')
+}
+
+
+// ---- engagement (likes, bookmarks, comments) -----------------------------------------------------
+{
+  const { createHash } = await import('node:crypto')
+  const eng = require(path.join(root, 'functions', 'lib', 'blogEngagement.js'))
+  const { readBlogConfig } = require(path.join(root, 'functions', 'lib', 'blogValidation.js'))
+  const key = (e) => createHash('sha256').update(e).digest('hex')
+  const EMAIL_LIKE = /@/
+  const FORBIDDEN = ['authorEmail', 'email', 'userKey']
+  const noPrivate = (value, what) => {
+    const walk = (v) => {
+      if (Array.isArray(v)) return v.forEach(walk)
+      if (v && typeof v === 'object') {
+        for (const [k, x] of Object.entries(v)) { assert.ok(!FORBIDDEN.includes(k), `${what}: key ${k}`); walk(x) }
+      } else if (typeof v === 'string') assert.ok(!EMAIL_LIKE.test(v), `${what}: value ${v}`)
+    }
+    walk(value)
+  }
+
+  // 1.3 rate-limit window math (pure)
+  const T = Date.UTC(2026, 0, 1, 12, 0, 10)
+  let st
+  for (let i = 0; i < 30; i++) st = eng.nextRate(st, T + i, false)
+  assert.equal(st.n, 30, 'at the limit the 30th write passes')
+  assert.throws(() => eng.nextRate(st, T + 100, false), (e) => e.status === 429 && /Too many actions/.test(e.message), 'over the limit -> 429')
+  const next = eng.nextRate(st, T + 60_000, false)
+  assert.equal(next.n, 1, 'a new window starts again')
+  let cs
+  for (let i = 0; i < 5; i++) cs = eng.nextRate(cs, T + i * 1000, true)
+  assert.equal(cs.cn, 5)
+  assert.throws(() => eng.nextRate(cs, T + 6000, true), (e) => e.status === 429, 'sixth comment in 10 minutes')
+  assert.equal(eng.nextRate(cs, T + 6000, false).cn, 5, 'non-comment writes do not count as comments')
+  assert.equal(eng.nextRate(cs, T + 600_000, true).cn, 1, 'the comment window resets after 10 minutes')
+
+  // 1.5 comment sanitising and length in code points
+  assert.throws(() => eng.cleanComment('', 1000), (e) => e.status === 400 && /Write a comment first/.test(e.message))
+  assert.throws(() => eng.cleanComment(' \n\t \u0007 ', 1000), (e) => e.status === 400)
+  assert.throws(() => eng.cleanComment(null, 1000), (e) => e.status === 400)
+  assert.equal(eng.cleanComment('  hi\u0000 th\u0007ere\r\n\r\n\r\n\r\nok\ttab  ', 1000), 'hi there\n\noktab')
+  assert.equal(eng.cleanComment('é', 1000), 'é', 'NFC normalised')
+  assert.equal(eng.cleanComment('😀'.repeat(50), 50), '😀'.repeat(50), '50 emoji = 50 characters (100 UTF-16 units)')
+  assert.throws(() => eng.cleanComment('😀'.repeat(51), 50), (e) => e.status === 400 && /50 characters/.test(e.message))
+
+  // 1.1 config fallback
+  const defaults = readBlogConfig({})
+  assert.equal(defaults.maxCommentLength, 1000)
+  assert.equal(defaults.maxCommentsShown, 50)
+  assert.equal(defaults.maxCommentsPerUserPerPost, 20)
+  assert.equal(defaults.maxCommentsPerPost, 1000)
+  assert.equal(defaults.maxBookmarksPerUser, 200)
+  for (const [k, bad] of [['maxCommentLength', 49], ['maxCommentLength', 5001], ['maxCommentLength', 'x'], ['maxCommentsShown', 0], ['maxCommentsPerUserPerPost', 1.5], ['maxCommentsPerPost', -1], ['maxBookmarksPerUser', null]]) {
+    assert.equal(readBlogConfig({ [k]: bad })[k], defaults[k], `${k}=${bad} falls back`)
+  }
+  assert.equal(readBlogConfig({ maxCommentLength: 50 }).maxCommentLength, 50)
+  assert.equal(readBlogConfig({ maxCommentLength: 5000 }).maxCommentLength, 5000)
+  {
+    const { sanitizeBlogConfig, publicBlogConfig } = await import(path.join(root, 'src', 'lib', 'blogConfigSanitize.ts'))
+    const example = JSON.parse(readFileSync(path.join(root, 'src', 'data', 'blog-config.example.json'), 'utf-8'))
+    assert.equal(sanitizeBlogConfig({ maxCommentLength: 10 }, example).maxCommentLength, example.maxCommentLength)
+    assert.equal(sanitizeBlogConfig({ maxCommentLength: 300 }, example).maxCommentLength, 300)
+    assert.equal(sanitizeBlogConfig({ maxBookmarksPerUser: 'x' }, example).maxBookmarksPerUser, 200)
+    assert.equal(publicBlogConfig(example).maxCommentLength, 1000)
+    assert.ok(!('maxCommentsShown' in publicBlogConfig(example)))
+  }
+
+  // public shapers carry no private data even for email-like input
+  const viewer = { email: 'other@x.dev', role: 'user-advanced', postAuthor: 'writer@x.dev' }
+  const shaped = eng.commentView('c1', { authorEmail: 'other@x.dev', text: 'hi', createdAt: 't', userKey: 'k', extra: 'x@y.z' }, 'Author', viewer)
+  assert.deepEqual(Object.keys(shaped).sort(), ['authorName', 'canRemove', 'createdAt', 'id', 'mine', 'text'])
+  noPrivate(shaped, 'commentView')
+  const entry = eng.bookmarkEntry('p1', { title: 'T', excerpt: 'e', tags: ['a', 3], publishedAt: 't', authorEmail: 'writer@x.dev' }, 'Wanda', 'saved')
+  assert.deepEqual(Object.keys(entry).sort(), ['authorName', 'excerpt', 'id', 'publishedAt', 'savedAt', 'tags', 'title'])
+  assert.deepEqual(entry.tags, ['a'])
+  noPrivate(entry, 'bookmarkEntry')
+  assert.equal(eng.commentView('c', { authorEmail: 'a@x.dev' }, 'A', null).canRemove, false)
+  assert.equal(eng.commentView('c', { authorEmail: 'a@x.dev' }, 'A', { email: 'writer@x.dev', role: 'user-advanced', postAuthor: 'writer@x.dev' }).canRemove, true, 'the post author may remove')
+  assert.equal(eng.commentView('c', { authorEmail: 'a@x.dev' }, 'A', { email: 'admin@x.dev', role: 'admin', postAuthor: 'writer@x.dev' }).canRemove, true, 'the admin may remove')
+
+  // 1.2 actions through the real handler
+  const post = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Engage', body: 'b', tags: [], status: 'published' }))
+  const draft = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Draft', body: 'b', tags: [], status: 'draft' }))
+  const anon = await ok('engagementGet', null, { id: post.id })
+  assert.deepEqual(anon, { likeCount: 0, commentCount: 0, comments: [], hasMore: false, viewer: null })
+  assert.equal((await ok('engagementGet', 'nobody@x.dev', { id: post.id })).viewer, null, 'a cookie for an unknown account is anonymous')
+  for (const [a, f] of [['engagementGet', {}], ['likeToggle', {}], ['bookmarkToggle', {}], ['commentAdd', { text: 'hi' }]]) {
+    const who = a === 'engagementGet' ? null : 'other@x.dev'
+    assert.equal((await call(a, who, { id: draft.id, ...f })).status, 404, `${a} on a draft`)
+    assert.equal((await call(a, who, { id: 'nope', ...f })).status, 404, `${a} on a malformed id`)
+  }
+  assert.equal((await call('likeToggle', null, { id: post.id })).status, 401, 'anonymous cannot write')
+  assert.equal((await call('commentAdd', null, { id: post.id, text: 'x' })).status, 401)
+  assert.equal((await call('bookmarksList', null, {})).status, 401)
+
+  // any signed-in role (not blog:write) may like
+  docs.set('allowed_emails/reader@x.dev', { role: 'reader', allowed: true, displayName: 'Rita Reader' })
+  const l1 = await ok('likeToggle', 'reader@x.dev', { id: post.id })
+  assert.deepEqual(l1, { liked: true, likeCount: 1 })
+  assert.deepEqual(await ok('likeToggle', 'other@x.dev', { id: post.id }), { liked: true, likeCount: 2 })
+  assert.deepEqual(await ok('likeToggle', 'reader@x.dev', { id: post.id }), { liked: false, likeCount: 1 })
+  assert.ok(![...docs.keys()].some((k) => k.includes('reader@x.dev') && k.startsWith('blog_')), 'no engagement document id is an email')
+  assert.ok(docs.has(`blog_engagement/${post.id}/likes/${key('other@x.dev')}`))
+  assert.equal(docs.get(`blog_posts/${post.id}`).version, 1, 'engagement never bumps the post version')
+
+  // comments
+  const c1 = await ok('commentAdd', 'reader@x.dev', { id: post.id, text: '  Nice\u0000 post\n\n\n\nthanks  ' })
+  assert.equal(c1.commentCount, 1)
+  assert.equal(c1.comment.text, 'Nice post\n\nthanks')
+  assert.equal(c1.comment.authorName, 'Rita Reader')
+  assert.deepEqual([c1.comment.mine, c1.comment.canRemove], [true, true])
+  noPrivate(c1, 'commentAdd')
+  assert.equal((await call('commentAdd', 'reader@x.dev', { id: post.id, text: '   ' })).status, 400)
+  assert.equal((await call('commentAdd', 'reader@x.dev', { id: post.id, text: 'x'.repeat(1001) })).status, 400)
+  assert.equal(docs.get(`blog_engagement/${post.id}`).commentCount, 1, 'a refused comment stores nothing')
+  await new Promise((r) => setTimeout(r, 5))
+  const c2 = await ok('commentAdd', 'other@x.dev', { id: post.id, text: 'second' })
+  assert.equal(c2.comment.authorName, 'Author', 'an email as display name never shows')
+  const pubView = await ok('engagementGet', null, { id: post.id })
+  assert.equal(pubView.commentCount, 2)
+  assert.deepEqual(pubView.comments.map((c) => c.text), ['second', 'Nice post\n\nthanks'], 'newest first')
+  assert.ok(pubView.comments.every((c) => !c.mine && !c.canRemove))
+  noPrivate(pubView, 'engagementGet anonymous')
+  const readerView = await ok('engagementGet', 'reader@x.dev', { id: post.id })
+  assert.deepEqual(readerView.viewer, { liked: false, bookmarked: false })
+  assert.deepEqual(readerView.comments.map((c) => [c.mine, c.canRemove]), [[false, false], [true, true]])
+  noPrivate(readerView, 'engagementGet signed in')
+  const authorView = await ok('engagementGet', 'writer@x.dev', { id: post.id })
+  assert.ok(authorView.comments.every((c) => c.canRemove && !c.mine), 'the post author may remove every comment')
+  const paged = await ok('engagementGet', null, { id: post.id, before: c2.comment.createdAt })
+  assert.deepEqual(paged.comments.map((c) => c.text), ['Nice post\n\nthanks'])
+
+  // removal: only the writer, the post author or the admin
+  assert.equal((await call('commentRemove', 'long@x.dev', { id: post.id, commentId: c1.comment.id })).status, 403)
+  assert.equal((await call('commentRemove', 'long@x.dev', { id: post.id, commentId: 'missing' })).status, 404)
+  assert.deepEqual(await ok('commentRemove', 'reader@x.dev', { id: post.id, commentId: c1.comment.id }), { commentCount: 1 })
+  assert.deepEqual(await ok('commentRemove', 'writer@x.dev', { id: post.id, commentId: c2.comment.id }), { commentCount: 0 })
+  assert.equal((await ok('engagementGet', null, { id: post.id })).comments.length, 0)
+
+  // per-user and per-post comment limits (config forwarded as the site does)
+  const limited = { ...config, maxCommentsPerUserPerPost: 2, maxCommentsPerPost: 3 }
+  const callWith = (cfg) => async (action, cookie, fields) => {
+    let status = 0, payload
+    await blog({ method: 'POST', body: { action, cookie, config: cfg, ...fields } }, { status(s) { status = s; return this }, json(b) { payload = b } })
+    return { status, payload }
+  }
+  const lim = callWith(limited)
+  docs.delete(`blog_rate/${key('long@x.dev')}`)
+  assert.equal((await lim('commentAdd', 'long@x.dev', { id: post.id, text: 'a' })).status, 200)
+  assert.equal((await lim('commentAdd', 'long@x.dev', { id: post.id, text: 'b' })).status, 200)
+  assert.equal((await lim('commentAdd', 'long@x.dev', { id: post.id, text: 'c' })).status, 409, 'per user per post')
+  assert.equal((await lim('commentAdd', 'other@x.dev', { id: post.id, text: 'd' })).status, 200)
+  assert.equal((await lim('commentAdd', 'reader@x.dev', { id: post.id, text: 'e' })).status, 409, 'per post')
+
+  // bookmarks
+  assert.deepEqual(await ok('bookmarkToggle', 'reader@x.dev', { id: post.id }), { bookmarked: true })
+  assert.equal((await ok('engagementGet', 'reader@x.dev', { id: post.id })).viewer.bookmarked, true)
+  const list = await ok('bookmarksList', 'reader@x.dev', {})
+  assert.equal(list.posts.length, 1)
+  assert.equal(list.posts[0].id, post.id)
+  assert.equal(list.posts[0].authorName, 'Wanda Writer')
+  noPrivate(list, 'bookmarksList')
+  assert.equal((await ok('bookmarksList', 'other@x.dev', {})).posts.length, 0, 'bookmarks are per user')
+  const tiny = callWith({ ...config, maxBookmarksPerUser: 1 })
+  const second2 = unwrapPost(await ok('save', 'writer@x.dev', { title: 'Second', body: 'b', tags: [], status: 'published' }))
+  const over = await tiny('bookmarkToggle', 'reader@x.dev', { id: second2.id })
+  assert.equal(over.status, 409)
+  assert.match(over.payload.error.message, /Bookmark limit reached/)
+  assert.deepEqual((await tiny('bookmarkToggle', 'reader@x.dev', { id: post.id })).payload, { bookmarked: false }, 'removing always works')
+  await ok('bookmarkToggle', 'reader@x.dev', { id: post.id })
+  // unpublished: every action 404s, the bookmark list drops it and cleans up, data is kept
+  const cur = unwrapPost(await ok('get', 'writer@x.dev', { id: post.id }))
+  await ok('save', 'writer@x.dev', { id: post.id, title: 'Engage', body: 'b', tags: [], status: 'draft', version: cur.version })
+  assert.equal((await call('engagementGet', null, { id: post.id })).status, 404)
+  assert.equal((await call('likeToggle', 'reader@x.dev', { id: post.id })).status, 404)
+  assert.equal((await ok('bookmarksList', 'reader@x.dev', {})).posts.length, 0)
+  assert.ok(!docs.has(`blog_bookmarks/${key('reader@x.dev')}/posts/${post.id}`), 'stale bookmark cleaned lazily')
+  assert.ok(docs.has(`blog_engagement/${post.id}`), 'unpublish keeps the data')
+
+  // the 429 through the handler: a full window refuses and stores nothing
+  const now = Date.now()
+  docs.set(`blog_rate/${key('reader@x.dev')}`, { w: Math.floor(now / 60000) * 60000, n: 30, cw: 0, cn: 0 })
+  const before = docs.get(`blog_engagement/${second2.id}`)
+  const limitedCall = await call('likeToggle', 'reader@x.dev', { id: second2.id })
+  assert.equal(limitedCall.status, 429)
+  assert.equal(limitedCall.payload.error.message, 'Too many actions. Try again in a minute.')
+  assert.equal(docs.get(`blog_engagement/${second2.id}`), before)
+
+  // deleting the post removes its engagement data
+  await ok('delete', 'writer@x.dev', { id: post.id })
+  assert.equal([...docs.keys()].filter((k) => k.startsWith(`blog_engagement/${post.id}`)).length, 0)
 }
 
 console.log('blog contract: OK')
