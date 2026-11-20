@@ -5,7 +5,7 @@ import type { KeyboardEvent } from 'react'
 import type { Editor } from '@tiptap/react'
 import { FloatingMenu } from '@tiptap/react/menus'
 import { charCount, isHttpsImageUrl } from '../../lib/blogDoc.ts'
-import { ImagePlus, List, ListOrdered, Minus, Plus, Quote } from 'lucide-react'
+import { ImagePlus, List, ListOrdered, Minus, Plus, Quote, SquareCode } from 'lucide-react'
 
 interface Props {
   editor: Editor
@@ -28,7 +28,7 @@ const FOCUSABLE = 'button:not(:disabled)'
 
 /**
  * The "+" insert menu on an empty line: image (Upload or By URL), horizontal rule, bulleted list,
- * numbered list, block quote. The editor's Alt+F10 handler focuses the "+" (`.editor-plus`); Enter or
+ * numbered list, block quote, code block. The editor's Alt+F10 handler focuses the "+" (`.editor-plus`); Enter or
  * Space opens the items, arrows move between them, Escape closes and returns to the editor.
  */
 export default function InsertMenu({ editor, busy, maxImageUrlLength, onPickImage, onError }: Props) {
@@ -157,6 +157,7 @@ export default function InsertMenu({ editor, busy, maxImageUrlLength, onPickImag
             {item('Bulleted list', List, () => insert(() => run().toggleBulletList().run()))}
             {item('Numbered list', ListOrdered, () => insert(() => run().toggleOrderedList().run()))}
             {item('Quote', Quote, () => insert(() => run().toggleBlockquote().run()))}
+            {item('Code block', SquareCode, () => insert(() => run().toggleCodeBlock().run()))}
           </div>
         )}
         {open && imageMode === 'choose' && (
