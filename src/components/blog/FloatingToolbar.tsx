@@ -12,6 +12,8 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Code,
+  Eraser,
   Heading2,
   Heading3,
   Italic,
@@ -19,6 +21,9 @@ import {
   List,
   ListOrdered,
   Quote,
+  SquareCode,
+  Strikethrough,
+  Underline,
 } from 'lucide-react'
 
 interface Props {
@@ -64,6 +69,10 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       h3: e.isActive('heading', { level: 3 }),
       bold: e.isActive('bold'),
       italic: e.isActive('italic'),
+      underline: e.isActive('underline'),
+      strike: e.isActive('strike'),
+      code: e.isActive('code'),
+      codeBlock: e.isActive('codeBlock'),
       bullet: e.isActive('bulletList'),
       ordered: e.isActive('orderedList'),
       quote: e.isActive('blockquote'),
@@ -129,7 +138,7 @@ export default function FloatingToolbar({ editor, onError }: Props) {
     items[next]?.focus()
   }
 
-  const tool = (label: string, Icon: typeof Bold, active: boolean, action: () => void) => (
+  const tool = (label: string, Icon: typeof Bold, active: boolean, action: () => void, disabled = false) => (
     <button
       key={label}
       type="button"
@@ -137,6 +146,7 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       aria-label={label}
       title={label}
       aria-pressed={active}
+      disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={action}
     >
@@ -152,7 +162,6 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       shouldShow={({ editor: e, view, state, element }) =>
         !state.selection.empty &&
         e.isEditable &&
-        !e.isActive('codeBlock') &&
         !e.isActive('image') &&
         (view.hasFocus() || element.contains(document.activeElement))
       }
@@ -197,19 +206,24 @@ export default function FloatingToolbar({ editor, onError }: Props) {
         ) : (
           <>
             <div className="editor-toolbar-group">
-              {tool('Bold', Bold, s.bold, () => run().toggleBold().run())}
-              {tool('Italic', Italic, s.italic, () => run().toggleItalic().run())}
-              {tool('Link', LinkIcon, s.link, openLink)}
+              {tool('Bold', Bold, s.bold, () => run().toggleBold().run(), s.codeBlock)}
+              {tool('Italic', Italic, s.italic, () => run().toggleItalic().run(), s.codeBlock)}
+              {tool('Underline', Underline, s.underline, () => run().toggleUnderline().run(), s.codeBlock)}
+              {tool('Strikethrough', Strikethrough, s.strike, () => run().toggleStrike().run(), s.codeBlock)}
+              {tool('Inline code', Code, s.code, () => run().toggleCode().run(), s.codeBlock)}
+              {tool('Link', LinkIcon, s.link, openLink, s.codeBlock)}
+              {tool('Clear formatting', Eraser, false, () => run().unsetAllMarks().run(), s.codeBlock)}
             </div>
             <div className="editor-toolbar-group">
-              {tool('Heading 2', Heading2, s.h2, () => run().toggleHeading({ level: 2 }).run())}
-              {tool('Heading 3', Heading3, s.h3, () => run().toggleHeading({ level: 3 }).run())}
-              {tool('Quote', Quote, s.quote, () => run().toggleBlockquote().run())}
+              {tool('Heading 2', Heading2, s.h2, () => run().toggleHeading({ level: 2 }).run(), s.codeBlock)}
+              {tool('Heading 3', Heading3, s.h3, () => run().toggleHeading({ level: 3 }).run(), s.codeBlock)}
+              {tool('Quote', Quote, s.quote, () => run().toggleBlockquote().run(), s.codeBlock)}
+              {tool('Code block', SquareCode, s.codeBlock, () => run().toggleCodeBlock().run())}
             </div>
             <div className="editor-toolbar-group">
-              {tool('Bulleted list', List, s.bullet, () => run().toggleBulletList().run())}
-              {tool('Numbered list', ListOrdered, s.ordered, () => run().toggleOrderedList().run())}
-              {(s.bullet || s.ordered) && (
+              {tool('Bulleted list', List, s.bullet, () => run().toggleBulletList().run(), s.codeBlock)}
+              {tool('Numbered list', ListOrdered, s.ordered, () => run().toggleOrderedList().run(), s.codeBlock)}
+              {(s.bullet || s.ordered) && !s.codeBlock && (
                 <>
                   <label className="sr-only" htmlFor="editor-list-style">
                     List style
@@ -236,10 +250,10 @@ export default function FloatingToolbar({ editor, onError }: Props) {
               )}
             </div>
             <div className="editor-toolbar-group">
-              {tool('Align left', AlignLeft, s.alignLeft, () => run().setTextAlign('left').run())}
-              {tool('Align center', AlignCenter, s.alignCenter, () => run().setTextAlign('center').run())}
-              {tool('Align right', AlignRight, s.alignRight, () => run().setTextAlign('right').run())}
-              {tool('Justify', AlignJustify, s.alignJustify, () => run().setTextAlign('justify').run())}
+              {tool('Align left', AlignLeft, s.alignLeft, () => run().setTextAlign('left').run(), s.codeBlock)}
+              {tool('Align center', AlignCenter, s.alignCenter, () => run().setTextAlign('center').run(), s.codeBlock)}
+              {tool('Align right', AlignRight, s.alignRight, () => run().setTextAlign('right').run(), s.codeBlock)}
+              {tool('Justify', AlignJustify, s.alignJustify, () => run().setTextAlign('justify').run(), s.codeBlock)}
             </div>
           </>
         )}
