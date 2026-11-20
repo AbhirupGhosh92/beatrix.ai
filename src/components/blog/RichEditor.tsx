@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { EditorContent, Extension, nodeInputRule, useEditor } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -10,7 +11,8 @@ import TextAlign from '@tiptap/extension-text-align'
 import { Markdown } from '@tiptap/markdown'
 import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES, isHttpsImageUrl } from '../../lib/blogDoc.ts'
 import { BLOG_IMAGE_SCHEME } from '../../lib/blogTypes.ts'
-import EditorToolbar from './EditorToolbar.tsx'
+import FloatingToolbar from './FloatingToolbar.tsx'
+import InsertMenu from './InsertMenu.tsx'
 
 // The rich-text editor (Tiptap). Loaded only by BlogEditor through next/dynamic, so the public pages
 // and the home page never download it. Its schema is exactly the closed document in
@@ -203,10 +205,27 @@ export default function RichEditor({ initial, postId, busy, maxImageUrlLength, o
 
   if (!editor) return <p className="text-muted">Loading the editor...</p>
 
+  // Alt+F10 moves focus into the floating toolbar (text selected) or the "+" control (empty line).
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!(event.altKey && event.key === 'F10')) return
+    const root = event.currentTarget
+    const target = editor.state.selection.empty
+      ? root.querySelector<HTMLElement>('.editor-plus')
+      : root.querySelector<HTMLElement>('[data-floating-toolbar] button:not(:disabled)')
+    if (!target) return
+    event.preventDefault()
+    target.focus()
+  }
+
   return (
-    <div className="rich-editor">
-      <EditorToolbar editor={editor} busy={busy} maxImageUrlLength={maxImageUrlLength} onPickImage={onPickImage} onError={onError} />
+    <div className="rich-editor" onKeyDown={onKeyDown}>
       <EditorContent editor={editor} className="rich-editor-content" />
+      <FloatingToolbar editor={editor} onError={onError} />
+      <InsertMenu editor={editor} busy={busy} maxImageUrlLength={maxImageUrlLength} onPickImage={onPickImage} onError={onError} />
+      <p className="editor-hint">
+        Select text for formatting, or press Enter on a new line and use the plus button. Shortcuts: Ctrl/Cmd+B bold, +I italic, +U underline, +Z undo, Alt+F10 to
+        reach the toolbar.
+      </p>
     </div>
   )
 }
