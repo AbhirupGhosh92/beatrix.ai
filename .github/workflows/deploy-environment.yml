@@ -188,7 +188,7 @@ jobs:
     steps:
       # Prod needs the whole history (is the commit on main?) and the release branches and tags
       # (does this version clash?); dev needs one commit.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: ${{ inputs.environment == 'prod' && '0' || '1' }}
@@ -288,7 +288,7 @@ jobs:
       plan_uri: ${{ steps.save.outputs.plan_uri }}
       row_md: ${{ steps.plan.outputs.row_md }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
@@ -417,7 +417,7 @@ jobs:
       components: ${{ steps.decide.outputs.components }}
       decision_md: ${{ steps.decide.outputs.decision_md }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
@@ -640,7 +640,7 @@ jobs:
     outputs:
       backup: ${{ steps.backup.outputs.backup }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
@@ -736,7 +736,7 @@ jobs:
       PLAN_URI: ${{ needs.plan2.outputs.plan_uri }}
       COMPONENTS: ${{ needs.plan2.outputs.components }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
@@ -812,7 +812,7 @@ jobs:
       SHA: ${{ needs.verify.outputs.sha }}
       COMPONENTS: ${{ needs.plan2.outputs.components }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
