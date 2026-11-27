@@ -5,7 +5,7 @@ import type { KeyboardEvent } from 'react'
 import type { Editor } from '@tiptap/react'
 import { FloatingMenu } from '@tiptap/react/menus'
 import { charCount, isHttpsImageUrl } from '../../lib/blogDoc.ts'
-import { ImagePlus, List, ListOrdered, Minus, Plus, Quote, SquareCode } from 'lucide-react'
+import { ImagePlus, List, ListChecks, ListOrdered, Minus, Plus, Quote, SquareCode, Table } from 'lucide-react'
 
 interface Props {
   editor: Editor
@@ -156,6 +156,8 @@ export default function InsertMenu({ editor, busy, maxImageUrlLength, onPickImag
             {item('Horizontal rule', Minus, () => insert(() => run().setHorizontalRule().run()))}
             {item('Bulleted list', List, () => insert(() => run().toggleBulletList().run()))}
             {item('Numbered list', ListOrdered, () => insert(() => run().toggleOrderedList().run()))}
+            {item('Task list', ListChecks, () => insert(() => run().toggleTaskList().run()))}
+            {item('Table', Table, () => insert(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()))}
             {item('Quote', Quote, () => insert(() => run().toggleBlockquote().run()))}
             {item('Code block', SquareCode, () => insert(() => run().toggleCodeBlock().run()))}
           </div>

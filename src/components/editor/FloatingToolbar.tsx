@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { BULLET_STYLES, ORDERED_STYLES } from '../../lib/blogDoc.ts'
+import { COLOR_PRESETS, HIGHLIGHT_PRESETS, normalizeHex } from './blogTextExtensions.ts'
 import {
   AlignCenter,
   AlignJustify,
@@ -16,13 +17,17 @@ import {
   Eraser,
   Heading2,
   Heading3,
+  Highlighter,
   Italic,
   Link as LinkIcon,
   List,
   ListOrdered,
+  Palette,
   Quote,
   SquareCode,
   Strikethrough,
+  Subscript,
+  Superscript,
   Underline,
 } from 'lucide-react'
 
@@ -51,6 +56,59 @@ function isCoarsePointer(): boolean {
 
 const FOCUSABLE = 'button:not(:disabled), select:not(:disabled)'
 
+/** Which color panel replaces the toolbar buttons: the text color or the highlight. */
+type ColorPanel = 'color' | 'highlight' | null
+
+interface ColorPanelProps {
+  kind: 'color' | 'highlight'
+  /** The color of the selection now (#rrggbb) or '' when none. */
+  current: string
+  onPick: (hex: string) => void
+  onRemove: () => void
+  onClose: () => void
+}
+
+/** Named preset swatches, a native color input for a free choice, and Remove. */
+function ColorPicker({ kind, current, onPick, onRemove, onClose }: ColorPanelProps) {
+  const presets = kind === 'color' ? COLOR_PRESETS : HIGHLIGHT_PRESETS
+  const title = kind === 'color' ? 'Text color' : 'Highlight'
+  const [custom, setCustom] = useState(current || presets[0].hex)
+  return (
+    <div className="editor-color-panel" role="group" aria-label={title}>
+      <div className="editor-swatches">
+        {presets.map((preset) => (
+          <button
+            key={preset.hex}
+            type="button"
+            className="editor-swatch"
+            style={{ backgroundColor: preset.hex }}
+            aria-label={preset.name}
+            title={preset.name}
+            aria-pressed={current === preset.hex}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onPick(preset.hex)}
+          />
+        ))}
+      </div>
+      <div className="editor-color-custom">
+        <label className="text-meta" htmlFor={`editor-color-${kind}`}>
+          Custom
+        </label>
+        <input id={`editor-color-${kind}`} type="color" className="editor-color-input" value={custom} onChange={(event) => setCustom(event.target.value)} />
+        <button type="button" className="button-primary" onMouseDown={(event) => event.preventDefault()} onClick={() => onPick(custom)}>
+          Apply
+        </button>
+        <button type="button" className="button-secondary" disabled={!current} onMouseDown={(event) => event.preventDefault()} onClick={onRemove}>
+          Remove
+        </button>
+        <button type="button" className="button-secondary" onMouseDown={(event) => event.preventDefault()} onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * The floating formatting toolbar: shown next to a text selection (mouse, touch or Shift+arrows).
  * A `role="toolbar"` with arrow-key roving; Escape returns to the editor. The editor's Alt+F10 handler
@@ -60,6 +118,7 @@ export default function FloatingToolbar({ editor, onError }: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
+  const [panel, setPanel] = useState<ColorPanel>(null)
   const [coarse] = useState(isCoarsePointer)
 
   const s = useEditorState({
@@ -71,6 +130,10 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       italic: e.isActive('italic'),
       underline: e.isActive('underline'),
       strike: e.isActive('strike'),
+      sub: e.isActive('subscript'),
+      sup: e.isActive('superscript'),
+      textColor: normalizeHex(e.getAttributes('textColor').color) ?? '',
+      highlight: normalizeHex(e.getAttributes('highlight').color) ?? '',
       code: e.isActive('code'),
       codeBlock: e.isActive('codeBlock'),
       bullet: e.isActive('bulletList'),
@@ -120,10 +183,11 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       event.preventDefault()
       event.stopPropagation()
       if (linkOpen) setLinkOpen(false)
+      if (panel) setPanel(null)
       editor.commands.focus()
       return
     }
-    if (linkOpen) return
+    if (linkOpen || event.target instanceof HTMLInputElement) return
     const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End']
     if (!keys.includes(event.key)) return
     const items = Array.from(barRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
@@ -167,7 +231,25 @@ export default function FloatingToolbar({ editor, onError }: Props) {
       }
     >
       <div ref={barRef} className="editor-floating" role="toolbar" aria-label="Formatting" data-floating-toolbar="" onKeyDown={onKeyDown}>
-        {linkOpen ? (
+        {panel ? (
+          <ColorPicker
+            kind={panel}
+            current={panel === 'color' ? s.textColor : s.highlight}
+            onPick={(hex) => {
+              const color = normalizeHex(hex)
+              if (color) run().setMark(panel === 'color' ? 'textColor' : 'highlight', { color }).run()
+              setPanel(null)
+            }}
+            onRemove={() => {
+              run().unsetMark(panel === 'color' ? 'textColor' : 'highlight').run()
+              setPanel(null)
+            }}
+            onClose={() => {
+              setPanel(null)
+              editor.commands.focus()
+            }}
+          />
+        ) : linkOpen ? (
           <div className="editor-link-form">
             <label className="sr-only" htmlFor="editor-link-input">
               Link address
@@ -212,6 +294,10 @@ export default function FloatingToolbar({ editor, onError }: Props) {
               {tool('Strikethrough', Strikethrough, s.strike, () => run().toggleStrike().run(), s.codeBlock)}
               {tool('Inline code', Code, s.code, () => run().toggleCode().run(), s.codeBlock)}
               {tool('Link', LinkIcon, s.link, openLink, s.codeBlock)}
+              {tool('Text color', Palette, s.textColor !== '', () => setPanel('color'), s.codeBlock)}
+              {tool('Highlight', Highlighter, s.highlight !== '', () => setPanel('highlight'), s.codeBlock)}
+              {tool('Subscript', Subscript, s.sub, () => run().toggleSubscript().run(), s.codeBlock)}
+              {tool('Superscript', Superscript, s.sup, () => run().toggleSuperscript().run(), s.codeBlock)}
               {tool('Clear formatting', Eraser, false, () => run().unsetAllMarks().run(), s.codeBlock)}
             </div>
             <div className="editor-toolbar-group">
