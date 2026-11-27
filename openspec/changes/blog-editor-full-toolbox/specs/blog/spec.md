@@ -22,8 +22,15 @@ The editor SHALL offer a task list whose items can be checked and unchecked whil
 - **WHEN** an author checks one item of a task list, saves and reopens the post
 - **THEN** that item is still checked, and the public page shows it checked without letting a reader change it
 
-### Requirement: Highlight, color, subscript and superscript
-The editor SHALL let an author mark text with a highlight, a text color, subscript or superscript. Highlight and color SHALL offer a preset palette and a free color choice, with a way to remove them. A stored color SHALL be exactly a six-digit hexadecimal value (`#rrggbb`); a save containing any other value (named colors, functions, extra text) SHALL be refused. A stored color SHALL reach the page only through a validated value, never as free CSS text. The marks SHALL render in the editor, the author's view and the public page.
+### Requirement: Subscript and superscript
+The editor SHALL let an author mark text as subscript or superscript, shown in the editor, the author's view and the public page.
+
+#### Scenario: Superscript
+- **WHEN** an author makes a word superscript, saves and reopens the post
+- **THEN** the word is still superscript in the editor and on the public page
+
+### Requirement: Highlight and text color
+The editor SHALL let an author highlight text or change its color from a preset palette or a free color choice, with a way to remove either. A stored color SHALL be exactly `#rrggbb`, any other value SHALL be refused on save, and a stored color SHALL never reach the page as free CSS text.
 
 #### Scenario: Apply a preset color
 - **WHEN** an author colors a word from the preset palette, saves and reopens the post
