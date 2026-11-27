@@ -2,17 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, MutableRefObject } from 'react'
-import { EditorContent, Extension, nodeInputRule, useEditor } from '@tiptap/react'
+import { EditorContent, Extension, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
 import { Table, TableRow } from '@tiptap/extension-table'
 import { TaskList } from '@tiptap/extension-list'
 import { Markdown } from '@tiptap/markdown'
-import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES, isHttpsImageUrl } from '../../lib/blogDoc.ts'
+import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES } from '../../lib/blogDoc.ts'
 import EditorActionBar from './EditorActionBar.tsx'
+import { createImage } from './blogImageExtension.ts'
 import {
   BlogSubscript,
   BlogSuperscript,
@@ -23,6 +23,7 @@ import {
   TextColor,
 } from './blogTextExtensions.ts'
 import FloatingToolbar from './FloatingToolbar.tsx'
+import ImageToolbar from './ImageToolbar.tsx'
 import InsertMenu from './InsertMenu.tsx'
 import UploadStatus from './UploadStatus.tsx'
 import { UploadPlaceholder } from './uploadPlaceholder.ts'
@@ -32,109 +33,14 @@ import type { RichEditorHost } from './types.ts'
 // The rich-text editor (Tiptap), independent of its host (see types.ts). A host loads it through
 // next/dynamic, so the public pages and the home page never download it. Its schema is exactly the closed document in
 // src/lib/blogDoc.ts: the server rejects anything else, so every attribute outside that list is
-// removed here (Link keeps only `href`, Image keeps only `imageId`, `src` and `alt`, and the only
+// removed here (Link keeps only `href`, Image only what blogImageExtension.ts lists, and the only
 // other attributes are `textAlign` and `listStyle`, limited to the values of blogDoc.ts).
-
-const IMAGE_ID = /^[A-Za-z0-9_-]{1,100}$/
 
 const BlogLink = Link.extend({
   addAttributes() {
     return { href: { default: null } }
   },
 })
-
-interface ImageOptions {
-  inline: boolean
-  allowBase64: boolean
-  HTMLAttributes: Record<string, unknown>
-  resize: false
-  /** The address of a stored image as the host gives it now (read when rendered, never frozen at mount). */
-  imageUrl: (id: string) => string
-}
-
-// `![alt](https://...)` typed in the editor; any other source is not turned into an image.
-const IMAGE_INPUT = /(?:^|\s)(!\[([^\]]*)\]\((\S+?)(?:\s+["'][^"']*["'])?\))$/
-
-// `legacyScheme`: the Markdown image scheme to import (none: Markdown images are dropped).
-const createImage = (legacyScheme: string | null) =>
-  Image.extend<ImageOptions>({
-    addOptions() {
-      return {
-        inline: false,
-        allowBase64: false,
-        HTMLAttributes: {},
-        resize: false,
-        imageUrl: () => '',
-      }
-    },
-    addAttributes() {
-      return {
-        imageId: {
-          default: null,
-          parseHTML: (el: HTMLElement) => el.getAttribute('data-image-id'),
-        },
-        src: {
-          default: null,
-          parseHTML: (el: HTMLElement) => {
-            if (el.hasAttribute('data-image-id')) return null
-            const src = el.getAttribute('src')
-            return isHttpsImageUrl(src) ? src : null
-          },
-        },
-        alt: { default: null },
-      }
-    },
-    parseHTML() {
-      return [{ tag: 'img[data-image-id]' }, { tag: 'img[src^="https://"]' }]
-    },
-    renderHTML({ node }) {
-      const alt = String(node.attrs.alt ?? '')
-      if (node.attrs.imageId) {
-        const imageId = String(node.attrs.imageId)
-        const url = this.options.imageUrl(imageId)
-        return [
-          'img',
-          {
-            ...(url ? { src: url } : {}),
-            alt,
-            'data-image-id': imageId,
-            loading: 'lazy',
-            decoding: 'async',
-          },
-        ]
-      }
-      const src = node.attrs.src
-      return [
-        'img',
-        {
-          ...(isHttpsImageUrl(src) ? { src } : {}),
-          alt,
-          referrerPolicy: 'no-referrer',
-          loading: 'lazy',
-          decoding: 'async',
-        },
-      ]
-    },
-    addInputRules() {
-      return [
-        nodeInputRule({
-          find: IMAGE_INPUT,
-          type: this.type,
-          getAttributes: (match) => (isHttpsImageUrl(match[3]) ? { src: match[3], alt: match[2] || null } : false),
-        }),
-      ]
-    },
-    // Legacy Markdown: `![name](<scheme><id>)` becomes an image node; any other source is dropped.
-    parseMarkdown: (token, helpers) => {
-      const href = String(token.href ?? '')
-      const id = legacyScheme && href.startsWith(legacyScheme) ? href.slice(legacyScheme.length) : ''
-      if (!IMAGE_ID.test(id)) return []
-      return helpers.createNode('image', {
-        imageId: id,
-        alt: token.text ? String(token.text) : null,
-      })
-    },
-  })
 
 function listStyleAttr(allowed: readonly string[]) {
   return {
@@ -169,9 +75,11 @@ interface Props {
   onEditor: (editor: Editor | null) => void
   /** Filled with the function that starts an image upload (the picker), for a host control outside the editor. */
   pickImageRef?: MutableRefObject<(() => void) | null>
+  /** Filled with the function that forgets the edited-image history; the host calls it after a save (the originals are deleted then). */
+  clearEditsRef?: MutableRefObject<(() => void) | null>
 }
 
-export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props) {
+export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEditsRef }: Props) {
   const { initial } = host
   // The latest host and busy flag, read by callbacks so a new host object never recreates the editor.
   const hostRef = useRef(host)
@@ -186,6 +94,15 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
 
   const [imageUrl] = useState(() => (id: string) => hostRef.current.images.imageUrl(id))
   const legacyScheme = host.images.legacyScheme ?? null
+  // New image id -> the first image of its edit chain, so Reset can go back to it (client-only, never stored).
+  const [editedFrom] = useState(() => new Map<string, string>())
+  useEffect(() => {
+    if (!clearEditsRef) return
+    clearEditsRef.current = () => editedFrom.clear()
+    return () => {
+      clearEditsRef.current = null
+    }
+  }, [clearEditsRef, editedFrom])
 
   const extensions = useMemo(
     () => [
@@ -323,9 +240,12 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!(event.altKey && event.key === 'F10')) return
     const root = event.currentTarget
-    const target = editor.state.selection.empty
-      ? root.querySelector<HTMLElement>('.editor-plus')
-      : root.querySelector<HTMLElement>('[data-floating-toolbar] button:not(:disabled)')
+    const onImage = editor.isActive('image')
+    const target = onImage
+      ? root.querySelector<HTMLElement>('[data-image-toolbar] button:not(:disabled)')
+      : editor.state.selection.empty
+        ? root.querySelector<HTMLElement>('.editor-plus')
+        : root.querySelector<HTMLElement>('[data-floating-toolbar] button:not(:disabled)')
     if (!target) return
     event.preventDefault()
     target.focus()
@@ -336,6 +256,7 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
       <EditorActionBar editor={editor} />
       <EditorContent editor={editor} className="rich-editor-content" />
       <FloatingToolbar editor={editor} onError={host.onError} />
+      <ImageToolbar editor={editor} images={host.images} edits={editedFrom} onError={host.onError} />
       <InsertMenu
         editor={editor}
         busy={busy}
