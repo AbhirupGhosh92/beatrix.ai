@@ -64,7 +64,8 @@
 /* Preset text colors (src/lib/blogColorPresets.ts): the stored hex is recognised and drawn with a
    fixed class whose shade is tuned per theme, because no single color reaches 4.5:1 on white, the dark
    theme and paper together. Measured contrast of each shade (>= 4.7:1): light on #ffffff, dark on #0f172a
-   and on the site's dark base (#0c0d0f), paper on #f4ecd8. A free color is not adapted. The editor uses the
+   and on the site's dark base (#0c0d0f), paper on #f4ecd8; and also >= 4.7:1 on the table header
+   background (base-200: #f1f5f9, #1e293b, the site's dark base-200, #eadfc4). A free color is not adapted. The editor uses the
    site theme, the reader wrapper overrides the values for its own theme. */
 .blog-cp-red { --blog-color: var(--cp-red); }
 .blog-cp-orange { --blog-color: var(--cp-orange); }
@@ -79,40 +80,40 @@
 :root,
 .reader[data-reader-theme="light"] {
   --cp-red: #c0392b;
-  --cp-orange: #c44e00;
-  --cp-amber: #9d681b;
-  --cp-green: #2e8157;
+  --cp-orange: #b94a00;
+  --cp-amber: #946219;
+  --cp-green: #2b7a52;
   --cp-teal: #0f766e;
   --cp-blue: #2b6cb0;
   --cp-violet: #6b46c1;
   --cp-pink: #b83280;
-  --cp-gray: #657389;
+  --cp-gray: #616e83;
 }
 
 :root[data-theme="beatrix-dark"],
 :root:has(input.theme-controller[value="beatrix-dark"]:checked),
 .reader[data-reader-theme="dark"] {
-  --cp-red: #d85d50;
-  --cp-orange: #e05900;
-  --cp-amber: #b7791f;
-  --cp-green: #349464;
-  --cp-teal: #139389;
-  --cp-blue: #4087d0;
-  --cp-violet: #9074d0;
-  --cp-pink: #d1569e;
-  --cp-gray: #77859a;
+  --cp-red: #dd7469;
+  --cp-orange: #f96300;
+  --cp-amber: #c88522;
+  --cp-green: #3aa570;
+  --cp-teal: #15a69a;
+  --cp-blue: #5996d6;
+  --cp-violet: #9d85d6;
+  --cp-pink: #d870ad;
+  --cp-gray: #8794a6;
 }
 
 .reader[data-reader-theme="paper"] {
-  --cp-red: #be382b;
-  --cp-orange: #b24700;
-  --cp-amber: #8e5e18;
-  --cp-green: #29744f;
-  --cp-teal: #0f746c;
-  --cp-blue: #2a69ac;
+  --cp-red: #af3427;
+  --cp-orange: #a34100;
+  --cp-amber: #835616;
+  --cp-green: #266d49;
+  --cp-teal: #0e6b63;
+  --cp-blue: #2762a0;
   --cp-violet: #6b46c1;
-  --cp-pink: #b6317f;
-  --cp-gray: #5c697d;
+  --cp-pink: #aa2e76;
+  --cp-gray: #556173;
 }
 
 .blog-prose sub,
