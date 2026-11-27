@@ -364,6 +364,7 @@ src/
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
 │   ├── blogColor.ts
+│   ├── blogColorPresets.ts
 │   ├── blogConfigSanitize.ts
 │   ├── blogDoc.ts
 │   ├── blogMarkdownImport.ts
