@@ -10,6 +10,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CellSelection, mergeCells } from '@tiptap/pm/tables'
 import { MAX_TABLE_COLS, MAX_TABLE_ROWS, isHexColor } from '../../lib/blogDoc.ts'
 import { readableInk } from '../../lib/blogColor.ts'
+import { TEXT_PRESETS, presetClass } from '../../lib/blogColorPresets.ts'
 
 // In-repo Tiptap extensions for the text tools. Each stores exactly what src/lib/blogDoc.ts allows:
 // a color mark holds only `color` (#rrggbb), a table cell only `colspan` and `rowspan`, a task item only
@@ -17,17 +18,7 @@ import { readableInk } from '../../lib/blogColor.ts'
 // attributes that are re-validated here, never through an inline `style`.
 
 /** The colors offered as swatches. Stored values are always the hex, so a preset is just a shortcut. */
-export const COLOR_PRESETS: ReadonlyArray<{ name: string; hex: string }> = [
-  { name: 'Red', hex: '#c0392b' },
-  { name: 'Orange', hex: '#d35400' },
-  { name: 'Amber', hex: '#b7791f' },
-  { name: 'Green', hex: '#2f855a' },
-  { name: 'Teal', hex: '#0f766e' },
-  { name: 'Blue', hex: '#2b6cb0' },
-  { name: 'Violet', hex: '#6b46c1' },
-  { name: 'Pink', hex: '#b83280' },
-  { name: 'Gray', hex: '#718096' },
-]
+export const COLOR_PRESETS: ReadonlyArray<{ name: string; hex: string }> = TEXT_PRESETS
 
 /** The highlight swatches: light and mid tones that stay readable with the automatic ink. */
 export const HIGHLIGHT_PRESETS: ReadonlyArray<{ name: string; hex: string }> = [
@@ -69,7 +60,11 @@ export const TextColor = Mark.create({
   renderHTML({ mark }) {
     const hex = normalizeHex(mark.attrs.color)
     if (!hex) return ['span', 0]
-    return ['span', { class: 'blog-color', 'data-color': hex, style: `--blog-color: ${hex}` }, 0]
+    // A preset is drawn through its fixed per-theme class; a free color sets only the custom property.
+    const preset = presetClass(hex)
+    return preset
+      ? ['span', { class: `blog-color ${preset}`, 'data-color': hex }, 0]
+      : ['span', { class: 'blog-color', 'data-color': hex, style: `--blog-color: ${hex}` }, 0]
   },
 })
 

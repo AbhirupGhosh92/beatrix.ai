@@ -11,6 +11,7 @@ import {
   validateDoc,
 } from '../../lib/blogDoc.ts'
 import { readableInk } from '../../lib/blogColor.ts'
+import { presetClass } from '../../lib/blogColorPresets.ts'
 import type { BlogMark, BlogNode } from '../../lib/blogDoc.ts'
 import BlogPreview from './BlogPreview.tsx'
 
@@ -56,6 +57,8 @@ function applyMark(mark: BlogMark, child: ReactNode): ReactNode {
       return <sup>{child}</sup>
     case 'textColor': {
       const hex = colorOf(mark)
+      const preset = hex ? presetClass(hex) : null
+      if (hex && preset) return <span className={`blog-color ${preset}`}>{child}</span>
       return hex ? (
         <span className="blog-color" style={{ '--blog-color': hex } as CSSProperties}>
           {child}
