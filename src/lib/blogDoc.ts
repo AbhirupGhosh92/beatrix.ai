@@ -6,6 +6,8 @@
 export type BlogMark =
   | { type: 'bold' | 'italic' | 'underline' | 'strike' | 'code' }
   | { type: 'link'; attrs: { href: string } }
+  | { type: 'highlight' | 'textColor'; attrs: { color: string } }
+  | { type: 'subscript' | 'superscript' }
 
 export interface BlogNode {
   type: string
@@ -23,12 +25,30 @@ export interface BlogDoc {
 export const MAX_DOC_DEPTH = 12
 export const MAX_DOC_NODES = 20_000
 
-const BLOCKS = ['paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'horizontalRule', 'image']
+const BLOCKS = [
+  'paragraph',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'blockquote',
+  'codeBlock',
+  'horizontalRule',
+  'image',
+  'table',
+  'taskList',
+]
 const INLINE = ['text', 'hardBreak']
 const SIMPLE_MARKS = ['bold', 'italic', 'underline', 'strike', 'code']
 export const ALIGN_VALUES = ['left', 'center', 'right', 'justify'] as const
 export const BULLET_STYLES = ['disc', 'circle', 'square'] as const
 export const ORDERED_STYLES = ['decimal', 'lower-alpha', 'upper-alpha', 'lower-roman', 'upper-roman'] as const
+export const IMAGE_SIZES = ['small', 'medium', 'full'] as const
+export const IMAGE_ALIGNS = ['left', 'center', 'right'] as const
+export const MAX_TABLE_ROWS = 100
+export const MAX_TABLE_COLS = 12
+export const MAX_CAPTION_LENGTH = 500
+/** A stored color is exactly #rrggbb (rebuilt lowercase on save). */
+export const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 export const DEFAULT_MAX_IMAGE_URL_LENGTH = 2000
 
 export interface DocLimits {
@@ -58,6 +78,10 @@ export function isHttpsImageUrl(value: unknown): value is string {
     return false
   }
   return url.protocol === 'https:' && url.hostname !== '' && url.username === '' && url.password === ''
+}
+
+export function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR.test(value)
 }
 
 /** A value for an error message: control characters removed, at most 20 characters. */
@@ -114,6 +138,15 @@ function checkMarks(value: unknown): BlogMark[] | undefined {
     if (m.type === 'link') {
       const attrs = checkAttrs(m, ['href'], 'link')
       out.push({ type: 'link', attrs: { href: checkHref(attrs.href) } })
+    } else if (m.type === 'highlight' || m.type === 'textColor') {
+      const attrs = checkAttrs(m, ['color'], m.type)
+      if (!isHexColor(attrs.color)) {
+        throw new Error(`The post content is not valid (color "${shown(attrs.color)}" is not allowed).`)
+      }
+      out.push({ type: m.type, attrs: { color: attrs.color.toLowerCase() } })
+    } else if (m.type === 'subscript' || m.type === 'superscript') {
+      checkAttrs(m, [], m.type)
+      out.push({ type: m.type })
     } else if (SIMPLE_MARKS.includes(m.type)) {
       checkAttrs(m, [], m.type)
       out.push({ type: m.type } as BlogMark)
@@ -121,7 +154,50 @@ function checkMarks(value: unknown): BlogMark[] | undefined {
       throw new Error(`The post content is not valid (unknown mark "${m.type}").`)
     }
   }
+  if (seen.has('subscript') && seen.has('superscript')) {
+    throw new Error('The post content is not valid (subscript and superscript on the same text).')
+  }
   return out.length ? out : undefined
+}
+
+/** An integer span within 1..max, or 1 when not set. */
+function checkSpan(attrs: Record<string, unknown>, name: string, max: number): number {
+  const v = attrs[name]
+  if (v === undefined || v === null) return 1
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > max) {
+    throw new Error(`The post content is not valid (${name} "${shown(v)}" is not allowed).`)
+  }
+  return v
+}
+
+/** The cells of every row must tile a rectangle exactly: no overlap, no gap, no overhang. */
+function checkGrid(rows: BlogNode[]): void {
+  const fail = () => new Error('The post content is not valid (table cells do not add up).')
+  const span = (cell: BlogNode, name: string) => {
+    const v = cell.attrs?.[name]
+    return typeof v === 'number' ? v : 1
+  }
+  if (rows.length === 0 || rows.length > MAX_TABLE_ROWS) throw fail()
+  const width = (rows[0].content ?? []).reduce((sum, c) => sum + span(c, 'colspan'), 0)
+  if (width < 1 || width > MAX_TABLE_COLS) throw fail()
+  const taken = rows.map(() => new Array<boolean>(width).fill(false))
+  rows.forEach((row, r) => {
+    let col = 0
+    for (const cell of row.content ?? []) {
+      while (col < width && taken[r][col]) col++
+      const cs = span(cell, 'colspan')
+      const rs = span(cell, 'rowspan')
+      if (col + cs > width || r + rs > rows.length) throw fail()
+      for (let y = r; y < r + rs; y++) {
+        for (let x = col; x < col + cs; x++) {
+          if (taken[y][x]) throw fail()
+          taken[y][x] = true
+        }
+      }
+      col += cs
+    }
+    if (taken[r].some((t) => !t)) throw fail()
+  })
 }
 
 /**
@@ -160,7 +236,7 @@ export function validateDoc(value: unknown, limits?: DocLimits): BlogDoc {
         if (content !== undefined && content.length) throw new Error('The post content is not valid (content).')
         return node
       case 'image': {
-        const attrs = checkAttrs(raw, ['imageId', 'src', 'alt'], type)
+        const attrs = checkAttrs(raw, ['imageId', 'src', 'alt', 'size', 'align', 'caption'], type)
         const hasId = attrs.imageId !== undefined && attrs.imageId !== null
         const hasSrc = attrs.src !== undefined && attrs.src !== null
         if (hasId === hasSrc) {
@@ -184,6 +260,16 @@ export function validateDoc(value: unknown, limits?: DocLimits): BlogDoc {
           if (!isHttpsImageUrl(src)) throw new Error('Image addresses must start with https:// and have no spaces.')
           node.attrs = { src, alt: altText }
         }
+        const size = checkChoice(attrs, 'size', IMAGE_SIZES)
+        const align = checkChoice(attrs, 'align', IMAGE_ALIGNS)
+        const caption = attrs.caption
+        if (caption !== undefined && caption !== null && (typeof caption !== 'string' || charCount(caption) > MAX_CAPTION_LENGTH)) {
+          throw new Error('The post content is not valid (image caption).')
+        }
+        const out = node.attrs as Record<string, unknown>
+        if (size) out.size = size
+        if (align) out.align = align
+        if (typeof caption === 'string') out.caption = caption
         if (content !== undefined && content.length) throw new Error('The post content is not valid (content).')
         return node
       }
@@ -242,6 +328,46 @@ export function validateDoc(value: unknown, limits?: DocLimits): BlogDoc {
         checkAttrs(raw, [], type)
         if (content) node.content = children(BLOCKS)
         break
+      case 'taskList':
+        checkAttrs(raw, [], type)
+        if (content) node.content = children(['taskItem'])
+        break
+      case 'taskItem': {
+        const checked = checkAttrs(raw, ['checked'], type).checked
+        if (checked !== undefined && checked !== null && typeof checked !== 'boolean') {
+          throw new Error(`The post content is not valid (checked "${shown(checked)}" is not allowed).`)
+        }
+        node.attrs = { checked: checked === true }
+        if (content) {
+          node.content = children(['paragraph'])
+          if (node.content.length !== 1) throw new Error('The post content is not valid (task item).')
+        }
+        break
+      }
+      case 'table':
+        checkAttrs(raw, [], type)
+        node.content = children(['tableRow'])
+        checkGrid(node.content)
+        break
+      case 'tableRow':
+        checkAttrs(raw, [], type)
+        if (content) node.content = children(['tableHeader', 'tableCell'])
+        break
+      case 'tableHeader':
+      case 'tableCell': {
+        const attrs = checkAttrs(raw, ['colspan', 'rowspan', 'colwidth'], type)
+        if (attrs.colwidth !== undefined && attrs.colwidth !== null) {
+          throw new Error(`The post content is not valid (colwidth "${shown(attrs.colwidth)}" is not allowed).`)
+        }
+        const colspan = checkSpan(attrs, 'colspan', MAX_TABLE_COLS)
+        const rowspan = checkSpan(attrs, 'rowspan', MAX_TABLE_ROWS)
+        if (colspan > 1 || rowspan > 1) {
+          node.attrs = { ...(colspan > 1 ? { colspan } : {}), ...(rowspan > 1 ? { rowspan } : {}) }
+        }
+        node.content = children(['paragraph'])
+        if (node.content.length !== 1) throw new Error('The post content is not valid (table cell).')
+        break
+      }
       case 'doc':
         checkAttrs(raw, [], type)
         if (content) node.content = children(BLOCKS)
@@ -265,6 +391,7 @@ function lines(node: BlogNode): string[] {
     case 'codeBlock':
       return [inlineText(node.content)]
     case 'image':
+      return typeof node.attrs?.caption === 'string' ? [node.attrs.caption] : []
     case 'horizontalRule':
       return []
     default:

@@ -300,6 +300,93 @@ await refused(bad(doc(...Array.from({ length: 20001 }, () => ({ type: 'horizonta
   const old = doc({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'H' }] }, p('x'), { type: 'bulletList', content: [li] }, { type: 'orderedList', attrs: { start: 3 }, content: [li] }, { type: 'image', attrs: { imageId: 'abc_1', alt: 'pic' } })
   assert.deepEqual(validateDoc(old), old)
 }
+// full toolbox (blog-editor-full-toolbox 1.2): tables, task lists, colors, sub/superscript, image options
+{
+  const { validateDoc, isHexColor, IMAGE_SIZES, IMAGE_ALIGNS } = await import(path.join(root, 'src', 'lib', 'blogDoc.ts'))
+  const cell = (text, attrs, type = 'tableCell') => ({ type, ...(attrs ? { attrs } : {}), content: [p(text ?? 'c')] })
+  const row = (...cells) => ({ type: 'tableRow', content: cells })
+  const table = (...rows) => doc({ type: 'table', content: rows })
+  const t = (text, marks) => ({ type: 'text', text, marks })
+  const invalid = (d, re, label) => assert.throws(() => validateDoc(d), re, label)
+  // colors: accepted, rebuilt lowercase, read back
+  const marked = (marks) => validateDoc(doc({ type: 'paragraph', content: [t('x', marks)] })).content[0].content[0].marks
+  assert.deepEqual(marked([{ type: 'textColor', attrs: { color: '#AbCdEf' } }]), [{ type: 'textColor', attrs: { color: '#abcdef' } }])
+  assert.deepEqual(marked([{ type: 'highlight', attrs: { color: '#ffee00' } }, { type: 'textColor', attrs: { color: '#000000' } }]).map((m) => m.type), ['highlight', 'textColor'])
+  assert.deepEqual(marked([{ type: 'subscript' }]), [{ type: 'subscript' }])
+  assert.deepEqual(marked([{ type: 'superscript' }, { type: 'bold' }]), [{ type: 'superscript' }, { type: 'bold' }])
+  assert.equal(isHexColor('#12345f'), true)
+  for (const color of ['#abc', 'red', 'rgb(0,0,0)', '#12345g', '#12345678', '#ff000080', 'abcdef', '#abcdef ', undefined, 5]) {
+    assert.equal(isHexColor(color), false, String(color))
+    for (const type of ['textColor', 'highlight']) {
+      invalid(doc({ type: 'paragraph', content: [t('x', [{ type, attrs: { color } }])] }), /color ".*" is not allowed/, `${type} ${color}`)
+    }
+  }
+  invalid(doc({ type: 'paragraph', content: [t('x', [{ type: 'textColor', attrs: { color: '#abcdef', style: 'x' } }])] }), /unknown attribute "style"/)
+  invalid(doc({ type: 'paragraph', content: [t('x', [{ type: 'subscript' }, { type: 'superscript' }])] }), /subscript and superscript/)
+  invalid(doc({ type: 'paragraph', content: [t('x', [{ type: 'superscript', attrs: { a: 1 } }])] }), /unknown attribute/)
+  // task list
+  const tl = validateDoc(doc({ type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: true }, content: [p('a')] }, { type: 'taskItem', content: [p('b')] }] }))
+  assert.deepEqual(tl.content[0].content.map((i) => i.attrs.checked), [true, false])
+  invalid(doc({ type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: 'yes' }, content: [p('a')] }] }), /checked "yes" is not allowed/)
+  invalid(doc({ type: 'taskList', content: [{ type: 'taskItem', content: [{ type: 'taskList', content: [] }] }] }), /unexpected "taskList"/)
+  invalid(doc({ type: 'taskList', content: [{ type: 'taskItem', content: [p('a'), p('b')] }] }), /not valid/)
+  // tables: valid shapes are read back unchanged (spans stored only when above 1)
+  const simple = table(row(cell('h', null, 'tableHeader'), cell('h', null, 'tableHeader')), row(cell(), cell()))
+  assert.deepEqual(validateDoc(simple), simple)
+  const colspan = table(row(cell('a', { colspan: 2 })), row(cell(), cell()))
+  assert.deepEqual(validateDoc(colspan), colspan)
+  const rowspan = table(row(cell('a', { rowspan: 2 }), cell()), row(cell()))
+  assert.deepEqual(validateDoc(rowspan), rowspan)
+  const both = table(row(cell('a', { colspan: 2, rowspan: 2 }), cell()), row(cell()), row(cell(), cell(), cell()))
+  assert.deepEqual(validateDoc(both), both)
+  assert.deepEqual(validateDoc(table(row(cell('a', { colspan: 1, rowspan: 1, colwidth: null }))), undefined).content[0].content[0].content[0], cell('a'))
+  assert.deepEqual(validateDoc(doc({ type: 'blockquote', content: [simple.content[0]] })).content[0].content[0].type, 'table')
+  const cells12 = Array.from({ length: 12 }, () => cell())
+  validateDoc(table(row(...cells12)))
+  validateDoc(table(...Array.from({ length: 100 }, () => row(cell()))))
+  // tables: refused
+  const sum = /table cells do not add up/
+  invalid(table(row(cell(), cell()), row(cell())), sum, 'ragged short row')
+  invalid(table(row(cell()), row(cell(), cell())), sum, 'ragged long row')
+  invalid(table(row(cell('a', { rowspan: 2 }), cell()), row(cell(), cell())), sum, 'overlap by rowspan')
+  invalid(table(row(cell('a', { colspan: 2 }), cell('b', { colspan: 2 })), row(cell('c', { colspan: 3 }), cell('d', { colspan: 2 }))), sum, 'overhang')
+  invalid(table(row(cell('a', { rowspan: 2 })), row(cell())), sum, 'rowspan covers the second row so it overlaps')
+  invalid(table(row(cell('a', { rowspan: 3 }), cell()), row(cell())), sum, 'rowspan past the last row')
+  invalid(table(row(...Array.from({ length: 13 }, () => cell()))), sum, '13 columns')
+  invalid(table(...Array.from({ length: 101 }, () => row(cell()))), sum, '101 rows')
+  invalid(table(), sum, 'no rows')
+  invalid(table(row()), sum, 'empty row')
+  invalid(table(row(cell('a', { colspan: 13 }))), /colspan "13" is not allowed/)
+  invalid(table(row(cell('a', { colspan: 0 }))), /colspan "0" is not allowed/)
+  invalid(table(row(cell('a', { rowspan: 101 }))), /rowspan "101" is not allowed/)
+  invalid(table(row(cell('a', { colspan: 1.5 }))), /colspan "1.5" is not allowed/)
+  invalid(table(row(cell('a', { colspan: '2' }))), /colspan "2" is not allowed/)
+  invalid(table(row(cell('a', { colwidth: [100] }))), /colwidth/)
+  invalid(table(row(cell('a', { style: 'x' }))), /unknown attribute "style"/)
+  invalid(table(row({ type: 'tableCell', content: [p('a'), p('b')] })), /not valid/)
+  invalid(table(row({ type: 'tableCell', content: [] })), /not valid/)
+  invalid(table(row({ type: 'tableCell', content: [{ type: 'table', content: [row(cell())] }] })), /unexpected "table"/)
+  invalid(table(row({ type: 'tableCell', content: [{ type: 'bulletList', content: [] }] })), /unexpected "bulletList"/)
+  invalid(table({ type: 'paragraph' }), /unexpected "paragraph"/)
+  // images: size, align, caption
+  const img = (attrs) => doc({ type: 'image', attrs: { imageId: 'abc', ...attrs } })
+  for (const v of IMAGE_SIZES) assert.equal(validateDoc(img({ size: v })).content[0].attrs.size, v)
+  for (const v of IMAGE_ALIGNS) assert.equal(validateDoc(img({ align: v })).content[0].attrs.align, v)
+  assert.deepEqual(validateDoc(img({ size: 'small', align: 'right', caption: 'Cap' })).content[0].attrs, { imageId: 'abc', alt: null, size: 'small', align: 'right', caption: 'Cap' })
+  assert.equal(validateDoc(img({ caption: '' })).content[0].attrs.caption, '')
+  assert.equal('caption' in validateDoc(img({ caption: null })).content[0].attrs, false)
+  assert.equal(validateDoc(img({ caption: '😀'.repeat(500) })).content[0].attrs.caption, '😀'.repeat(500))
+  assert.deepEqual(validateDoc(doc({ type: 'image', attrs: { src: 'https://example.com/a.png', size: 'full', align: 'center' } })).content[0].attrs, { src: 'https://example.com/a.png', alt: null, size: 'full', align: 'center' })
+  invalid(img({ size: 'huge' }), /size "huge" is not allowed/)
+  invalid(img({ align: 'justify' }), /align "justify" is not allowed/)
+  invalid(img({ align: '<x>' }), /align "<x>" is not allowed/)
+  invalid(img({ caption: 'a'.repeat(501) }), /image caption/)
+  invalid(img({ caption: 5 }), /image caption/)
+  invalid(img({ width: 100 }), /unknown attribute "width"/)
+  // captions count as visible text
+  const { docText } = await import(path.join(root, 'src', 'lib', 'blogDoc.ts'))
+  assert.equal(docText(validateDoc(doc(p('a'), { type: 'image', attrs: { imageId: 'abc', caption: 'Cap' } }, table(row(cell('x'), cell('y'))).content[0]))), 'a\nCap\nx\ny')
+}
 // the storage backstop: well inside the character limit but over MAX_DOC_BYTES
 {
   const huge = { ...config, maxBodyLength: 200000 }
