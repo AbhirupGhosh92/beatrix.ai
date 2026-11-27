@@ -187,7 +187,7 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
   const [uploading, setUploading] = useState(false)
   const uploadingRef = useRef(false)
 
-  const imageUrl = useMemo(() => (id: string) => hostRef.current.images.imageUrl(id), [])
+  const [imageUrl] = useState(() => (id: string) => hostRef.current.images.imageUrl(id))
   const legacyScheme = host.images.legacyScheme ?? null
 
   const extensions = useMemo(
