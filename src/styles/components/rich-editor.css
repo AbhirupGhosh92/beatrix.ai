@@ -1,0 +1,163 @@
+/* The rich-text editor (src/components/editor/): surface, floating toolbar, insert menu and content. Theme tokens only. */
+.rich-editor {
+  @apply mx-auto w-full;
+  max-width: 42rem;
+  position: relative;
+}
+
+.editor-hint {
+  @apply mt-4 text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+/* The floating toolbar (selection) and the "+" insert menu (empty line). */
+.editor-floating {
+  @apply flex flex-wrap items-center gap-1;
+}
+
+.editor-bubble {
+  @apply rounded-box border border-base-300 bg-base-100 p-1;
+  z-index: 20;
+  max-width: calc(100vw - 1rem);
+}
+
+.editor-toolbar-group {
+  @apply flex items-center gap-1;
+}
+
+.editor-toolbar-group + .editor-toolbar-group {
+  @apply border-l border-base-300 pl-1;
+}
+
+/* Square icon buttons, 40px for touch: the global unlayered `button` rule would otherwise size and tint them. */
+.editor-tool {
+  @apply inline-flex h-10 min-h-0 w-10 items-center justify-center rounded p-0;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--color-base-content);
+}
+
+.editor-tool:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.editor-tool:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.editor-tool[aria-pressed="true"] {
+  background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  color: var(--color-primary);
+}
+
+.editor-tool::after {
+  display: none;
+}
+
+.editor-insert {
+  @apply rounded-box border border-base-300 bg-base-100 p-1;
+  z-index: 20;
+  max-width: calc(100vw - 1rem);
+}
+
+.editor-insert-bar {
+  @apply flex flex-wrap items-center gap-1;
+}
+
+.editor-plus {
+  @apply rounded-full border-base-300;
+}
+
+.editor-insert-items {
+  @apply flex flex-wrap items-center gap-1;
+}
+
+.editor-link-form {
+  @apply flex flex-wrap items-center gap-2 p-1;
+}
+
+.rich-editor-content {
+  @apply min-h-64;
+}
+
+.rich-editor-content .ProseMirror {
+  @apply min-h-56 outline-none;
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.rich-editor-content .ProseMirror > * + * {
+  @apply mt-3;
+}
+
+.rich-editor-content .ProseMirror h1 {
+  @apply text-2xl font-semibold;
+}
+
+.rich-editor-content .ProseMirror h2 {
+  @apply text-xl font-semibold;
+}
+
+.rich-editor-content .ProseMirror h3 {
+  @apply text-lg font-semibold;
+}
+
+.rich-editor-content .ProseMirror ul {
+  @apply list-disc pl-6;
+}
+
+.rich-editor-content .ProseMirror ol {
+  @apply list-decimal pl-6;
+}
+
+.rich-editor-content .ProseMirror a {
+  @apply underline;
+  color: var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror blockquote {
+  @apply border-l-4 border-base-300 pl-4 text-base-content/60;
+}
+
+.rich-editor-content .ProseMirror code {
+  @apply rounded bg-base-300/60 px-1 py-0.5 text-sm;
+}
+
+.rich-editor-content .ProseMirror pre {
+  @apply overflow-x-auto rounded-box border border-base-300 bg-base-200 p-3;
+}
+
+.rich-editor-content .ProseMirror pre code {
+  @apply bg-transparent p-0;
+}
+
+.rich-editor-content .ProseMirror hr {
+  @apply border-base-300;
+}
+
+.rich-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+
+.rich-editor-content .ProseMirror img {
+  @apply h-auto max-w-full rounded-box border border-base-300;
+}
+
+.rich-editor-content .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror hr.ProseMirror-selectednode {
+  border-color: var(--color-primary);
+}
