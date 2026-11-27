@@ -338,3 +338,33 @@
   color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
   text-decoration: line-through;
 }
+
+/* Image uploads: the placeholder at the insertion point and the queue under the editor. */
+.upload-placeholder {
+  @apply inline-block rounded border border-dashed border-base-300 bg-base-200 px-2 py-1 text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  user-select: none;
+}
+
+.upload-status {
+  @apply mt-3 flex flex-col gap-2;
+  list-style: none;
+  padding: 0;
+}
+
+.upload-status:empty {
+  display: none;
+}
+
+.upload-status-row {
+  @apply flex flex-wrap items-center gap-2 text-sm;
+}
+
+.upload-status-bar {
+  @apply w-40 max-w-full;
+}
+
+.upload-status-error {
+  @apply rounded-box border border-error px-3 py-2;
+  color: var(--color-error);
+}

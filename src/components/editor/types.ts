@@ -17,6 +17,10 @@ export interface RichEditorHost {
     limits: { maxBytes: number; remaining(): number; maxUrlLength: number }
     /** false stops the upload (a never-saved document the host could not save). */
     ensureSaved?(): Promise<boolean>
+    /** true while the document has never been saved (ensureSaved then runs before the first upload); absent: ensureSaved always runs. */
+    needsSave?(): boolean
+    /** Wording the host wants for these two notices (the editor has neutral defaults). */
+    messages?: { limitReached?: string; pickerRefused?: string }
     /** An edit replaced an image (the host removes the old one on save). */
     onReplaced?(oldId: string): void
     /** Markdown image scheme to import, e.g. `blog-image:`. */
@@ -25,4 +29,6 @@ export interface RichEditorHost {
   /** Every change, as the editor's document JSON (validated by the host before saving). */
   onDoc(doc: JSONContent): void
   onError(message: string): void
+  /** An image upload is running or queued (true) or all are done (false); the host may hold its own save meanwhile. */
+  onUploadingChange?(active: boolean): void
 }
