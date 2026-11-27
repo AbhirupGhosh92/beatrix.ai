@@ -161,3 +161,180 @@
 .rich-editor-content .ProseMirror hr.ProseMirror-selectednode {
   border-color: var(--color-primary);
 }
+
+/* Action bar above the text: undo, redo and (in a table) the table controls. */
+.editor-actionbar {
+  @apply mb-3 flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 p-1;
+}
+
+.editor-table-controls {
+  @apply flex-wrap;
+}
+
+/* Text buttons of the table group; the global unlayered `button` rule would otherwise size and tint them. */
+.editor-action {
+  @apply inline-flex h-9 min-h-0 items-center justify-center rounded px-2 text-sm font-medium;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--color-base-content);
+}
+
+.editor-action:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.editor-action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.editor-action::after {
+  display: none;
+}
+
+.editor-action:disabled,
+.editor-tool:disabled {
+  opacity: 0.4;
+}
+
+/* Color and highlight panel shown in the floating toolbar. */
+.editor-color-panel {
+  @apply flex flex-col gap-2 p-1;
+}
+
+.editor-swatches {
+  @apply flex flex-wrap gap-2;
+}
+
+.editor-swatch {
+  @apply h-8 min-h-0 w-8 rounded-full p-0;
+  border: 2px solid var(--color-base-300);
+  box-shadow: none;
+}
+
+.editor-swatch:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--color-base-content);
+}
+
+.editor-swatch::after {
+  display: none;
+}
+
+.editor-swatch[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.editor-swatch:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.editor-color-custom {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.editor-color-input {
+  @apply h-9 w-12 cursor-pointer rounded border border-base-300 bg-base-100 p-0.5;
+}
+
+/* Marks, matching the reader's .blog-color and .blog-hl (the custom properties are set inline by the marks). */
+.rich-editor-content .ProseMirror .blog-color {
+  color: var(--blog-color);
+}
+
+.rich-editor-content .ProseMirror .blog-hl {
+  background-color: var(--blog-hl);
+  color: var(--blog-hl-ink);
+  border-radius: 0.2em;
+  padding-inline: 0.1em;
+}
+
+.rich-editor-content .ProseMirror sub,
+.rich-editor-content .ProseMirror sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+/* Tables: the same grid look as the reader; a selected cell range is tinted. */
+.rich-editor-content .ProseMirror .tableWrapper {
+  @apply my-3 max-w-full overflow-x-auto;
+}
+
+.rich-editor-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.rich-editor-content .ProseMirror th,
+.rich-editor-content .ProseMirror td {
+  position: relative;
+  border: 1px solid var(--color-base-300);
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+  min-width: 4rem;
+}
+
+.rich-editor-content .ProseMirror th {
+  background-color: var(--color-base-200);
+  font-weight: 700;
+}
+
+.rich-editor-content .ProseMirror td > p,
+.rich-editor-content .ProseMirror th > p {
+  margin: 0;
+}
+
+.rich-editor-content .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
+}
+
+/* Task lists: a checkbox the author can tick, then the item text. */
+.rich-editor-content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > label {
+  flex: none;
+  margin-top: 0.45em;
+  user-select: none;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  text-decoration: line-through;
+}

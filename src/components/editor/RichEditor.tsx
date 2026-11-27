@@ -8,8 +8,20 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
+import { Table, TableRow } from '@tiptap/extension-table'
+import { TaskList } from '@tiptap/extension-list'
 import { Markdown } from '@tiptap/markdown'
 import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES, isHttpsImageUrl } from '../../lib/blogDoc.ts'
+import EditorActionBar from './EditorActionBar.tsx'
+import {
+  BlogSubscript,
+  BlogSuperscript,
+  BlogTableCell,
+  BlogTableHeader,
+  BlogTaskItem,
+  Highlight,
+  TextColor,
+} from './blogTextExtensions.ts'
 import FloatingToolbar from './FloatingToolbar.tsx'
 import InsertMenu from './InsertMenu.tsx'
 import type { RichEditorHost } from './types.ts'
@@ -212,6 +224,16 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
         alignments: [...ALIGN_VALUES],
       }),
       ListStyle,
+      TextColor,
+      Highlight,
+      BlogSubscript,
+      BlogSuperscript,
+      Table.configure({ resizable: false }),
+      TableRow,
+      BlogTableHeader,
+      BlogTableCell,
+      TaskList,
+      BlogTaskItem,
       Markdown,
     ],
     [imageUrl, legacyScheme],
@@ -323,6 +345,7 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
 
   return (
     <div className="rich-editor" onKeyDown={onKeyDown}>
+      <EditorActionBar editor={editor} />
       <EditorContent editor={editor} className="rich-editor-content" />
       <FloatingToolbar editor={editor} onError={host.onError} />
       <InsertMenu
