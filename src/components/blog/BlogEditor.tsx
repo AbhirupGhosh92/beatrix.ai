@@ -124,6 +124,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   const [published, setPublished] = useState(post?.status === 'published')
   const [version, setVersion] = useState(post?.version)
   const [postId, setPostId] = useState(post?.id ?? null)
+  // Read by the upload queue right after a draft save, before the next render has updated `postId`.
+  const postIdRef = useRef(post?.id ?? null)
+  const [uploadsActive, setUploadsActive] = useState(false)
   const [images, setImages] = useState<BlogImage[]>(post?.images ?? [])
   const [removed, setRemoved] = useState<string[]>([])
   const [conflict, setConflict] = useState(false)
@@ -170,7 +173,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
     tags.some((tag) => charCount(tag) > config.maxTagLength) ? `A tag is over the limit of ${config.maxTagLength} characters.` : null,
     checked && 'error' in checked ? checked.error : null,
   ].filter((problem): problem is string => problem !== null)
-  const busy = saving || deleting || uploading
+  // The editor's own controls wait only for a save or delete; saving and deleting also wait for running uploads.
+  const editorBusy = saving || deleting
+  const busy = editorBusy || uploading || uploadsActive
 
   /** Saves the post; true when it was stored. `asDraft` saves as a draft whatever the toggle says. */
   const save = async (asDraft = false): Promise<boolean> => {
@@ -193,6 +198,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
       setRemoved([])
       setConverted(false)
       if (!postId) {
+        postIdRef.current = saved.id
         setPostId(saved.id)
         onOpen(saved.id)
       }
@@ -238,12 +244,13 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
 
   /** The editor's image store: the blog's RTK endpoint; a failure is already reported by the error snackbar. */
   const uploadImage: RichEditorHost['images']['upload'] = async (file) => {
-    if (!postId) throw new Error('The post is not saved yet.')
+    const currentId = postIdRef.current
+    if (!currentId) throw new Error('The post is not saved yet.')
     if (images.length >= config.maxImagesPerPost) {
       dispatch(notify('error', `A post holds at most ${config.maxImagesPerPost} images.`))
       throw new Error('Image limit reached.')
     }
-    const image = await uploadBlogImage({ postId, name: file.name, dataBase64: file.dataBase64 }).unwrap()
+    const image = await uploadBlogImage({ postId: currentId, name: file.name, dataBase64: file.dataBase64, uploadId: file.uploadId }).unwrap()
     setImages((current) => [...current, image])
     return image
   }
@@ -257,7 +264,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
       dispatch(notify('error', `A post holds at most ${config.maxImagesPerPost} images.`))
       return false
     }
-    if (postId) return true
+    if (postIdRef.current) return true
     // Never saved: the form's own checks first, so nothing is saved and no picker opens when they fail.
     if (problems.length > 0 || !validDoc) {
       dispatch(notify('error', problems.length > 0 ? problems.join(' ') : 'The text is not ready yet.'))
@@ -279,10 +286,16 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         maxUrlLength: config.maxImageUrlLength,
       },
       ensureSaved,
+      needsSave: () => !postIdRef.current,
+      messages: {
+        limitReached: `A post holds at most ${config.maxImagesPerPost} images.`,
+        pickerRefused: 'Draft saved. Choose the image again.',
+      },
       legacyScheme: BLOG_IMAGE_SCHEME,
     },
     onDoc: setDoc,
     onError: reportError,
+    onUploadingChange: setUploadsActive,
   }
 
   return (
@@ -352,7 +365,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <CharCounter label="Text length" count={bodyChars} max={bodyMax} />
         </div>
-        <RichEditor host={host} busy={busy} onEditor={setEditor} pickImageRef={pickImageRef} />
+        <RichEditor host={host} busy={editorBusy} onEditor={setEditor} pickImageRef={pickImageRef} />
       </div>
 
       <div className="surface rounded-box flex flex-col gap-3 p-4">

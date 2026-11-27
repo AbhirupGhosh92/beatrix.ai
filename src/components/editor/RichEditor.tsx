@@ -24,6 +24,9 @@ import {
 } from './blogTextExtensions.ts'
 import FloatingToolbar from './FloatingToolbar.tsx'
 import InsertMenu from './InsertMenu.tsx'
+import UploadStatus from './UploadStatus.tsx'
+import { UploadPlaceholder } from './uploadPlaceholder.ts'
+import { useImageUploads } from './useImageUploads.ts'
 import type { RichEditorHost } from './types.ts'
 
 // The rich-text editor (Tiptap), independent of its host (see types.ts). A host loads it through
@@ -168,23 +171,6 @@ interface Props {
   pickImageRef?: MutableRefObject<(() => void) | null>
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) {
-    const mb = bytes / (1024 * 1024)
-    return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`
-  }
-  return `${Math.floor(bytes / 1024)} KB`
-}
-
-function readBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props) {
   const { initial } = host
   // The latest host and busy flag, read by callbacks so a new host object never recreates the editor.
@@ -195,9 +181,8 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
     busyRef.current = busy
   }, [host, busy])
   const fileRef = useRef<HTMLInputElement>(null)
-  const uploadCount = useRef(0)
-  const [uploading, setUploading] = useState(false)
-  const uploadingRef = useRef(false)
+  // Set once the editor exists; drop and paste handlers (created with the editor) read it when they fire.
+  const enqueueRef = useRef<((files: File[], pos: number | null) => void) | null>(null)
 
   const [imageUrl] = useState(() => (id: string) => hostRef.current.images.imageUrl(id))
   const legacyScheme = host.images.legacyScheme ?? null
@@ -234,6 +219,7 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
       BlogTableCell,
       TaskList,
       BlogTaskItem,
+      UploadPlaceholder,
       Markdown,
     ],
     [imageUrl, legacyScheme],
@@ -248,6 +234,26 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': host.label,
+      },
+      // Image files only: text and HTML drops and pastes stay with Tiptap.
+      handleDrop: (view, event, _slice, moved) => {
+        const files = Array.from(event.dataTransfer?.files ?? [])
+        if (moved || files.length === 0 || !enqueueRef.current) return false
+        event.preventDefault()
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
+        enqueueRef.current(files, at ? at.pos : null)
+        return true
+      },
+      handlePaste: (_view, event) => {
+        const data = event.clipboardData
+        const files = Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'))
+        if (files.length === 0 || !enqueueRef.current) return false
+        // A copy from a document or spreadsheet carries a preview image next to its text: that stays text.
+        const html = (data?.getData('text/html') ?? '').replace(/<[^>]*>/g, '').trim()
+        if (html !== '' || (data?.getData('text/plain') ?? '').trim() !== '') return false
+        event.preventDefault()
+        enqueueRef.current(files, null)
+        return true
       },
     },
     onCreate: ({ editor: e }) => {
@@ -273,61 +279,43 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
     return () => onEditor(null)
   }, [editor, onEditor])
 
-  /** The Upload control. The host may first save a never-saved document; then the picker opens. */
-  const requestUpload = async () => {
+  const uploads = useImageUploads(editor, hostRef)
+  useEffect(() => {
+    enqueueRef.current = (files, pos) => uploads.enqueue(files, pos)
+  })
+
+  /** The Upload control. A saved document opens the picker at once (the click's activation is still valid). */
+  const requestUpload = () => {
     const { images, onError } = hostRef.current
-    if (busyRef.current || uploadingRef.current) return
-    if (images.ensureSaved) {
-      if (!(await images.ensureSaved())) return
-    } else if (images.limits.remaining() <= 0) {
-      onError('No more images can be added.')
+    if (busyRef.current) return
+    const open = (afterSave: boolean) => {
+      try {
+        fileRef.current?.showPicker()
+      } catch {
+        // A save can spend the click's activation: showPicker then refuses and the next click opens it.
+        onError((afterSave && images.messages?.pickerRefused) || 'The image picker did not open. Choose the image again.')
+      }
+    }
+    const step = uploads.prepare()
+    if (step.needed) {
+      void step.done.then((ok) => {
+        if (ok) open(true)
+      })
       return
     }
-    // The click's activation may be spent by a save: showPicker can refuse, then the next click opens it.
-    try {
-      fileRef.current?.showPicker()
-    } catch {
-      onError('The image picker did not open. Choose the image again.')
+    if (images.limits.remaining() - uploads.pending() <= 0) {
+      onError(images.messages?.limitReached ?? 'No more images can be added.')
+      return
     }
+    open(false)
   }
   useEffect(() => {
     if (!pickImageRef) return
-    pickImageRef.current = () => void requestUpload()
+    pickImageRef.current = () => requestUpload()
     return () => {
       pickImageRef.current = null
     }
   })
-
-  const uploadFile = async (file: File) => {
-    const { images, onError } = hostRef.current
-    if (file.size > images.limits.maxBytes) {
-      onError(`That image is over the ${formatBytes(images.limits.maxBytes)} limit.`)
-      return
-    }
-    uploadingRef.current = true
-    setUploading(true)
-    try {
-      const uploadId = `upload-${(uploadCount.current += 1)}`
-      const image = await images.upload({
-        name: file.name,
-        dataBase64: await readBase64(file),
-        uploadId,
-      })
-      const alt = Array.from(image.name.replace(/\.[^.]*$/, ''))
-        .slice(0, 500)
-        .join('')
-      editor
-        ?.chain()
-        .focus()
-        .insertContent({ type: 'image', attrs: { imageId: image.id, alt } })
-        .run()
-    } catch {
-      // The host already told the user (or the file could not be read).
-    } finally {
-      uploadingRef.current = false
-      setUploading(false)
-    }
-  }
 
   if (!editor) return <p className="text-muted">Loading the editor...</p>
 
@@ -350,23 +338,25 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef }: Props
       <FloatingToolbar editor={editor} onError={host.onError} />
       <InsertMenu
         editor={editor}
-        busy={busy || uploading}
+        busy={busy}
         maxImageUrlLength={host.images.limits.maxUrlLength}
-        onPickImage={() => void requestUpload()}
+        onPickImage={requestUpload}
         onError={host.onError}
       />
       <input
         ref={fileRef}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif"
+        multiple
         className="sr-only"
         tabIndex={-1}
         onChange={(event) => {
-          const file = event.target.files?.[0]
+          const files = Array.from(event.target.files ?? [])
           event.target.value = ''
-          if (file) void uploadFile(file)
+          if (files.length > 0) uploads.enqueue(files, null, true)
         }}
       />
+      <UploadStatus items={uploads.items} onDismiss={uploads.dismiss} />
       <p className="editor-hint">
         Select text for formatting, or press Enter on a new line and use the plus button. Shortcuts: Ctrl/Cmd+B bold, +I italic, +U underline, +Z undo, Alt+F10
         to reach the toolbar.
