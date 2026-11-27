@@ -48,6 +48,121 @@
   list-style-type: upper-roman;
 }
 
+/* Free colors: BlogContent sets only --blog-color, --blog-hl and --blog-hl-ink (each a validated
+   #rrggbb), highlight outside and color inside. The ink keeps highlighted text readable in every theme. */
+.blog-prose .blog-color {
+  color: var(--blog-color);
+}
+
+.blog-prose .blog-hl {
+  background-color: var(--blog-hl);
+  color: var(--blog-hl-ink);
+  border-radius: 0.2em;
+  padding-inline: 0.1em;
+}
+
+.blog-prose sub,
+.blog-prose sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+/* Tables: wide ones scroll inside their wrapper instead of widening the page. */
+.blog-prose .blog-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.blog-prose table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.blog-prose th,
+.blog-prose td {
+  border: 1px solid var(--color-base-300);
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+  min-width: 4rem;
+}
+
+.blog-prose th {
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
+  font-weight: 700;
+}
+
+.blog-prose td > * + *,
+.blog-prose th > * + * {
+  margin-top: 0.5rem;
+}
+
+/* Task lists: a read-only checkbox beside the item text. */
+.blog-prose ul.blog-task-list {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.blog-prose li.blog-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.blog-prose li.blog-task > input[type="checkbox"] {
+  flex: none;
+  margin-top: 0.45em;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-primary);
+}
+
+.blog-prose li.blog-task > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Image size and alignment (fixed classes chosen from the whitelists in BlogContent). The figure
+   carries them; the .reader prefix beats the reader's own figure margin. */
+.blog-prose figure.blog-img-size-small {
+  width: min(100%, 16rem);
+}
+
+.blog-prose figure.blog-img-size-medium {
+  width: min(100%, 28rem);
+}
+
+.blog-prose figure.blog-img-size-full {
+  width: 100%;
+}
+
+.blog-prose figure[class*="blog-img-size-"] img {
+  width: 100%;
+}
+
+.reader .blog-prose figure.blog-img-align-left {
+  margin-inline: 0 auto;
+}
+
+.reader .blog-prose figure.blog-img-align-center {
+  margin-inline: auto;
+}
+
+.reader .blog-prose figure.blog-img-align-right {
+  margin-inline: auto 0;
+}
+
+.blog-prose figure.blog-img-align-left figcaption {
+  text-align: left;
+}
+
+.blog-prose figure.blog-img-align-right figcaption {
+  text-align: right;
+}
+
 /* Reader width: compact is a readable measure, wide uses the full available width. */
 .reader[data-reader-width="compact"] .reader-inner {
   max-width: 42rem;
