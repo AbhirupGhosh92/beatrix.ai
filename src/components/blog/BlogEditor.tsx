@@ -102,6 +102,12 @@ function formatBytes(bytes: number): string {
   return `${Math.floor(bytes / 1024)} KB`
 }
 
+/** Every uploaded image id the document uses. */
+function imageIdsOf(node: { type?: string; attrs?: Record<string, unknown>; content?: unknown[] }): string[] {
+  const own = node.type === 'image' && typeof node.attrs?.imageId === 'string' ? [node.attrs.imageId] : []
+  return own.concat((node.content ?? []).flatMap((child) => imageIdsOf(child as Parameters<typeof imageIdsOf>[0])))
+}
+
 function initialContent(post: BlogPost | null): EditorInitial {
   if (!post) return { kind: 'empty' }
   if (post.format === 'doc' && post.content && typeof post.content === 'object') return { kind: 'doc', doc: post.content as JSONContent }
@@ -134,6 +140,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   const [doc, setDoc] = useState<JSONContent | null>(null)
   const [editor, setEditor] = useState<Editor | null>(null)
   const pickImageRef = useRef<(() => void) | null>(null)
+  const clearEditsRef = useRef<(() => void) | null>(null)
+  // Images an edit replaced (the originals): kept until the post is saved, then deleted unless the saved text still uses them.
+  const replacedRef = useRef<Set<string>>(new Set())
   const titleRef = useRef<HTMLTextAreaElement>(null)
 
   // The title field grows with its text (no inner scrollbar).
@@ -182,13 +191,17 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
     if (!validDoc) return false
     // A rich post is always saved as a document, never with `body` (the server keeps a legacy post's
     // original Markdown and refuses a body save on a document post).
+    const used = new Set(imageIdsOf(validDoc))
+    const known = new Set(images.map((image) => image.id))
+    const replaced = [...replacedRef.current].filter((imageId) => !used.has(imageId) && known.has(imageId) && !removed.includes(imageId))
+    const removeImageIds = [...removed, ...replaced]
     const arg = {
       ...(postId ? { id: postId, version } : {}),
       title: title.trim(),
       content: validDoc,
       tags,
       status: (published && !asDraft ? 'published' : 'draft') as BlogSaveArg['status'],
-      ...(removed.length > 0 ? { removeImageIds: removed } : {}),
+      ...(removeImageIds.length > 0 ? { removeImageIds } : {}),
     }
     try {
       const saved = await saveBlogPost(arg).unwrap()
@@ -196,6 +209,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
       setVersion(saved.version)
       setImages(saved.images)
       setRemoved([])
+      // The originals of edited images are gone now: Reset and the replaced list start again.
+      replacedRef.current.clear()
+      clearEditsRef.current?.()
       setConverted(false)
       if (!postId) {
         postIdRef.current = saved.id
@@ -291,6 +307,9 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         limitReached: `A post holds at most ${config.maxImagesPerPost} images.`,
         pickerRefused: 'Draft saved. Choose the image again.',
       },
+      onReplaced: (oldId) => {
+        replacedRef.current.add(oldId)
+      },
       legacyScheme: BLOG_IMAGE_SCHEME,
     },
     onDoc: setDoc,
@@ -356,7 +375,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
           <span className="min-w-0 break-words">
             This post was written in Markdown and is converted to the rich-text editor. Saving stores the converted version (the original text is kept as a
             backup).
-            {losses.length > 0 && ` These parts cannot be kept as they are (tables become plain lines; task boxes, HTML and remote images are removed): ${losses.join(', ')}.`}
+            {losses.length > 0 && ` These parts cannot be kept as they are (raw HTML and remote images are removed): ${losses.join(', ')}.`}
           </span>
         </div>
       )}
@@ -365,7 +384,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <CharCounter label="Text length" count={bodyChars} max={bodyMax} />
         </div>
-        <RichEditor host={host} busy={editorBusy} onEditor={setEditor} pickImageRef={pickImageRef} />
+        <RichEditor host={host} busy={editorBusy} onEditor={setEditor} pickImageRef={pickImageRef} clearEditsRef={clearEditsRef} />
       </div>
 
       <div className="surface rounded-box flex flex-col gap-3 p-4">

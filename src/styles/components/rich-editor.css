@@ -158,6 +158,185 @@
   outline: 2px solid var(--color-primary);
 }
 
+/* An image with a size, alignment or caption is a figure (same class names as the reader). */
+.rich-editor-content .ProseMirror figure {
+  @apply my-4;
+}
+
+.rich-editor-content .ProseMirror figure.ProseMirror-selectednode img {
+  outline: 2px solid var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-small {
+  width: min(100%, 16rem);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-medium {
+  width: min(100%, 28rem);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-full {
+  width: 100%;
+}
+
+.rich-editor-content .ProseMirror figure[class*="blog-img-size-"] img {
+  width: 100%;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-left {
+  margin-inline: 0 auto;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-center {
+  margin-inline: auto;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-right {
+  margin-inline: auto 0;
+}
+
+.rich-editor-content .ProseMirror figure figcaption {
+  @apply mt-2 text-center text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-left figcaption {
+  text-align: left;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-right figcaption {
+  text-align: right;
+}
+
+/* Image toolbar (an image is selected). */
+.image-toolbar {
+  @apply flex flex-wrap items-end gap-2;
+  max-width: min(100vw - 1rem, 34rem);
+}
+
+.image-toolbar-choice {
+  @apply inline-flex h-10 min-h-0 items-center justify-center rounded px-2 text-sm;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--color-base-content);
+}
+
+.image-toolbar-choice:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.image-toolbar-choice::after {
+  display: none;
+}
+
+.image-toolbar-choice[aria-pressed="true"] {
+  background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  color: var(--color-primary);
+}
+
+.image-toolbar-fields {
+  @apply flex min-w-0 flex-1 flex-wrap gap-2;
+}
+
+.image-toolbar-field {
+  @apply flex min-w-40 flex-1 flex-col gap-1 text-sm;
+}
+
+/* Image editing dialog: native modal <dialog>, preview with a hand-written crop box. */
+.image-editor {
+  @apply rounded-box border border-base-300 bg-base-100 p-4;
+  color: var(--color-base-content);
+  width: min(100vw - 1.5rem, 44rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+}
+
+.image-editor::backdrop {
+  background: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+
+.image-editor-title {
+  @apply mb-3 text-lg font-semibold;
+}
+
+.image-editor-tools {
+  @apply mb-3 flex items-center gap-1;
+}
+
+.image-editor-view {
+  @apply flex justify-center rounded border border-base-300 bg-base-200 p-2;
+  min-height: 8rem;
+}
+
+.image-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  user-select: none;
+}
+
+.image-stage-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 55dvh;
+  width: auto;
+  height: auto;
+}
+
+.image-crop {
+  position: absolute;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 0 9999px color-mix(in oklab, var(--color-base-content) 45%, transparent);
+  cursor: move;
+  touch-action: none;
+}
+
+.image-crop:focus-visible {
+  outline: 2px solid var(--color-base-100);
+  outline-offset: 2px;
+}
+
+.image-crop-handle {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  touch-action: none;
+}
+
+.image-crop-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0.375rem;
+  background: var(--color-primary);
+  border: 1px solid var(--color-base-100);
+}
+
+.image-crop-handle-nw { left: -0.75rem; top: -0.75rem; cursor: nwse-resize; }
+.image-crop-handle-n { left: calc(50% - 0.75rem); top: -0.75rem; cursor: ns-resize; }
+.image-crop-handle-ne { right: -0.75rem; top: -0.75rem; cursor: nesw-resize; }
+.image-crop-handle-e { right: -0.75rem; top: calc(50% - 0.75rem); cursor: ew-resize; }
+.image-crop-handle-se { right: -0.75rem; bottom: -0.75rem; cursor: nwse-resize; }
+.image-crop-handle-s { left: calc(50% - 0.75rem); bottom: -0.75rem; cursor: ns-resize; }
+.image-crop-handle-sw { left: -0.75rem; bottom: -0.75rem; cursor: nesw-resize; }
+.image-crop-handle-w { left: -0.75rem; top: calc(50% - 0.75rem); cursor: ew-resize; }
+
+.image-editor-error {
+  @apply mt-3 rounded-box border border-error px-3 py-2 text-sm;
+  color: var(--color-error);
+}
+
+.image-editor-actions {
+  @apply mt-4 flex flex-wrap items-center justify-between gap-2;
+}
+
+.image-editor-actions-end {
+  @apply flex gap-2;
+}
+
 .rich-editor-content .ProseMirror hr.ProseMirror-selectednode {
   border-color: var(--color-primary);
 }
