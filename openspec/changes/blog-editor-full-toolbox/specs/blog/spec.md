@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: Tables
-The editor SHALL let an author insert a table (3 by 3 with a header row), add and delete rows and columns, and delete the table. Cells SHALL hold plain text. Tables SHALL be stored with the post and rendered identically in the editor, the author's read-only view and the public post page.
+The editor SHALL let an author insert a table (3 by 3 with a header row), add and delete rows and columns, merge selected cells and split a merged cell, and delete the table. Cells SHALL hold plain text. A merged cell SHALL be stored as a column span and row span within a bounded size and rendered identically everywhere. Tables SHALL be stored with the post and rendered identically in the editor, the author's read-only view and the public post page.
 
 #### Scenario: Insert and edit a table
 - **WHEN** an author inserts a table, adds a row, types in cells, saves and reopens the post
 - **THEN** the table, its extra row and the text are shown in the editor and on the public page
+
+#### Scenario: Merge cells
+- **WHEN** an author selects two adjacent cells, merges them, saves and reopens the post
+- **THEN** the merged cell spans both columns in the editor and on the public page, and splitting it restores two cells
 
 #### Scenario: Post without tables
 - **WHEN** a post saved before this change is opened
@@ -19,14 +23,18 @@ The editor SHALL offer a task list whose items can be checked and unchecked whil
 - **THEN** that item is still checked, and the public page shows it checked without letting a reader change it
 
 ### Requirement: Highlight, color, subscript and superscript
-The editor SHALL let an author mark text with a highlight, a text color, subscript or superscript. Highlight and color SHALL be chosen only from a fixed palette, with a way to remove them. Stored values SHALL be palette identifiers, never free CSS, and a save containing any other value SHALL be refused. The marks SHALL render in the editor, the author's view and the public page.
+The editor SHALL let an author mark text with a highlight, a text color, subscript or superscript. Highlight and color SHALL offer a preset palette and a free color choice, with a way to remove them. A stored color SHALL be exactly a six-digit hexadecimal value (`#rrggbb`); a save containing any other value (named colors, functions, extra text) SHALL be refused. A stored color SHALL reach the page only through a validated value, never as free CSS text. The marks SHALL render in the editor, the author's view and the public page.
 
-#### Scenario: Apply a palette color
-- **WHEN** an author colors a word from the palette, saves and reopens the post
+#### Scenario: Apply a preset color
+- **WHEN** an author colors a word from the preset palette, saves and reopens the post
 - **THEN** the word keeps that color in the editor and on the public page
 
-#### Scenario: Value outside the palette
-- **WHEN** a save request contains a color or highlight value that is not in the palette
+#### Scenario: Apply a free color
+- **WHEN** an author picks a custom color for a word, saves and reopens the post
+- **THEN** the word keeps exactly that color in the editor and on the public page
+
+#### Scenario: Invalid color value
+- **WHEN** a save request contains a color or highlight value that is not a six-digit hexadecimal color
 - **THEN** the save is refused with a message naming the attribute and value
 
 ### Requirement: Undo and redo controls
@@ -50,6 +58,24 @@ The editor SHALL upload images dropped onto it, pasted from the clipboard, or ch
 #### Scenario: Rejected file
 - **WHEN** an author drops a file that is not an allowed image type or exceeds the size limit
 - **THEN** a message names the file and the reason, nothing is inserted and the text is intact
+
+### Requirement: Image editing
+A selected image SHALL offer editing in the editor: crop to a rectangle, rotate by 90 degrees, flip horizontally and vertically, and reset to the original. Applying an edit SHALL produce a new image through the existing secure upload path (same type, size and count limits) and replace the image in the post; the original SHALL stay available through Reset until the post is saved, and a failed edit SHALL leave the image unchanged.
+
+#### Scenario: Crop an image
+- **WHEN** an author crops an uploaded image and applies the edit
+- **THEN** the post shows the cropped image in the editor and, after saving, on the public page
+
+#### Scenario: Edit fails
+- **WHEN** applying an edit fails (limit, network or unsupported image)
+- **THEN** a message explains why and the image is unchanged
+
+### Requirement: Reusable editor
+The rich-text editor SHALL be a host-independent component, so that other documentation surfaces can use the same editor with their own storage and image endpoints, without a copy of its code. The blog SHALL be its first host with no change in behavior beyond this change.
+
+#### Scenario: Blog uses the shared editor
+- **WHEN** an author writes a post
+- **THEN** the blog uses the shared editor component and all existing blog scenarios still pass
 
 ### Requirement: Image size, alignment, alt text and caption
 A selected image SHALL offer a size (small, medium, full width), an alignment (left, center, right), editable alt text and an optional caption separate from the alt text. Values SHALL be whitelisted identifiers stored with the image and rendered in the editor, the author's view and the public page; a value outside the whitelist SHALL be refused on save. An image with none of these set SHALL render as before.
