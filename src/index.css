@@ -15,6 +15,7 @@
 @import "./styles/components/landing.css";
 @import "./styles/components/blog.css";
 @import "./styles/components/blog-editor.css";
+@import "./styles/components/rich-editor.css";
 @import "./styles/components/blog-content.css";
 @import "./styles/components/blog-reader.css";
 @import "./styles/components/blog-engagement.css";

@@ -8,6 +8,7 @@ import type { BlogEditorConfig } from '../../data/blogConfig.ts'
 import { charCount, docText, validateDoc } from '../../lib/blogDoc.ts'
 import type { BlogDoc } from '../../lib/blogDoc.ts'
 import { prepareLegacyMarkdown, scanLegacyMarkdown } from '../../lib/blogMarkdownImport.ts'
+import { BLOG_IMAGE_SCHEME } from '../../lib/blogTypes.ts'
 import type { BlogImage, BlogPost, BlogSaveArg } from '../../lib/blogTypes.ts'
 import type { ApiError } from '../../store/api.ts'
 import { useDeleteBlogPostMutation, useGetBlogPostQuery, useSaveBlogPostMutation, useUploadBlogImageMutation } from '../../store/api.ts'
@@ -15,10 +16,10 @@ import { useAppDispatch } from '../../store/hooks.ts'
 import { notify } from '../../store/notifications.ts'
 import { ErrorState, SkeletonPage } from '../ui/Skeleton.tsx'
 import CharCounter from './CharCounter.tsx'
-import type { EditorInitial } from './RichEditor.tsx'
+import type { EditorInitial, RichEditorHost } from '../editor/types.ts'
 
 // The rich-text editor (Tiptap) is large: it is loaded here only, so no other page downloads it.
-const RichEditor = dynamic(() => import('./RichEditor.tsx'), {
+const RichEditor = dynamic(() => import('../editor/RichEditor.tsx'), {
   ssr: false,
   loading: () => <p className="text-muted">Loading the editor...</p>,
 })
@@ -101,15 +102,6 @@ function formatBytes(bytes: number): string {
   return `${Math.floor(bytes / 1024)} KB`
 }
 
-function readBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 function initialContent(post: BlogPost | null): EditorInitial {
   if (!post) return { kind: 'empty' }
   if (post.format === 'doc' && post.content && typeof post.content === 'object') return { kind: 'doc', doc: post.content as JSONContent }
@@ -138,7 +130,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [doc, setDoc] = useState<JSONContent | null>(null)
   const [editor, setEditor] = useState<Editor | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const pickImageRef = useRef<(() => void) | null>(null)
   const titleRef = useRef<HTMLTextAreaElement>(null)
 
   // The title field grows with its text (no inner scrollbar).
@@ -244,53 +236,53 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
     chain.run()
   }
 
-  const upload = async (file: File) => {
-    if (!postId) return
-    if (file.size > config.maxImageBytes) {
-      dispatch(notify('error', `That image is over the ${formatBytes(config.maxImageBytes)} limit.`))
-      return
-    }
+  /** The editor's image store: the blog's RTK endpoint; a failure is already reported by the error snackbar. */
+  const uploadImage: RichEditorHost['images']['upload'] = async (file) => {
+    if (!postId) throw new Error('The post is not saved yet.')
     if (images.length >= config.maxImagesPerPost) {
       dispatch(notify('error', `A post holds at most ${config.maxImagesPerPost} images.`))
-      return
+      throw new Error('Image limit reached.')
     }
-    try {
-      const image = await uploadBlogImage({ postId, name: file.name, dataBase64: await readBase64(file) }).unwrap()
-      setImages((current) => [...current, image])
-      insertImage(image)
-    } catch {
-      // Already reported by the error snackbar (or the file could not be read).
-    }
+    const image = await uploadBlogImage({ postId, name: file.name, dataBase64: file.dataBase64 }).unwrap()
+    setImages((current) => [...current, image])
+    return image
   }
 
   const visibleImages = images.filter((image) => !removed.includes(image.id))
   const reportError = useCallback((message: string) => dispatch(notify('error', message)), [dispatch])
-  const maxImageUrlLength = config.maxImageUrlLength
 
-  /** The Upload control (toolbar and Images panel). A never-saved post is saved as a draft first. */
-  const requestUpload = async () => {
-    if (busy) return
+  /** Before an upload: false stops it. A never-saved post is saved as a draft first. */
+  const ensureSaved = async (): Promise<boolean> => {
     if (visibleImages.length >= config.maxImagesPerPost) {
       dispatch(notify('error', `A post holds at most ${config.maxImagesPerPost} images.`))
-      return
+      return false
     }
-    if (postId) {
-      fileRef.current?.click()
-      return
-    }
+    if (postId) return true
     // Never saved: the form's own checks first, so nothing is saved and no picker opens when they fail.
     if (problems.length > 0 || !validDoc) {
       dispatch(notify('error', problems.length > 0 ? problems.join(' ') : 'The text is not ready yet.'))
-      return
+      return false
     }
     setPublished(false)
-    if (!(await save(true))) return
-    // The click's activation may be spent by the save: showPicker can refuse, then the next click opens it.
-    try {
-      fileRef.current?.showPicker()
-    } catch {
-      dispatch(notify('info', 'Draft saved. Choose the image again.'))
-    }
+    return save(true)
+  }
+
+  const host: RichEditorHost = {
+    initial,
+    label: 'Post text',
+    images: {
+      imageUrl: (imageId) => (postId ? `/api/blog/${encodeURIComponent(postId)}/images/${imageId}` : ''),
+      upload: uploadImage,
+      limits: {
+        maxBytes: config.maxImageBytes,
+        remaining: () => config.maxImagesPerPost - visibleImages.length,
+        maxUrlLength: config.maxImageUrlLength,
+      },
+      ensureSaved,
+      legacyScheme: BLOG_IMAGE_SCHEME,
+    },
+    onDoc: setDoc,
+    onError: reportError,
   }
 
   return (
@@ -360,16 +352,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <CharCounter label="Text length" count={bodyChars} max={bodyMax} />
         </div>
-        <RichEditor
-          initial={initial}
-          postId={postId}
-          busy={busy}
-          maxImageUrlLength={maxImageUrlLength}
-          onPickImage={() => void requestUpload()}
-          onDoc={setDoc}
-          onEditor={setEditor}
-          onError={reportError}
-        />
+        <RichEditor host={host} busy={busy} onEditor={setEditor} pickImageRef={pickImageRef} />
       </div>
 
       <div className="surface rounded-box flex flex-col gap-3 p-4">
@@ -377,19 +360,7 @@ function BlogForm({ post, config, onOpen, onClose, onReload }: FormProps) {
           <p className="text-meta-strong font-semibold">
             Images ({visibleImages.length} / {config.maxImagesPerPost})
           </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            className="sr-only"
-            tabIndex={-1}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file) void upload(file)
-            }}
-          />
-          <button type="button" className="button-secondary flex items-center gap-2" disabled={busy} onClick={() => void requestUpload()}>
+          <button type="button" className="button-secondary flex items-center gap-2" disabled={busy} onClick={() => pickImageRef.current?.()}>
             <ImagePlus size={16} aria-hidden="true" /> Upload image
           </button>
         </div>
