@@ -35,9 +35,9 @@ Depends on: groups 1 and 2 merged.
 Files: `src/store/api.ts`, `src/components/blog/BlogEditor.tsx`, `src/components/editor/RichEditor.tsx` (drop/paste wiring and status slot only), new in `src/components/editor/`: `useImageUploads.ts`, `uploadPlaceholder.ts`, `UploadStatus.tsx`; new `src/lib/blogUploadProgress.ts`; `src/styles/components/rich-editor.css` (upload rules only).
 Depends on: group 3 merged.
 
-- [ ] 4.1 `uploadBlogImage` in `api.ts` becomes a `queryFn` using `XMLHttpRequest` to the same route and body, errors mapped to the same `{status, message}` (0 when unreachable), progress published to `blogUploadProgress.ts` by `uploadId`; the notification listener and SUCCESS table still work. Verify: a moving bar on a throttled connection; a 4xx gives exactly one error snackbar.
-- [ ] 4.2 `useImageUploads` (sequential queue, pre-checks per design D5 with "<file name>: <reason>", `ensureSaved` before the first file, insertion at the mapped position), `uploadPlaceholder.ts`, `UploadStatus.tsx` (`aria-live`), `handleDrop` (`posAtCoords`) and `handlePaste` for image files only in `RichEditor.tsx`, the picker made `multiple` in the blog host. Verify: scenarios "Drop two images", "Paste an image", "Rejected file", a never-saved post, typing while an upload runs.
-- [ ] 4.3 `npm run check`, `npm run check:blog`, `npm run build` pass.
+- [ ] 4.1 `uploadBlogImage` in `api.ts` becomes a `queryFn` using `XMLHttpRequest` to the same route and body, errors mapped to the same `{status, message}` (0 when unreachable), progress published to `blogUploadProgress.ts` by `uploadId`; the notification listener and SUCCESS table still work. Verify: a moving bar on a throttled connection; a 4xx gives exactly one error snackbar. (code merged; browser check pending)
+- [ ] 4.2 `useImageUploads` (sequential queue, pre-checks per design D5 with "<file name>: <reason>", `ensureSaved` before the first file, insertion at the mapped position), `uploadPlaceholder.ts`, `UploadStatus.tsx` (`aria-live`), `handleDrop` (`posAtCoords`) and `handlePaste` for image files only in `RichEditor.tsx`, the picker made `multiple` in the blog host. Verify: scenarios "Drop two images", "Paste an image", "Rejected file", a never-saved post, typing while an upload runs. (code merged; browser check pending)
+- [x] 4.3 `npm run check`, `npm run check:blog`, `npm run build` pass.
 
 ## 5. Image controls and editing (owner: builder-5)
 
