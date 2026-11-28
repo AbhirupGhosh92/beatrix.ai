@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, ReactNode } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
@@ -28,7 +28,9 @@ import {
   List,
   ListChecks,
   ListOrdered,
+  Maximize2,
   Merge,
+  Minimize2,
   Minus,
   MinusSquare,
   Palette,
@@ -54,6 +56,9 @@ interface Props {
   maxImageUrlLength: number
   onPickImage: () => void
   onError: (message: string) => void
+  /** The card is in full screen mode. */
+  fullscreen: boolean
+  onToggleFullscreen: () => void
 }
 
 /** The one panel row that can be open under the toolbar. */
@@ -65,12 +70,12 @@ const ICON = 18
 
 /**
  * The fixed editor toolbar: one persistent, sticky `role="toolbar"` with every control visible, in groups
- * (history, block type, text styles, color, lists, alignment, blocks, insert, table). The color, highlight, link
+ * (history, block type, text styles, color, lists, alignment, blocks, insert, table, view). The color, highlight, link
  * and image-by-URL forms open as one panel row under the toolbar. Roving tabindex: one Tab stop, the arrow keys
  * (and Home/End) move through the controls in DOM order, Escape returns to the text. The editor's Alt+F10
  * handler focuses the current stop (`[data-editor-toolbar] [tabindex="0"]`).
  */
-export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickImage, onError }: Props) {
+export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickImage, onError, fullscreen, onToggleFullscreen }: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const stopRef = useRef('undo')
   const [panel, setPanel] = useState<Panel>(null)
@@ -155,6 +160,18 @@ export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickI
   }
   useLayoutEffect(applyStop)
 
+  // With focus outside the toolbar (the text), Escape still closes an open panel before anything else uses the key.
+  useEffect(() => {
+    if (!panel) return
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
+      setPanel(null)
+      editor.commands.focus()
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [panel, editor])
+
   const closePanel = () => {
     setPanel(null)
     editor.commands.focus()
@@ -179,9 +196,12 @@ export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickI
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Escape') return
-    event.preventDefault()
-    event.stopPropagation()
-    setPanel(null)
+    // An open panel closes and keeps the key; with none open the key bubbles (it may leave full screen).
+    if (panel) {
+      event.preventDefault()
+      event.stopPropagation()
+      setPanel(null)
+    }
     editor.commands.focus()
   }
 
@@ -370,6 +390,21 @@ export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickI
             {tableAction('split', 'Split cell', Split, !s.canSplit, () => run().splitCell().run())}
             {tableAction('del-table', 'Delete table', Trash2, !s.canDeleteTable, () => run().deleteTable().run())}
           </>,
+        )}
+        {group(
+          'View',
+          <button
+            type="button"
+            className="editor-tool"
+            data-tool-id="fullscreen"
+            aria-label="Full screen"
+            title={fullscreen ? 'Exit full screen (Esc)' : 'Full screen (Esc to exit)'}
+            aria-pressed={fullscreen}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onToggleFullscreen}
+          >
+            {fullscreen ? <Minimize2 size={ICON} aria-hidden="true" /> : <Maximize2 size={ICON} aria-hidden="true" />}
+          </button>,
         )}
       </div>
       {panel && (

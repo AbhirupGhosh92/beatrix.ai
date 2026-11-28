@@ -32,6 +32,13 @@
   @apply h-9 min-h-0 w-auto max-w-full;
 }
 
+/* The View group (full screen button) sits at the right end where there is room. */
+@media (min-width: 640px) {
+  .editor-toolbar-rows > .editor-toolbar-group:last-child {
+    margin-inline-start: auto;
+  }
+}
+
 /* Between groups inside the fixed toolbar: a divider after each group, so a wrapped row ends cleanly. */
 .editor-toolbar-rows > .editor-toolbar-group {
   @apply flex-wrap pr-1;
@@ -528,4 +535,52 @@
 .upload-status-error {
   @apply rounded-box border border-error px-3 py-2;
   color: var(--color-error);
+}
+
+/* Full screen: a mode of the same card (same element, so the editor view and its history survive). It relies on no
+   ancestor creating a containing block for fixed elements (transform, filter, will-change, contain). */
+.rich-editor--full {
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* above the sticky page header (30), below the snackbars (60) */
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  max-width: none;
+  height: 100dvh;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.rich-editor--full .editor-toolbar {
+  position: static;
+  flex: none;
+  max-height: 45dvh;
+  overflow-y: auto;
+  border-radius: 0;
+}
+
+.rich-editor--full .rich-editor-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline: clamp(1rem, 5vw, 3rem);
+}
+
+.rich-editor--full .upload-status {
+  flex: none;
+}
+
+.rich-editor--full .editor-hint {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rich-editor--full,
+  .rich-editor--full * {
+    animation: none;
+    transition: none;
+  }
 }
