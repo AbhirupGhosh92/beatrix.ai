@@ -232,10 +232,58 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
     }
   })
 
+  // Full screen is a CSS mode of this same card (no portal, no remount), so the view, selection and undo history survive.
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    if (!full) return
+    // The page behind does not scroll; the previous inline value comes back on exit, unmount and Strict Mode re-runs.
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => {
+      root.style.overflow = previous
+    }
+  }, [full])
+  useEffect(() => {
+    if (!full) return
+    // Escape leaves full screen unless a toolbar panel or the image dialog already used it.
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('dialog[open]')) return
+      setFull(false)
+      editor?.commands.focus()
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [full, editor])
+
   if (!editor) return <p className="text-muted">Loading the editor...</p>
+
+  // While full, Tab wraps between the first and last focusable element of the card.
+  const wrapTab = (event: KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not(:disabled):not([tabindex="-1"]), select:not(:disabled):not([tabindex="-1"]), input:not(:disabled):not([tabindex="-1"]), [tabindex="0"], [contenteditable="true"]',
+      ),
+    )
+    if (items.length === 0) return
+    const first = items[0]
+    const last = items[items.length - 1]
+    const active = document.activeElement
+    if (event.shiftKey && active === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   // Alt+F10 moves focus to the image toolbar (an image is selected) or the toolbar's current control.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (full && event.key === 'Tab') {
+      wrapTab(event)
+      return
+    }
     if (!(event.altKey && event.key === 'F10')) return
     const root = event.currentTarget
     const target = editor.isActive('image')
@@ -247,13 +295,19 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
   }
 
   return (
-    <div className="rich-editor" onKeyDown={onKeyDown}>
+    <div
+      className={full ? 'rich-editor rich-editor--full' : 'rich-editor'}
+      onKeyDown={onKeyDown}
+      {...(full ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Full screen editor' } : {})}
+    >
       <EditorToolbar
         editor={editor}
         busy={busy}
         maxImageUrlLength={host.images.limits.maxUrlLength}
         onPickImage={requestUpload}
         onError={host.onError}
+        fullscreen={full}
+        onToggleFullscreen={() => setFull((value) => !value)}
       />
       <EditorContent editor={editor} className="rich-editor-content" />
       <ImageToolbar editor={editor} images={host.images} edits={editedFrom} onError={host.onError} />
