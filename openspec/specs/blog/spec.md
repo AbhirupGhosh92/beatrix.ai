@@ -224,26 +224,19 @@ The image control in the editor SHALL always be usable. When the post has never 
 - **THEN** the author sees a message and the post content is unchanged
 
 ### Requirement: Distraction-free editor canvas
-The post editor SHALL present a large title field and a serif body on a calm canvas. Formatting controls SHALL appear in a floating toolbar when text is selected, offering bold, italic, link, heading, block quote, list and alignment. Every format and limit the editor supported before SHALL remain available and enforced.
+The post editor SHALL present a large title field above the editor card described by the fixed toolbar requirement. Every format and limit the editor supported before SHALL remain available and enforced.
 
 #### Scenario: Floating toolbar on selection
 - **WHEN** an author selects text in the editor
-- **THEN** a toolbar appears next to the selection with the formatting controls, and applying one formats the selected text
+- **THEN** the fixed toolbar shows the formats of the selection as active, and applying one formats the selected text
 
 #### Scenario: Keyboard and touch
 - **WHEN** an author uses only the keyboard, or a touch screen
-- **THEN** the floating toolbar can be opened and used
+- **THEN** the toolbar can be reached and used
 
 #### Scenario: Existing content and limits
 - **WHEN** an author opens a post written before this change
 - **THEN** it opens without loss, and character and image limits are still enforced
-
-### Requirement: Insert menu
-On an empty line the editor SHALL offer a "+" menu to insert an image, a horizontal rule, a list or a block quote, usable by keyboard and by touch.
-
-#### Scenario: Insert menu on an empty line
-- **WHEN** an author places the cursor on an empty line
-- **THEN** a "+" control appears that opens the insert menu, and choosing an item inserts it at that line
 
 ### Requirement: Reading layout
 The public post page SHALL show the post in a narrow centered reading column in a serif body face, with a large title, the author name, publish date and an estimated read time, the tags, and image captions where an image has alt text. The reader theme and compact/stretch options SHALL keep working, and the layout SHALL fit widths from 320px upward in the light and dark themes.
@@ -298,7 +291,7 @@ Every engagement write SHALL be validated and rate-limited on the server, and no
 - **THEN** it contains no email address and no field beyond counts, comment text, display name and dates
 
 ### Requirement: Text style options in the editor
-The editor's floating toolbar SHALL offer underline, strikethrough, inline code and clear formatting in addition to its existing controls, and SHALL show each style as active while the selection has it. A code block SHALL be offered from the floating toolbar and from the insert menu. These controls SHALL be usable by keyboard and by touch, SHALL use only formats the post document already stores, and SHALL NOT change how earlier posts open or render.
+The editor's toolbar SHALL offer underline, strikethrough, inline code and clear formatting and SHALL show each style as active while the selection has it. A code block SHALL be offered from the toolbar. These controls SHALL be usable by keyboard and by touch, SHALL use only formats the post document already stores, and SHALL NOT change how earlier posts open or render.
 
 #### Scenario: Apply a style to a selection
 - **WHEN** an author selects text and chooses strikethrough, underline or inline code
@@ -309,12 +302,12 @@ The editor's floating toolbar SHALL offer underline, strikethrough, inline code 
 - **THEN** the text styles (bold, italic, underline, strikethrough, code, link) are removed from the selection and the text stays
 
 #### Scenario: Code block
-- **WHEN** an author chooses code block from the floating toolbar on a paragraph, or from the insert menu on an empty line
+- **WHEN** an author chooses code block from the toolbar on a paragraph
 - **THEN** that block becomes a code block that saves and renders as one
 
 #### Scenario: Keyboard and touch
 - **WHEN** an author uses only the keyboard, or a touch screen
-- **THEN** every new control can be reached and used, and the toolbar stays on screen at 375px wide
+- **THEN** every control can be reached and used, and the toolbar stays on screen at 375px wide
 
 #### Scenario: Earlier posts
 - **WHEN** an author opens a post written before this change
@@ -414,3 +407,36 @@ A selected image SHALL offer a size (small, medium, full width), an alignment (l
 #### Scenario: Alt text and caption differ
 - **WHEN** an author sets alt text and a different caption
 - **THEN** the image keeps the alt text as its description and shows the caption beneath it
+
+### Requirement: Fixed editor toolbar
+The post editor SHALL present the body as an editor card with one toolbar above the text that is always visible while editing and stays in view when the page scrolls. On narrow screens the toolbar SHALL wrap onto several rows instead of causing horizontal page scroll.
+
+#### Scenario: Toolbar always visible
+- **WHEN** an author opens a post in the editor without selecting anything
+- **THEN** the toolbar is shown above the text with its controls, and it stays visible while the author scrolls a long post
+
+#### Scenario: Narrow screen
+- **WHEN** the editor is used at 375px wide
+- **THEN** every toolbar control is reachable and the page does not scroll sideways
+
+### Requirement: Toolbar text controls
+The toolbar SHALL offer undo, redo, bold, italic, underline, strikethrough, inline code, clear formatting, highlight, text color, subscript, superscript, link and alignment. Each control SHALL show when it is active, be disabled when it does not apply, have an accessible name, and work by keyboard and touch.
+
+#### Scenario: Apply a format
+- **WHEN** an author selects text and presses bold or chooses a color
+- **THEN** the text is formatted, the control shows as active, and reopening the saved post shows the same format
+
+### Requirement: Toolbar block and insert controls
+The toolbar SHALL offer paragraph and heading 1 to 3, bulleted, numbered and task lists with their list styles, block quote, code block, horizontal rule, image (upload or URL) and a table with its row, column, merge, split and delete commands, with the same active, disabled, accessible-name, keyboard and touch behavior as the text controls.
+
+#### Scenario: Insert a block
+- **WHEN** an author chooses a heading, a list or a table from the toolbar
+- **THEN** the block is inserted or applied at the cursor and reopening the saved post shows it
+
+#### Scenario: Table commands
+- **WHEN** the cursor is outside a table
+- **THEN** the table row, column, merge and split controls are disabled, and inside a table they are enabled
+
+#### Scenario: Keyboard
+- **WHEN** an author uses only the keyboard
+- **THEN** focus can enter the toolbar, move between its controls and return to the text
