@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Full-screen editor
-The editor toolbar SHALL include a full-screen button that expands the editor, with its toolbar, to cover the whole viewport, and a way back to the normal view by the same button or the Escape key. While in full screen the toolbar SHALL stay visible, the text area SHALL fill the remaining height and scroll within itself, and the page behind SHALL not scroll. Switching in either direction SHALL keep the text, selection, undo history and unsaved changes. The button SHALL show whether full screen is on, have an accessible name, and work by keyboard and touch. The choice SHALL NOT be stored with the post.
+The editor toolbar SHALL include a full-screen button that expands the editor and its toolbar to cover the whole viewport, and the same button or Escape SHALL return to the normal view. The button SHALL show its state, have an accessible name, and work by keyboard and touch. The choice SHALL NOT be stored with the post, and switching SHALL keep the text, selection, undo history and unsaved changes.
 
 #### Scenario: Enter full screen
 - **WHEN** an author presses the full-screen button
@@ -13,7 +13,7 @@ The editor toolbar SHALL include a full-screen button that expands the editor, w
 
 #### Scenario: Long post in full screen
 - **WHEN** a long post is open in full screen and the author scrolls
-- **THEN** the text scrolls inside the editor while the toolbar stays on top, and the page behind does not move
+- **THEN** the toolbar stays visible, the text area fills the remaining height and scrolls inside itself, and the page behind does not move
 
 #### Scenario: Narrow screen
 - **WHEN** full screen is used at 375px wide
