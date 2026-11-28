@@ -274,13 +274,12 @@ src/
 │   ├── editor/
 │   │   ├── blogImageExtension.ts
 │   │   ├── blogTextExtensions.ts
-│   │   ├── EditorActionBar.tsx
-│   │   ├── FloatingToolbar.tsx
+│   │   ├── EditorToolbar.tsx
 │   │   ├── ImageEditor.tsx
 │   │   ├── ImageToolbar.tsx
 │   │   ├── imageTransform.ts
-│   │   ├── InsertMenu.tsx
 │   │   ├── RichEditor.tsx
+│   │   ├── ToolbarParts.tsx
 │   │   ├── types.ts
 │   │   ├── uploadPlaceholder.ts
 │   │   ├── UploadStatus.tsx
