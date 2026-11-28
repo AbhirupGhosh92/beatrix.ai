@@ -246,9 +246,10 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
   }, [full])
   useEffect(() => {
     if (!full) return
-    // Escape leaves full screen unless a toolbar panel or the image dialog already used it.
+    // Escape leaves full screen unless the image dialog or a toolbar panel is open (the toolbar closes the panel first).
+    // `defaultPrevented` is not checked: ProseMirror's own Escape binding (select parent node) always prevents the default.
     const onEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('dialog[open]')) return
+      if (event.key !== 'Escape' || document.querySelector('dialog[open], .editor-toolbar-panel')) return
       setFull(false)
       editor?.commands.focus()
     }

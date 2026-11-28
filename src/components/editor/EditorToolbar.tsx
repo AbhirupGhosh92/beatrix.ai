@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, ReactNode } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
@@ -159,6 +159,18 @@ export default function EditorToolbar({ editor, busy, maxImageUrlLength, onPickI
     for (const el of all) el.tabIndex = el === stop ? 0 : -1
   }
   useLayoutEffect(applyStop)
+
+  // With focus outside the toolbar (the text), Escape still closes an open panel before anything else uses the key.
+  useEffect(() => {
+    if (!panel) return
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
+      setPanel(null)
+      editor.commands.focus()
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [panel, editor])
 
   const closePanel = () => {
     setPanel(null)
