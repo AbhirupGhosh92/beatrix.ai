@@ -1,20 +1,54 @@
-/* The rich-text editor (src/components/editor/): surface, floating toolbar, insert menu and content. Theme tokens only. */
+/* The rich-text editor (src/components/editor/): the editor card, its fixed toolbar and the content. Theme tokens only. */
 .rich-editor {
-  @apply mx-auto w-full;
+  @apply mx-auto w-full rounded-box border border-base-300 bg-base-100;
   max-width: 42rem;
   position: relative;
+  /* The blog page has a sticky top bar (ResumeNav, 65px): the toolbar sticks just below it. */
+  --editor-toolbar-top: 4.1rem;
 }
 
 .editor-hint {
-  @apply mt-4 text-sm;
+  @apply mx-3 mb-3 mt-4 text-sm;
   color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 
-/* The floating toolbar (selection) and the "+" insert menu (empty line). */
-.editor-floating {
-  @apply flex flex-wrap items-center gap-1;
+/* The fixed toolbar: first child of the card, sticky while the page scrolls, opaque so text scrolls under it. */
+.editor-toolbar {
+  @apply rounded-t-box border-b border-base-300 bg-base-100;
+  position: sticky;
+  top: var(--editor-toolbar-top, 0);
+  z-index: 20;
 }
 
+.editor-toolbar-rows {
+  @apply flex flex-wrap items-center gap-x-1 gap-y-1 p-1;
+}
+
+.editor-toolbar-panel {
+  @apply border-t border-base-300 p-2;
+}
+
+.editor-select {
+  @apply h-9 min-h-0 w-auto max-w-full;
+}
+
+/* Between groups inside the fixed toolbar: a divider after each group, so a wrapped row ends cleanly. */
+.editor-toolbar-rows > .editor-toolbar-group {
+  @apply flex-wrap pr-1;
+}
+
+.editor-toolbar-rows > .editor-toolbar-group:not(:last-child) {
+  @apply border-r border-base-300;
+}
+
+/* Phones: the groups dissolve so the buttons fill every row (fewer, fuller rows); the dividers go with them. */
+@media (max-width: 639px) {
+  .editor-toolbar-rows > .editor-toolbar-group {
+    display: contents;
+  }
+}
+
+/* The image toolbar's bubble (ImageToolbar.tsx). */
 .editor-bubble {
   @apply rounded-box border border-base-300 bg-base-100 p-1;
   z-index: 20;
@@ -25,13 +59,13 @@
   @apply flex items-center gap-1;
 }
 
-.editor-toolbar-group + .editor-toolbar-group {
+.editor-bubble .editor-toolbar-group + .editor-toolbar-group {
   @apply border-l border-base-300 pl-1;
 }
 
-/* Square icon buttons, 40px for touch: the global unlayered `button` rule would otherwise size and tint them. */
+/* Square icon buttons, 2.25rem for touch: the global unlayered `button` rule would otherwise size and tint them. */
 .editor-tool {
-  @apply inline-flex h-10 min-h-0 w-10 items-center justify-center rounded p-0;
+  @apply inline-flex h-9 min-h-0 w-9 items-center justify-center rounded p-0;
   background: transparent;
   border: 1px solid transparent;
   box-shadow: none;
@@ -59,30 +93,12 @@
   display: none;
 }
 
-.editor-insert {
-  @apply rounded-box border border-base-300 bg-base-100 p-1;
-  z-index: 20;
-  max-width: calc(100vw - 1rem);
-}
-
-.editor-insert-bar {
-  @apply flex flex-wrap items-center gap-1;
-}
-
-.editor-plus {
-  @apply rounded-full border-base-300;
-}
-
-.editor-insert-items {
-  @apply flex flex-wrap items-center gap-1;
-}
-
 .editor-link-form {
   @apply flex flex-wrap items-center gap-2 p-1;
 }
 
 .rich-editor-content {
-  @apply min-h-64;
+  @apply min-h-64 px-3 pt-3;
 }
 
 .rich-editor-content .ProseMirror {
@@ -341,45 +357,11 @@
   border-color: var(--color-primary);
 }
 
-/* Action bar above the text: undo, redo and (in a table) the table controls. */
-.editor-actionbar {
-  @apply mb-3 flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 p-1;
-}
-
-.editor-table-controls {
-  @apply flex-wrap;
-}
-
-/* Text buttons of the table group; the global unlayered `button` rule would otherwise size and tint them. */
-.editor-action {
-  @apply inline-flex h-9 min-h-0 items-center justify-center rounded px-2 text-sm font-medium;
-  background: transparent;
-  border: 1px solid transparent;
-  box-shadow: none;
-  color: var(--color-base-content);
-}
-
-.editor-action:hover:not(:disabled) {
-  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
-  transform: none;
-  box-shadow: none;
-}
-
-.editor-action:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.editor-action::after {
-  display: none;
-}
-
-.editor-action:disabled,
 .editor-tool:disabled {
   opacity: 0.4;
 }
 
-/* Color and highlight panel shown in the floating toolbar. */
+/* Color and highlight panel: the row under the toolbar. */
 .editor-color-panel {
   @apply flex flex-col gap-2 p-1;
 }
@@ -526,7 +508,7 @@
 }
 
 .upload-status {
-  @apply mt-3 flex flex-col gap-2;
+  @apply mx-3 mt-3 flex flex-col gap-2;
   list-style: none;
   padding: 0;
 }

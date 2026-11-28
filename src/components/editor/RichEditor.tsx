@@ -11,7 +11,7 @@ import { Table, TableRow } from '@tiptap/extension-table'
 import { TaskList } from '@tiptap/extension-list'
 import { Markdown } from '@tiptap/markdown'
 import { ALIGN_VALUES, BULLET_STYLES, ORDERED_STYLES } from '../../lib/blogDoc.ts'
-import EditorActionBar from './EditorActionBar.tsx'
+import EditorToolbar from './EditorToolbar.tsx'
 import { createImage } from './blogImageExtension.ts'
 import {
   BlogSubscript,
@@ -22,9 +22,7 @@ import {
   Highlight,
   TextColor,
 } from './blogTextExtensions.ts'
-import FloatingToolbar from './FloatingToolbar.tsx'
 import ImageToolbar from './ImageToolbar.tsx'
-import InsertMenu from './InsertMenu.tsx'
 import UploadStatus from './UploadStatus.tsx'
 import { UploadPlaceholder } from './uploadPlaceholder.ts'
 import { useImageUploads } from './useImageUploads.ts'
@@ -236,16 +234,13 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
 
   if (!editor) return <p className="text-muted">Loading the editor...</p>
 
-  // Alt+F10 moves focus into the floating toolbar (text selected) or the "+" control (empty line).
+  // Alt+F10 moves focus to the image toolbar (an image is selected) or the toolbar's current control.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!(event.altKey && event.key === 'F10')) return
     const root = event.currentTarget
-    const onImage = editor.isActive('image')
-    const target = onImage
+    const target = editor.isActive('image')
       ? root.querySelector<HTMLElement>('[data-image-toolbar] button:not(:disabled)')
-      : editor.state.selection.empty
-        ? root.querySelector<HTMLElement>('.editor-plus')
-        : root.querySelector<HTMLElement>('[data-floating-toolbar] button:not(:disabled)')
+      : root.querySelector<HTMLElement>('[data-editor-toolbar] [tabindex="0"]')
     if (!target) return
     event.preventDefault()
     target.focus()
@@ -253,17 +248,15 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
 
   return (
     <div className="rich-editor" onKeyDown={onKeyDown}>
-      <EditorActionBar editor={editor} />
-      <EditorContent editor={editor} className="rich-editor-content" />
-      <FloatingToolbar editor={editor} onError={host.onError} />
-      <ImageToolbar editor={editor} images={host.images} edits={editedFrom} onError={host.onError} />
-      <InsertMenu
+      <EditorToolbar
         editor={editor}
         busy={busy}
         maxImageUrlLength={host.images.limits.maxUrlLength}
         onPickImage={requestUpload}
         onError={host.onError}
       />
+      <EditorContent editor={editor} className="rich-editor-content" />
+      <ImageToolbar editor={editor} images={host.images} edits={editedFrom} onError={host.onError} />
       <input
         ref={fileRef}
         type="file"
@@ -279,8 +272,8 @@ export default function RichEditor({ host, busy, onEditor, pickImageRef, clearEd
       />
       <UploadStatus items={uploads.items} onDismiss={uploads.dismiss} />
       <p className="editor-hint">
-        Select text for formatting, or press Enter on a new line and use the plus button. Shortcuts: Ctrl/Cmd+B bold, +I italic, +U underline, +Z undo, Alt+F10
-        to reach the toolbar.
+        The toolbar above has every format; hover a button to see its shortcut. Common ones: Ctrl/Cmd+B bold, +I italic, +U underline, +Z undo. Press Alt+F10
+        to reach the toolbar, then the arrow keys to move and Escape to return to the text.
       </p>
     </div>
   )
