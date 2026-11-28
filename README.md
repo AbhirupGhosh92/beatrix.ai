@@ -267,13 +267,23 @@ src/
 │   │   ├── BookmarksPage.tsx
 │   │   ├── CharCounter.tsx
 │   │   ├── CommentSection.tsx
-│   │   ├── FloatingToolbar.tsx
-│   │   ├── InsertMenu.tsx
 │   │   ├── PostEngagement.tsx
 │   │   ├── ReaderControls.tsx
 │   │   ├── ReaderFrame.tsx
-│   │   ├── RichEditor.tsx
 │   │   └── SavedLink.tsx
+│   ├── editor/
+│   │   ├── blogImageExtension.ts
+│   │   ├── blogTextExtensions.ts
+│   │   ├── EditorToolbar.tsx
+│   │   ├── ImageEditor.tsx
+│   │   ├── ImageToolbar.tsx
+│   │   ├── imageTransform.ts
+│   │   ├── RichEditor.tsx
+│   │   ├── ToolbarParts.tsx
+│   │   ├── types.ts
+│   │   ├── uploadPlaceholder.ts
+│   │   ├── UploadStatus.tsx
+│   │   └── useImageUploads.ts
 │   ├── jobs/
 │   │   ├── ApplicationForm.tsx
 │   │   ├── ApplicationTable.tsx
@@ -352,11 +362,14 @@ src/
 │   ├── access.ts
 │   ├── applicationTypes.ts
 │   ├── applicationView.ts
+│   ├── blogColor.ts
+│   ├── blogColorPresets.ts
 │   ├── blogConfigSanitize.ts
 │   ├── blogDoc.ts
 │   ├── blogMarkdownImport.ts
 │   ├── blogResponses.ts
 │   ├── blogTypes.ts
+│   ├── blogUploadProgress.ts
 │   ├── drawer.ts
 │   ├── firebase.ts
 │   ├── homeConfigSanitize.ts
@@ -420,6 +433,7 @@ src/
     │   ├── landing.css
     │   ├── navigation.css
     │   ├── release-notes.css
+    │   ├── rich-editor.css
     │   ├── skills-tabs.css
     │   ├── snackbar.css
     │   ├── surfaces.css

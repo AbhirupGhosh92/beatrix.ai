@@ -1,0 +1,586 @@
+/* The rich-text editor (src/components/editor/): the editor card, its fixed toolbar and the content. Theme tokens only. */
+.rich-editor {
+  @apply mx-auto w-full rounded-box border border-base-300 bg-base-100;
+  max-width: 42rem;
+  position: relative;
+  /* The blog page has a sticky top bar (ResumeNav, 65px): the toolbar sticks just below it. */
+  --editor-toolbar-top: 4.1rem;
+}
+
+.editor-hint {
+  @apply mx-3 mb-3 mt-4 text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+/* The fixed toolbar: first child of the card, sticky while the page scrolls, opaque so text scrolls under it. */
+.editor-toolbar {
+  @apply rounded-t-box border-b border-base-300 bg-base-100;
+  position: sticky;
+  top: var(--editor-toolbar-top, 0);
+  z-index: 20;
+}
+
+.editor-toolbar-rows {
+  @apply flex flex-wrap items-center gap-x-1 gap-y-1 p-1;
+}
+
+.editor-toolbar-panel {
+  @apply border-t border-base-300 p-2;
+}
+
+.editor-select {
+  @apply h-9 min-h-0 w-auto max-w-full;
+}
+
+/* The View group (full screen button) sits at the right end where there is room. */
+@media (min-width: 640px) {
+  .editor-toolbar-rows > .editor-toolbar-group:last-child {
+    margin-inline-start: auto;
+  }
+}
+
+/* Between groups inside the fixed toolbar: a divider after each group, so a wrapped row ends cleanly. */
+.editor-toolbar-rows > .editor-toolbar-group {
+  @apply flex-wrap pr-1;
+}
+
+.editor-toolbar-rows > .editor-toolbar-group:not(:last-child) {
+  @apply border-r border-base-300;
+}
+
+/* Phones: the groups dissolve so the buttons fill every row (fewer, fuller rows); the dividers go with them. */
+@media (max-width: 639px) {
+  .editor-toolbar-rows > .editor-toolbar-group {
+    display: contents;
+  }
+}
+
+/* The image toolbar's bubble (ImageToolbar.tsx). */
+.editor-bubble {
+  @apply rounded-box border border-base-300 bg-base-100 p-1;
+  z-index: 20;
+  max-width: calc(100vw - 1rem);
+}
+
+.editor-toolbar-group {
+  @apply flex items-center gap-1;
+}
+
+.editor-bubble .editor-toolbar-group + .editor-toolbar-group {
+  @apply border-l border-base-300 pl-1;
+}
+
+/* Square icon buttons, 2.25rem for touch: the global unlayered `button` rule would otherwise size and tint them. */
+.editor-tool {
+  @apply inline-flex h-9 min-h-0 w-9 items-center justify-center rounded p-0;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--color-base-content);
+}
+
+.editor-tool:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.editor-tool:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.editor-tool[aria-pressed="true"] {
+  background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  color: var(--color-primary);
+}
+
+.editor-tool::after {
+  display: none;
+}
+
+.editor-link-form {
+  @apply flex flex-wrap items-center gap-2 p-1;
+}
+
+.rich-editor-content {
+  @apply min-h-64 px-3 pt-3;
+}
+
+.rich-editor-content .ProseMirror {
+  @apply min-h-56 outline-none;
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.rich-editor-content .ProseMirror > * + * {
+  @apply mt-3;
+}
+
+.rich-editor-content .ProseMirror h1 {
+  @apply text-2xl font-semibold;
+}
+
+.rich-editor-content .ProseMirror h2 {
+  @apply text-xl font-semibold;
+}
+
+.rich-editor-content .ProseMirror h3 {
+  @apply text-lg font-semibold;
+}
+
+.rich-editor-content .ProseMirror ul {
+  @apply list-disc pl-6;
+}
+
+.rich-editor-content .ProseMirror ol {
+  @apply list-decimal pl-6;
+}
+
+.rich-editor-content .ProseMirror a {
+  @apply underline;
+  color: var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror blockquote {
+  @apply border-l-4 border-base-300 pl-4 text-base-content/60;
+}
+
+.rich-editor-content .ProseMirror code {
+  @apply rounded bg-base-300/60 px-1 py-0.5 text-sm;
+}
+
+.rich-editor-content .ProseMirror pre {
+  @apply overflow-x-auto rounded-box border border-base-300 bg-base-200 p-3;
+}
+
+.rich-editor-content .ProseMirror pre code {
+  @apply bg-transparent p-0;
+}
+
+.rich-editor-content .ProseMirror hr {
+  @apply border-base-300;
+}
+
+.rich-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+
+.rich-editor-content .ProseMirror img {
+  @apply h-auto max-w-full rounded-box border border-base-300;
+}
+
+.rich-editor-content .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary);
+}
+
+/* An image with a size, alignment or caption is a figure (same class names as the reader). */
+.rich-editor-content .ProseMirror figure {
+  @apply my-4;
+}
+
+.rich-editor-content .ProseMirror figure.ProseMirror-selectednode img {
+  outline: 2px solid var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-small {
+  width: min(100%, 16rem);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-medium {
+  width: min(100%, 28rem);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-size-full {
+  width: 100%;
+}
+
+.rich-editor-content .ProseMirror figure[class*="blog-img-size-"] img {
+  width: 100%;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-left {
+  margin-inline: 0 auto;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-center {
+  margin-inline: auto;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-right {
+  margin-inline: auto 0;
+}
+
+.rich-editor-content .ProseMirror figure figcaption {
+  @apply mt-2 text-center text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-left figcaption {
+  text-align: left;
+}
+
+.rich-editor-content .ProseMirror figure.blog-img-align-right figcaption {
+  text-align: right;
+}
+
+/* Image toolbar (an image is selected). */
+.image-toolbar {
+  @apply flex flex-wrap items-end gap-2;
+  max-width: min(100vw - 1rem, 34rem);
+}
+
+.image-toolbar-choice {
+  @apply inline-flex h-10 min-h-0 items-center justify-center rounded px-2 text-sm;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--color-base-content);
+}
+
+.image-toolbar-choice:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.image-toolbar-choice::after {
+  display: none;
+}
+
+.image-toolbar-choice[aria-pressed="true"] {
+  background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  color: var(--color-primary);
+}
+
+.image-toolbar-fields {
+  @apply flex min-w-0 flex-1 flex-wrap gap-2;
+}
+
+.image-toolbar-field {
+  @apply flex min-w-40 flex-1 flex-col gap-1 text-sm;
+}
+
+/* Image editing dialog: native modal <dialog>, preview with a hand-written crop box. */
+.image-editor {
+  @apply rounded-box border border-base-300 bg-base-100 p-4;
+  color: var(--color-base-content);
+  width: min(100vw - 1.5rem, 44rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+}
+
+.image-editor::backdrop {
+  background: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+
+.image-editor-title {
+  @apply mb-3 text-lg font-semibold;
+}
+
+.image-editor-tools {
+  @apply mb-3 flex items-center gap-1;
+}
+
+.image-editor-view {
+  @apply flex justify-center rounded border border-base-300 bg-base-200 p-2;
+  min-height: 8rem;
+}
+
+.image-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  user-select: none;
+}
+
+.image-stage-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 55dvh;
+  width: auto;
+  height: auto;
+}
+
+.image-crop {
+  position: absolute;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 0 9999px color-mix(in oklab, var(--color-base-content) 45%, transparent);
+  cursor: move;
+  touch-action: none;
+}
+
+.image-crop:focus-visible {
+  outline: 2px solid var(--color-base-100);
+  outline-offset: 2px;
+}
+
+.image-crop-handle {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  touch-action: none;
+}
+
+.image-crop-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0.375rem;
+  background: var(--color-primary);
+  border: 1px solid var(--color-base-100);
+}
+
+.image-crop-handle-nw { left: -0.75rem; top: -0.75rem; cursor: nwse-resize; }
+.image-crop-handle-n { left: calc(50% - 0.75rem); top: -0.75rem; cursor: ns-resize; }
+.image-crop-handle-ne { right: -0.75rem; top: -0.75rem; cursor: nesw-resize; }
+.image-crop-handle-e { right: -0.75rem; top: calc(50% - 0.75rem); cursor: ew-resize; }
+.image-crop-handle-se { right: -0.75rem; bottom: -0.75rem; cursor: nwse-resize; }
+.image-crop-handle-s { left: calc(50% - 0.75rem); bottom: -0.75rem; cursor: ns-resize; }
+.image-crop-handle-sw { left: -0.75rem; bottom: -0.75rem; cursor: nesw-resize; }
+.image-crop-handle-w { left: -0.75rem; top: calc(50% - 0.75rem); cursor: ew-resize; }
+
+.image-editor-error {
+  @apply mt-3 rounded-box border border-error px-3 py-2 text-sm;
+  color: var(--color-error);
+}
+
+.image-editor-actions {
+  @apply mt-4 flex flex-wrap items-center justify-between gap-2;
+}
+
+.image-editor-actions-end {
+  @apply flex gap-2;
+}
+
+.rich-editor-content .ProseMirror hr.ProseMirror-selectednode {
+  border-color: var(--color-primary);
+}
+
+.editor-tool:disabled {
+  opacity: 0.4;
+}
+
+/* Color and highlight panel: the row under the toolbar. */
+.editor-color-panel {
+  @apply flex flex-col gap-2 p-1;
+}
+
+.editor-swatches {
+  @apply flex flex-wrap gap-2;
+}
+
+.editor-swatch {
+  @apply h-8 min-h-0 w-8 rounded-full p-0;
+  border: 2px solid var(--color-base-300);
+  box-shadow: none;
+}
+
+.editor-swatch:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--color-base-content);
+}
+
+.editor-swatch::after {
+  display: none;
+}
+
+.editor-swatch[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.editor-swatch:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.editor-color-custom {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.editor-color-input {
+  @apply h-9 w-12 cursor-pointer rounded border border-base-300 bg-base-100 p-0.5;
+}
+
+/* Marks, matching the reader's .blog-color and .blog-hl (the custom properties are set inline by the marks). */
+.rich-editor-content .ProseMirror .blog-color {
+  color: var(--blog-color);
+}
+
+.rich-editor-content .ProseMirror .blog-hl {
+  background-color: var(--blog-hl);
+  color: var(--blog-hl-ink);
+  border-radius: 0.2em;
+  padding-inline: 0.1em;
+}
+
+.rich-editor-content .ProseMirror sub,
+.rich-editor-content .ProseMirror sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+/* Tables: the same grid look as the reader; a selected cell range is tinted. */
+.rich-editor-content .ProseMirror .tableWrapper {
+  @apply my-3 max-w-full overflow-x-auto;
+}
+
+.rich-editor-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.rich-editor-content .ProseMirror th,
+.rich-editor-content .ProseMirror td {
+  position: relative;
+  border: 1px solid var(--color-base-300);
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+  min-width: 4rem;
+}
+
+.rich-editor-content .ProseMirror th {
+  background-color: var(--color-base-200);
+  font-weight: 700;
+}
+
+.rich-editor-content .ProseMirror td > p,
+.rich-editor-content .ProseMirror th > p {
+  margin: 0;
+}
+
+.rich-editor-content .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
+}
+
+/* Task lists: a checkbox the author can tick, then the item text. */
+.rich-editor-content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > label {
+  flex: none;
+  margin-top: 0.45em;
+  user-select: none;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.rich-editor-content .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  text-decoration: line-through;
+}
+
+/* Image uploads: the placeholder at the insertion point and the queue under the editor. */
+.upload-placeholder {
+  @apply inline-block rounded border border-dashed border-base-300 bg-base-200 px-2 py-1 text-sm;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  user-select: none;
+}
+
+.upload-status {
+  @apply mx-3 mt-3 flex flex-col gap-2;
+  list-style: none;
+  padding: 0;
+}
+
+.upload-status:empty {
+  display: none;
+}
+
+.upload-status-row {
+  @apply flex flex-wrap items-center gap-2 text-sm;
+}
+
+.upload-status-bar {
+  @apply w-40 max-w-full;
+}
+
+.upload-status-error {
+  @apply rounded-box border border-error px-3 py-2;
+  color: var(--color-error);
+}
+
+/* Full screen: a mode of the same card (same element, so the editor view and its history survive). It relies on no
+   ancestor creating a containing block for fixed elements (transform, filter, will-change, contain). */
+.rich-editor--full {
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* above the sticky page header (30), below the snackbars (60) */
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  max-width: none;
+  height: 100dvh;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.rich-editor--full .editor-toolbar {
+  position: static;
+  flex: none;
+  max-height: 45dvh;
+  overflow-y: auto;
+  border-radius: 0;
+}
+
+.rich-editor--full .rich-editor-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline: clamp(1rem, 5vw, 3rem);
+}
+
+.rich-editor--full .upload-status {
+  flex: none;
+}
+
+.rich-editor--full .editor-hint {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rich-editor--full,
+  .rich-editor--full * {
+    animation: none;
+    transition: none;
+  }
+}

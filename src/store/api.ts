@@ -7,6 +7,7 @@ import type { BaseQueryFn } from '@reduxjs/toolkit/query/react'
 import { isRole } from '../lib/access.ts'
 import type { Role } from '../lib/access.ts'
 import { getIdToken } from '../lib/firebase.ts'
+import { clearUploadProgress, setUploadProgress } from '../lib/blogUploadProgress.ts'
 import type { ApplicationDetail, ApplicationInput, ApplicationList, ApplicationSummary, CreatedResume } from '../lib/applicationTypes.ts'
 import type {
   BlogBookmarks,
@@ -158,8 +159,46 @@ export const api = createApi({
       query: (id) => ({ url: `/api/blog/${id}`, method: 'DELETE' }),
       invalidatesTags: ['BlogPosts', 'BlogHeaders'],
     }),
-    uploadBlogImage: build.mutation<BlogImage, { postId: string; name: string; dataBase64: string }>({
-      query: ({ postId, name, dataBase64 }) => ({ url: `/api/blog/${postId}/images`, method: 'POST', body: { name, dataBase64 } }),
+    // An XMLHttpRequest (fetch cannot report upload progress) to the same route with the same body;
+    // loaded/total of the request body go to the client-only progress store, keyed by `uploadId`.
+    uploadBlogImage: build.mutation<BlogImage, { postId: string; name: string; dataBase64: string; uploadId?: string }>({
+      queryFn: ({ postId, name, dataBase64, uploadId }) =>
+        new Promise((resolve) => {
+          const unreachable = { error: { status: 0, message: 'Could not reach the server. Check your connection and try again.' } }
+          const finish = (result: { data: BlogImage } | { error: ApiError }) => {
+            if (uploadId) clearUploadProgress(uploadId)
+            resolve(result)
+          }
+          try {
+            const xhr = new XMLHttpRequest()
+            xhr.open('POST', `/api/blog/${postId}/images`)
+            xhr.setRequestHeader('Content-Type', 'application/json')
+            if (uploadId) {
+              xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) setUploadProgress(uploadId, event.loaded, event.total)
+              }
+            }
+            xhr.onerror = () => finish(unreachable)
+            xhr.onabort = () => finish(unreachable)
+            xhr.ontimeout = () => finish(unreachable)
+            xhr.onload = () => {
+              let data: { error?: string } & Partial<BlogImage> = {}
+              try {
+                data = JSON.parse(xhr.responseText) ?? {}
+              } catch {
+                data = {}
+              }
+              if (xhr.status < 200 || xhr.status >= 300) {
+                finish({ error: { status: xhr.status, message: data.error || `Request failed (${xhr.status}).` } })
+              } else {
+                finish({ data: data as BlogImage })
+              }
+            }
+            xhr.send(JSON.stringify({ name, dataBase64 }))
+          } catch {
+            finish(unreachable)
+          }
+        }),
     }),
     // Blog engagement (any signed-in user): likes, bookmarks and comments on a published post.
     getPostEngagement: build.query<PostEngagement, string>({

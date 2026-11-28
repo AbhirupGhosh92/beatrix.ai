@@ -6,7 +6,7 @@ TBD - created by archiving change personal-blog. Update Purpose after archive.
 ## Requirements
 
 ### Requirement: Blog editor for authors
-A user holding `blog:write` SHALL be able to list, create, edit, publish, unpublish and delete their own posts at `/blog`. A post SHALL have a title, a rich-text body, inline images, tags and a draft or published state. The editor SHALL be a rich-text editor that shows formatting while typing and offers headings, bold, italic, underline, strikethrough, bulleted and numbered lists, block quotes, inline code, code blocks, links, horizontal rules, images and undo/redo, each also available by keyboard shortcut where one is conventional. Posts created before the rich-text editor SHALL open and render without loss.
+A user holding `blog:write` SHALL be able to list, create, edit, publish, unpublish and delete their own posts at `/blog`. A post SHALL have a title, a rich-text body, inline images, tags and a draft or published state. The editor SHALL be a rich-text editor that shows formatting while typing and offers headings, bold, italic, underline, strikethrough, bulleted and numbered lists, task lists, tables, block quotes, inline code, code blocks, links, highlight, text color, subscript, superscript, horizontal rules, images and undo/redo, each also available by keyboard shortcut where one is conventional. Posts created before the rich-text editor SHALL open and render without loss.
 
 #### Scenario: Create and publish
 - **WHEN** an author creates a post with a title and body and publishes it
@@ -224,26 +224,19 @@ The image control in the editor SHALL always be usable. When the post has never 
 - **THEN** the author sees a message and the post content is unchanged
 
 ### Requirement: Distraction-free editor canvas
-The post editor SHALL present a large title field and a serif body on a calm canvas. Formatting controls SHALL appear in a floating toolbar when text is selected, offering bold, italic, link, heading, block quote, list and alignment. Every format and limit the editor supported before SHALL remain available and enforced.
+The post editor SHALL present a large title field above the editor card described by the fixed toolbar requirement. Every format and limit the editor supported before SHALL remain available and enforced.
 
 #### Scenario: Floating toolbar on selection
 - **WHEN** an author selects text in the editor
-- **THEN** a toolbar appears next to the selection with the formatting controls, and applying one formats the selected text
+- **THEN** the fixed toolbar shows the formats of the selection as active, and applying one formats the selected text
 
 #### Scenario: Keyboard and touch
 - **WHEN** an author uses only the keyboard, or a touch screen
-- **THEN** the floating toolbar can be opened and used
+- **THEN** the toolbar can be reached and used
 
 #### Scenario: Existing content and limits
 - **WHEN** an author opens a post written before this change
 - **THEN** it opens without loss, and character and image limits are still enforced
-
-### Requirement: Insert menu
-On an empty line the editor SHALL offer a "+" menu to insert an image, a horizontal rule, a list or a block quote, usable by keyboard and by touch.
-
-#### Scenario: Insert menu on an empty line
-- **WHEN** an author places the cursor on an empty line
-- **THEN** a "+" control appears that opens the insert menu, and choosing an item inserts it at that line
 
 ### Requirement: Reading layout
 The public post page SHALL show the post in a narrow centered reading column in a serif body face, with a large title, the author name, publish date and an estimated read time, the tags, and image captions where an image has alt text. The reader theme and compact/stretch options SHALL keep working, and the layout SHALL fit widths from 320px upward in the light and dark themes.
@@ -298,7 +291,7 @@ Every engagement write SHALL be validated and rate-limited on the server, and no
 - **THEN** it contains no email address and no field beyond counts, comment text, display name and dates
 
 ### Requirement: Text style options in the editor
-The editor's floating toolbar SHALL offer underline, strikethrough, inline code and clear formatting in addition to its existing controls, and SHALL show each style as active while the selection has it. A code block SHALL be offered from the floating toolbar and from the insert menu. These controls SHALL be usable by keyboard and by touch, SHALL use only formats the post document already stores, and SHALL NOT change how earlier posts open or render.
+The editor's toolbar SHALL offer underline, strikethrough, inline code and clear formatting and SHALL show each style as active while the selection has it. A code block SHALL be offered from the toolbar. These controls SHALL be usable by keyboard and by touch, SHALL use only formats the post document already stores, and SHALL NOT change how earlier posts open or render.
 
 #### Scenario: Apply a style to a selection
 - **WHEN** an author selects text and chooses strikethrough, underline or inline code
@@ -309,13 +302,164 @@ The editor's floating toolbar SHALL offer underline, strikethrough, inline code 
 - **THEN** the text styles (bold, italic, underline, strikethrough, code, link) are removed from the selection and the text stays
 
 #### Scenario: Code block
-- **WHEN** an author chooses code block from the floating toolbar on a paragraph, or from the insert menu on an empty line
+- **WHEN** an author chooses code block from the toolbar on a paragraph
 - **THEN** that block becomes a code block that saves and renders as one
 
 #### Scenario: Keyboard and touch
 - **WHEN** an author uses only the keyboard, or a touch screen
-- **THEN** every new control can be reached and used, and the toolbar stays on screen at 375px wide
+- **THEN** every control can be reached and used, and the toolbar stays on screen at 375px wide
 
 #### Scenario: Earlier posts
 - **WHEN** an author opens a post written before this change
 - **THEN** it opens and renders without loss
+
+### Requirement: Tables
+The editor SHALL let an author insert a table (3 by 3 with a header row), add and delete rows and columns, merge selected cells and split a merged cell, and delete the table. Cells SHALL hold plain text. A merged cell SHALL be stored as a column span and row span within a bounded size and rendered identically everywhere. Tables SHALL be stored with the post and rendered identically in the editor, the author's read-only view and the public post page.
+
+#### Scenario: Insert and edit a table
+- **WHEN** an author inserts a table, adds a row, types in cells, saves and reopens the post
+- **THEN** the table, its extra row and the text are shown in the editor and on the public page
+
+#### Scenario: Merge cells
+- **WHEN** an author selects two adjacent cells, merges them, saves and reopens the post
+- **THEN** the merged cell spans both columns in the editor and on the public page, and splitting it restores two cells
+
+#### Scenario: Post without tables
+- **WHEN** a post saved before this change is opened
+- **THEN** it renders exactly as before
+
+### Requirement: Task lists
+The editor SHALL offer a task list whose items can be checked and unchecked while editing. The checked state SHALL be stored and shown read-only in the author's view and on the public page.
+
+#### Scenario: Check an item
+- **WHEN** an author checks one item of a task list, saves and reopens the post
+- **THEN** that item is still checked, and the public page shows it checked without letting a reader change it
+
+### Requirement: Subscript and superscript
+The editor SHALL let an author mark text as subscript or superscript, shown in the editor, the author's view and the public page.
+
+#### Scenario: Superscript
+- **WHEN** an author makes a word superscript, saves and reopens the post
+- **THEN** the word is still superscript in the editor and on the public page
+
+### Requirement: Highlight and text color
+The editor SHALL let an author highlight text or change its color from a preset palette or a free color choice, with a way to remove either. A stored color SHALL be exactly `#rrggbb`, any other value SHALL be refused on save, and a stored color SHALL never reach the page as free CSS text.
+
+#### Scenario: Apply a preset color
+- **WHEN** an author colors a word from the preset palette, saves and reopens the post
+- **THEN** the word keeps that color in the editor and on the public page
+
+#### Scenario: Apply a free color
+- **WHEN** an author picks a custom color for a word, saves and reopens the post
+- **THEN** the word keeps exactly that color in the editor and on the public page
+
+#### Scenario: Invalid color value
+- **WHEN** a save request contains a color or highlight value that is not a six-digit hexadecimal color
+- **THEN** the save is refused with a message naming the attribute and value
+
+### Requirement: Undo and redo controls
+The editor SHALL offer undo and redo buttons that are disabled when there is nothing to undo or redo, in addition to the keyboard shortcuts.
+
+#### Scenario: Undo a change
+- **WHEN** an author types text and presses the undo button
+- **THEN** the text is removed and the redo button becomes enabled
+
+### Requirement: Image drop, paste and multi-upload
+The editor SHALL upload images dropped onto it, pasted from the clipboard, or chosen in the picker (several files at once), through the existing secure upload path and insert each at the drop or cursor position. Each upload SHALL show progress, and a failure (type, size, per-post limit, network) SHALL show a clear message without losing the post text. Existing type, size and count limits SHALL still apply, and a never-saved post SHALL first be saved as a draft as it is today.
+
+#### Scenario: Drop two images
+- **WHEN** an author drops two valid images onto the editor
+- **THEN** both upload with visible progress and appear at the drop position
+
+#### Scenario: Paste an image
+- **WHEN** an author pastes an image from the clipboard
+- **THEN** it uploads and appears at the cursor
+
+#### Scenario: Rejected file
+- **WHEN** an author drops a file that is not an allowed image type or exceeds the size limit
+- **THEN** a message names the file and the reason, nothing is inserted and the text is intact
+
+### Requirement: Image editing
+A selected image SHALL offer editing in the editor: crop to a rectangle, rotate by 90 degrees, flip horizontally and vertically, and reset to the original. Applying an edit SHALL produce a new image through the existing secure upload path (same type, size and count limits) and replace the image in the post; the original SHALL stay available through Reset until the post is saved, and a failed edit SHALL leave the image unchanged.
+
+#### Scenario: Crop an image
+- **WHEN** an author crops an uploaded image and applies the edit
+- **THEN** the post shows the cropped image in the editor and, after saving, on the public page
+
+#### Scenario: Edit fails
+- **WHEN** applying an edit fails (limit, network or unsupported image)
+- **THEN** a message explains why and the image is unchanged
+
+### Requirement: Reusable editor
+The rich-text editor SHALL be a host-independent component, so that other documentation surfaces can use the same editor with their own storage and image endpoints, without a copy of its code. The blog SHALL be its first host with no change in behavior beyond this change.
+
+#### Scenario: Blog uses the shared editor
+- **WHEN** an author writes a post
+- **THEN** the blog uses the shared editor component and all existing blog scenarios still pass
+
+### Requirement: Image size, alignment, alt text and caption
+A selected image SHALL offer a size (small, medium, full width), an alignment (left, center, right), editable alt text and an optional caption separate from the alt text. Values SHALL be whitelisted identifiers stored with the image and rendered in the editor, the author's view and the public page; a value outside the whitelist SHALL be refused on save. An image with none of these set SHALL render as before.
+
+#### Scenario: Resize and align
+- **WHEN** an author sets an image to small and right-aligned, saves and reopens the post
+- **THEN** the image is small and right-aligned in the editor and on the public page
+
+#### Scenario: Alt text and caption differ
+- **WHEN** an author sets alt text and a different caption
+- **THEN** the image keeps the alt text as its description and shows the caption beneath it
+
+### Requirement: Fixed editor toolbar
+The post editor SHALL present the body as an editor card with one toolbar above the text that is always visible while editing and stays in view when the page scrolls. On narrow screens the toolbar SHALL wrap onto several rows instead of causing horizontal page scroll.
+
+#### Scenario: Toolbar always visible
+- **WHEN** an author opens a post in the editor without selecting anything
+- **THEN** the toolbar is shown above the text with its controls, and it stays visible while the author scrolls a long post
+
+#### Scenario: Narrow screen
+- **WHEN** the editor is used at 375px wide
+- **THEN** every toolbar control is reachable and the page does not scroll sideways
+
+### Requirement: Toolbar text controls
+The toolbar SHALL offer undo, redo, bold, italic, underline, strikethrough, inline code, clear formatting, highlight, text color, subscript, superscript, link and alignment. Each control SHALL show when it is active, be disabled when it does not apply, have an accessible name, and work by keyboard and touch.
+
+#### Scenario: Apply a format
+- **WHEN** an author selects text and presses bold or chooses a color
+- **THEN** the text is formatted, the control shows as active, and reopening the saved post shows the same format
+
+### Requirement: Toolbar block and insert controls
+The toolbar SHALL offer paragraph and heading 1 to 3, bulleted, numbered and task lists with their list styles, block quote, code block, horizontal rule, image (upload or URL) and a table with its row, column, merge, split and delete commands, with the same active, disabled, accessible-name, keyboard and touch behavior as the text controls.
+
+#### Scenario: Insert a block
+- **WHEN** an author chooses a heading, a list or a table from the toolbar
+- **THEN** the block is inserted or applied at the cursor and reopening the saved post shows it
+
+#### Scenario: Table commands
+- **WHEN** the cursor is outside a table
+- **THEN** the table row, column, merge and split controls are disabled, and inside a table they are enabled
+
+#### Scenario: Keyboard
+- **WHEN** an author uses only the keyboard
+- **THEN** focus can enter the toolbar, move between its controls and return to the text
+
+### Requirement: Full-screen editor
+The editor toolbar SHALL include a full-screen button that expands the editor and its toolbar to cover the whole viewport, and the same button or Escape SHALL return to the normal view. The button SHALL show its state, have an accessible name, and work by keyboard and touch. The choice SHALL NOT be stored with the post, and switching SHALL keep the text, selection, undo history and unsaved changes.
+
+#### Scenario: Enter full screen
+- **WHEN** an author presses the full-screen button
+- **THEN** the editor and its toolbar cover the whole screen, the text keeps its cursor and content, and the button shows as on
+
+#### Scenario: Leave full screen
+- **WHEN** an author presses the button again or presses Escape while no toolbar panel is open
+- **THEN** the editor returns to its normal place in the page with the same text and cursor
+
+#### Scenario: Long post in full screen
+- **WHEN** a long post is open in full screen and the author scrolls
+- **THEN** the toolbar stays visible, the text area fills the remaining height and scrolls inside itself, and the page behind does not move
+
+#### Scenario: Narrow screen
+- **WHEN** full screen is used at 375px wide
+- **THEN** the toolbar and text area fit the screen without horizontal scroll
+
+#### Scenario: Unsaved text survives
+- **WHEN** an author types text, enters full screen, leaves it and saves
+- **THEN** the typed text is saved and nothing about full screen is stored in the post
